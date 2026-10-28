@@ -10,6 +10,19 @@ export function resolveAuditTitle(brandName) {
   return name || '360全景展示';
 }
 
+/**
+ * 由开放平台「授权账号信息」判定渠道类型与账号类型（纯函数，便于单测）。
+ * - authorizer_info.MiniProgramInfo 存在 => 小程序（channel_type='mini'）
+ * - 否则按 service_type_info.id 判定：0/1=订阅号，2/3=服务号（channel_type='mp'）
+ * 公众号菜单/群发/客服消息等接口仅认证服务号可用（订阅号返回 48001）。
+ */
+export function classifyAuthorizer(info = {}) {
+  if (info.MiniProgramInfo) return { channelType: 'mini', accountType: '' };
+  const sid = info.service_type_info?.id;
+  const accountType = (sid === 0 || sid === 1) ? 'subscription' : 'service';
+  return { channelType: 'mp', accountType };
+}
+
 export class WxComponentService {
   constructor(db) {
     this.db = db;
@@ -209,6 +222,22 @@ export class WxComponentService {
       .run(data.authorizer_access_token, data.authorizer_refresh_token, expiresAt, channelAppId);
 
     return data.authorizer_access_token;
+  }
+
+  // —— 获取授权账号信息（判定公众号/小程序、服务号/订阅号）——
+  // 用于授权回调时区分回写 channel_type（mini / mp）与 account_type（service / subscription）。
+  async getAuthorizerInfo(authorizerAppid) {
+    if (!authorizerAppid) throw new Error('缺少 authorizer_appid');
+    const token = await this.getComponentAccessToken();
+    const cfg = this.getConfig();
+    const res = await fetch(`https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_info?component_access_token=${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ component_appid: cfg.component_appid, authorizer_appid: authorizerAppid }),
+    });
+    const data = await res.json();
+    if (data.errcode) throw new Error(`获取授权账号信息失败: ${data.errmsg}`);
+    return data.authorizer_info;
   }
 
   // —— 获取模板列表 ——

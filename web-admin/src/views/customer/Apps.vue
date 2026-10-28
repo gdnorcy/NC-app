@@ -229,6 +229,7 @@ function enterApp(app) {
 
 function enterChannel(ch) {
   if (ch.type === 'mini') router.push('/apps/channel/mini');
+  else if (ch.type === 'mp') router.push('/apps/wechat');
   else router.push(`/apps/channel/config?type=${ch.type}`);
 }
 

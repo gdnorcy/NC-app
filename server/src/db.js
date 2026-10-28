@@ -966,6 +966,10 @@ function migrate(db) {
   `);
   db.exec('CREATE INDEX IF NOT EXISTS idx_channel_apps_customer ON channel_apps(customer_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_channel_apps_appid ON channel_apps(appid)');
+  // 公众号账号类型：service=服务号 / subscription=订阅号（小程序为空）。开放平台授权回写；手动对接探测回写。
+  if (!colExists(db, 'channel_apps', 'account_type')) {
+    db.exec("ALTER TABLE channel_apps ADD COLUMN account_type TEXT NOT NULL DEFAULT ''");
+  }
 
   // —— 全端渠道：租户渠道拖拽排序（customer_id + channel_type 唯一） ——
   db.exec(`
@@ -995,6 +999,23 @@ function migrate(db) {
     );
   `);
   db.exec('CREATE INDEX IF NOT EXISTS idx_deploy_logs_channel ON channel_deploy_logs(channel_app_id)');
+
+  // —— 全端渠道：微信公众号自定义菜单（本地草稿 + 同步态）——
+  // 一个公众号（channel_apps_id）只有一套菜单；订阅号无自定义菜单权限时仍可本地存草稿但不可发布。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mp_menu (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_apps_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      menu_json TEXT NOT NULL DEFAULT '{}',
+      synced_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(channel_apps_id)
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_menu_customer ON mp_menu(customer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_menu_channel ON mp_menu(channel_apps_id)');
 
   // ============================================================
   // 智能名片解决方案（card）

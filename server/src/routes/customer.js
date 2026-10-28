@@ -7,6 +7,7 @@ import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
+import { WxMpService } from '../services/wx-mp.js';
 import { ciUploadMini } from '../services/mini-ci.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
 import { checkTenantQuota, checkTenantSolutionQuota } from '../services/billing.js';
@@ -2272,6 +2273,142 @@ router.get('/card/trends', requireTenant, (req, res) => {
     db.prepare('DELETE FROM tenant_members WHERE id = ?').run(member.id);
     addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'member_delete', targetType: 'member', targetId: member.id, detail: `移除成员: ${member.name}`, ip: req.ip });
     res.json({ ok: true });
+  });
+
+  // ================= 微信公众号（手动对接 / 开放平台授权 / 自定义菜单） =================
+  const wxComponent = new WxComponentService(db);
+  const wxMp = new WxMpService(db, wxComponent);
+
+  // 接入状态：是否绑定、绑定方式、账号类型、菜单是否已存草稿/可编辑
+  router.get('/mp/status', requireTenant, (req, res) => {
+    const ch = wxMp.getChannel(req.customerId);
+    if (!ch) return res.json({ bound: false, canMenu: false, accountType: '' });
+    const accountType = ch.account_type || '';
+    const bindMode = ch.auth_status === 'authorized' ? 'open' : (ch.app_secret ? 'manual' : 'none');
+    const canMenu = accountType === 'service';
+    const saved = db.prepare('SELECT menu_json, synced_at FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
+    res.json({
+      bound: true,
+      bindMode,
+      appid: ch.appid,
+      accountType,
+      authStatus: ch.auth_status,
+      canMenu,
+      menuSaved: !!saved,
+      syncedAt: saved?.synced_at || null,
+    });
+  });
+
+  // 手动绑定（AppID + AppSecret）：校验凭据后探测账号类型并落库（加密存储 AppSecret）
+  router.post('/mp/bind', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const { appid, appSecret, accountType } = req.body || {};
+      if (!appid || !appSecret) return res.status(400).json({ error: '请填写 AppID 与 AppSecret' });
+      const encrypted = encryptSecret(appSecret);
+      // 用临时对象校验凭据 + 探测账号类型（不落库）
+      const temp = { id: null, appid, app_secret: encrypted, auth_status: 'none' };
+      await wxMp.resolveToken(temp); // 凭据错误在此抛出（400）
+      let detected = accountType === 'subscription' ? 'subscription' : 'service';
+      try { detected = await wxMp.detectAccountType(temp); } catch (e) { /* 探测失败保留声明值 */ }
+
+      const existing = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp'").get(req.customerId);
+      if (existing) {
+        db.prepare(`UPDATE channel_apps SET appid = ?, app_secret = ?, auth_status = 'none',
+          authorizer_access_token = '', authorizer_refresh_token = '', token_expires_at = NULL,
+          account_type = ?, updated_at = datetime('now') WHERE id = ?`)
+          .run(appid, encrypted, detected, existing.id);
+      } else {
+        db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, appid, app_secret, auth_status, account_type)
+          VALUES (?, 'mp', ?, ?, 'none', ?)`)
+          .run(req.customerId, appid, encrypted, detected);
+      }
+      auditCust(db, req, 'mp_bind', 'channel', req.customerId, `手动绑定公众号(${detected})`);
+      res.json({ success: true, accountType: detected });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // 解绑：清除凭据与授权态（保留 row，便于重新授权幂等），并清掉本地菜单草稿
+  router.post('/mp/unbind', requireTenant, requireTenantAdmin, (req, res) => {
+    const ch = wxMp.getChannel(req.customerId);
+    if (!ch) return res.json({ success: true });
+    db.prepare('DELETE FROM mp_menu WHERE channel_apps_id = ?').run(ch.id);
+    db.prepare(`UPDATE channel_apps SET appid = '', app_secret = '', auth_status = 'none',
+      authorizer_access_token = '', authorizer_refresh_token = '', token_expires_at = NULL,
+      account_type = '', updated_at = datetime('now') WHERE id = ?`)
+      .run(ch.id);
+    auditCust(db, req, 'mp_unbind', 'channel', req.customerId, '解绑公众号');
+    res.json({ success: true });
+  });
+
+  // 开放平台授权链接（auth_type=1 仅公众号）
+  router.get('/mp/auth-url', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const callbackUrl = `${req.protocol}://${req.get('host')}/api/channel/auth-callback?customer_id=${req.customerId}`;
+      const authUrl = await wxComponent.getAuthUrl(callbackUrl, 1);
+      res.json({ authUrl });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // 读取菜单：本地草稿 + 线上菜单（仅服务号拉取线上）
+  router.get('/mp/menu', requireTenant, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      const accountType = ch.account_type || '';
+      const canMenu = accountType === 'service';
+      const saved = db.prepare('SELECT menu_json, synced_at FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
+      let live = null;
+      if (canMenu) {
+        try { live = await wxMp.getMenu(ch); } catch (e) { live = { error: e.message }; }
+      }
+      res.json({
+        canMenu,
+        accountType,
+        saved: saved ? JSON.parse(saved.menu_json) : null,
+        syncedAt: saved?.synced_at || null,
+        live,
+      });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // 保存菜单草稿（仅落库，不发布）
+  router.post('/mp/menu/save', requireTenant, requireTenantAdmin, (req, res) => {
+    const ch = wxMp.getChannel(req.customerId);
+    if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+    const menu = req.body?.menu;
+    if (!menu || !Array.isArray(menu.button)) return res.status(400).json({ error: '菜单格式不正确（需含 button 数组）' });
+    const json = JSON.stringify(menu);
+    const existing = db.prepare('SELECT id FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
+    if (existing) {
+      db.prepare('UPDATE mp_menu SET menu_json = ?, updated_at = datetime(\'now\') WHERE channel_apps_id = ?').run(json, ch.id);
+    } else {
+      db.prepare('INSERT INTO mp_menu (channel_apps_id, customer_id, menu_json) VALUES (?, ?, ?)').run(ch.id, req.customerId, json);
+    }
+    res.json({ success: true });
+  });
+
+  // 发布菜单到微信（仅认证服务号）
+  router.post('/mp/menu/push', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持发布自定义菜单' });
+      const saved = db.prepare('SELECT menu_json FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
+      if (!saved) return res.status(400).json({ error: '请先保存菜单草稿' });
+      const menu = JSON.parse(saved.menu_json);
+      await wxMp.createMenu(ch, menu);
+      const syncedAt = new Date().toISOString();
+      db.prepare('UPDATE mp_menu SET synced_at = ?, updated_at = datetime(\'now\') WHERE channel_apps_id = ?').run(syncedAt, ch.id);
+      res.json({ success: true, syncedAt });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
   });
 
   return router;
