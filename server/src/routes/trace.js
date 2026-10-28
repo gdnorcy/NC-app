@@ -902,25 +902,10 @@ export function createTraceAdminRouter(db) {
     return res.json({ list });
   });
 
-  // 防伪码库存充值（原 chong）
-  router.post('/recharge', (req, res) => {
-    const amount = Number(req.body.amount || 0);
-    if (amount <= 0) return sendError(res, 400, '充值数量必须大于 0');
-
-    // 🔴 库存存在 trace_settings.cocom **独立列**（traceGenerate.deductCocom 也是读这一列），
-    //    原实现读 settings.cocom（settings_json 里的键，恒 undefined）→ current 恒 0
-    //    → 每次充值都覆盖成 amount 而非累加，充值多次只剩最后一次的量。
-    const { row } = getSettings(db, req.traceTenantId);
-    const current = Number(row?.cocom ?? 0);
-    const next = current === -888 ? -888 : current + amount;
-
-    db.prepare(`INSERT INTO trace_settings (tenant_id, cocom, updated_at) VALUES (?, ?, datetime('now'))
-      ON CONFLICT(tenant_id) DO UPDATE SET cocom = ?, updated_at = datetime('now')`)
-      .run(req.traceTenantId, next, next);
-
-    addHistory(db, req.traceTenantId, 1, 'recharge', req, `充值防伪码库存：+${amount}，当前 ${next === -888 ? '不限' : next}`);
-    return res.json({ ok: true, cocom: next });
-  });
+  // 🔴 防伪码库存充值入口已整体收归平台侧（总后台 → 防伪溯源 → 库存与充值台账）。
+  //    租户侧不提供充值：曾经过 requireTenant 即可调用（普通成员也能给自己加额、无上限、无凭证、无平台审计），
+  //    计量口径必须由平台侧发放记录驱动，否则库存数量没有可信来源。
+  //    这里改为**只读余量**，租户看到不足时联系平台。
 
   // 商品关联配置（溯源页「查看商品」跳哪儿）。开关值落在 settings.isint，随 PUT /settings 保存。
   // 🔴 只列本平台真实存在的来源：外部第三方商城的商品表在我们库里根本没有，

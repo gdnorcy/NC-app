@@ -120,21 +120,78 @@ export function createTracePlatformRouter(db) {
     return res.json({ list: rows.map((r) => ({ ...r, cocom: Number(r.cocom) })) });
   });
 
-  // #471 调整某租户库存（写台账）
+  // 🔴 库存读写共用的原子操作（都在事务里读改写，避免并发充值互相覆盖）。
+  //    cocom 语义：-888 = 不限；>=0 = 具体余量。其余负数一律非法（会被 deductCocom 判成「库存不足」，
+  //    与「不限」混淆，是历史遗留的脏取值，必须从入口挡住）。
+  function cocomOf(tenantId) {
+    const row = db.prepare('SELECT cocom FROM trace_settings WHERE tenant_id = ?').get(tenantId);
+    return row ? Number(row.cocom) : 0;
+  }
+  function tenantExists(tenantId) {
+    // 🔴 必须校验租户真实存在：否则拿任意 id 就能凭空建出一行 trace_settings 脏数据
+    return !!db.prepare("SELECT id FROM projects WHERE id = ? AND status != 'trashed'").get(tenantId);
+  }
+  /**
+   * 事务内「读当前 → 计算 → 写库存 + 写台账」。
+   * @param compute (cur) => ({ next, delta }) 或 null 表示拒绝（走 ROLLBACK，不留痕迹）
+   */
+  function applyCocom(tenantId, compute, req, note) {
+    db.exec('BEGIN');
+    try {
+      const cur = cocomOf(tenantId);
+      const r = compute(cur);
+      if (!r) { db.exec('ROLLBACK'); return null; }
+      db.prepare(`INSERT INTO trace_settings (tenant_id, settings_json, luck_json, cocom, updated_at)
+        VALUES (?, '{}', '{}', ?, datetime('now'))
+        ON CONFLICT(tenant_id) DO UPDATE SET cocom = ?, updated_at = datetime('now')`)
+        .run(tenantId, r.next, r.next);
+      db.prepare(`INSERT INTO trace_cocom_recharges (tenant_id, delta, balance_after, operator, note, created_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))`)
+        .run(tenantId, r.delta, r.next, String(req.user?.username || req.user?.id || ''), String(note || ''));
+      db.exec('COMMIT');
+      return r.next;
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch { /* 已回滚则忽略 */ }
+      throw e;
+    }
+  }
+
+  // #471 充值（累加）—— 防伪码库存的唯一出口，租户侧不再有充值入口
+  router.post('/cocom/tenants/:id/recharge', (req, res) => {
+    const tenantId = Number(req.params.id);
+    const amount = Number(req.body?.amount);
+    if (!Number.isInteger(tenantId) || tenantId <= 0) return sendError(res, 400, '租户 ID 无效');
+    if (!Number.isInteger(amount) || amount <= 0) return sendError(res, 400, '充值数量必须为正整数');
+    if (amount > 9999999) return sendError(res, 400, '单次充值数量过大');
+    if (!tenantExists(tenantId)) return sendError(res, 400, '租户不存在');
+
+    try {
+      // 🔴 无限库存下充值毫无意义（生成时不扣减），且会把「不限」悄悄覆盖成有限值 → 直接拒绝并说清怎么做
+      const next = applyCocom(tenantId, (cur) => (cur === -888 ? null : { next: cur + amount, delta: amount }), req, req.body?.note || '平台充值');
+      if (next === null) return sendError(res, 400, '该租户当前为「不限」库存，无需充值；如需改为限量，请先用「调整」设定目标值');
+      return res.json({ ok: true, cocom: next });
+    } catch (e) {
+      return sendError(res, 400, e.message || '充值失败');
+    }
+  });
+
+  // #471 调整某租户库存（直接设为目标值 / 设为不限，写台账）
   router.put('/cocom/tenants/:id', (req, res) => {
     const tenantId = Number(req.params.id);
     const target = Number(req.body?.cocom);
-    if (!Number.isFinite(target)) return sendError(res, 400, '库存值无效');
-    const curRow = db.prepare('SELECT COALESCE(cocom,0) AS c FROM trace_settings WHERE tenant_id = ?').get(tenantId);
-    const cur = Number(curRow?.c ?? 0);
-    // 确保租户 trace_settings 行存在（沿用 getSettings 的插入形态）
-    db.prepare(`INSERT INTO trace_settings (tenant_id, settings_json, luck_json, cocom, updated_at)
-      VALUES (?, '{}', '{}', ?, datetime('now')) ON CONFLICT(tenant_id) DO UPDATE SET cocom = ?, updated_at = datetime('now')`)
-      .run(tenantId, target, target);
-    db.prepare(`INSERT INTO trace_cocom_recharges (tenant_id, delta, balance_after, operator, note, created_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))`)
-      .run(tenantId, target - cur, target, String(req.user?.username || req.user?.id || ''), String(req.body?.note || '平台调整'));
-    return res.json({ ok: true, cocom: target });
+    if (!Number.isInteger(tenantId) || tenantId <= 0) return sendError(res, 400, '租户 ID 无效');
+    if (!Number.isInteger(target)) return sendError(res, 400, '库存值无效');
+    // 🔴 合法取值只有两种：-888（不限）与 >=0 的余量。其他负数会造成「看起来有库存却生成不了」的脏状态
+    if (target !== -888 && target < 0) return sendError(res, 400, '库存值无效：只能填 >=0 的余量，或 -888 表示不限');
+    if (target > 99999999) return sendError(res, 400, '库存值过大');
+    if (!tenantExists(tenantId)) return sendError(res, 400, '租户不存在');
+
+    try {
+      const next = applyCocom(tenantId, (cur) => ({ next: target, delta: target - cur }), req, req.body?.note || '平台调整');
+      return res.json({ ok: true, cocom: next });
+    } catch (e) {
+      return sendError(res, 400, e.message || '调整失败');
+    }
   });
 
   // #471 充值台账
