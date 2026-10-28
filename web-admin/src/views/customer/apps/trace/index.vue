@@ -664,7 +664,7 @@ import SIcon from '../../../../components/SIcon.vue';
 const tabs = [
   { key: 'batches', label: '批次管理', icon: 'box' },
   { key: 'codes', label: '防伪码记录', icon: 'list' },
-  { key: 'settings', label: '防伪设置', icon: 'setting' },
+  { key: 'settings', label: '防伪设置', icon: 'settings' },
   { key: 'stats', label: '数据统计', icon: 'chart' },
   { key: 'histories', label: '查询历史', icon: 'clock' },
   { key: 'wrong', label: '错误码', icon: 'warning' },
@@ -685,7 +685,7 @@ function switchTab(key) {
 // 补回我们独有的「码制配置」），对齐 P0-1。
 const settingTabs = [
   { key: 'rule', label: '码制配置', icon: 'lock' },
-  { key: 'func', label: '功能设置', icon: 'setting' },
+  { key: 'func', label: '功能设置', icon: 'settings' },
   { key: 'reply', label: '回复设置', icon: 'chat' },
   { key: 'company', label: '企业设置', icon: 'shop' },
   { key: 'quick', label: '快捷设置', icon: 'flash' },

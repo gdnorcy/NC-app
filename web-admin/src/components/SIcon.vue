@@ -30,7 +30,13 @@ const svgModules = import.meta.glob('../assets/icons/svg/*.svg', { eager: true, 
 const svgContent = computed(() => {
   const key = `../assets/icons/svg/${props.name}.svg`;
   const raw = svgModules[key];
-  if (!raw) return '';
+  if (!raw) {
+    // 🔴 缺素材时静默渲染成空白 SVG（后台表现为"图标消失"），开发期必须显式报警
+    if (import.meta.env.DEV) {
+      console.warn(`[SIcon] 缺少图标素材：src/assets/icons/svg/${props.name}.svg —— 该图标将显示为空白`);
+    }
+    return '';
+  }
   // 提取svg内部内容（去掉外层<svg>标签）
   const match = raw.match(/<svg[^>]*>([\s\S]*)<\/svg>/);
   return match ? match[1] : '';
