@@ -88,25 +88,62 @@
         description="在公众号后台「设置与开发 → 基本配置 → 服务器配置」填写下方回调 URL 与 Token，并启用。启用后粉丝消息/事件将由本系统接收并按自动回复规则被动应答。" />
       <el-card class="conn-card" shadow="never">
         <template #header><span class="conn-title">服务器配置</span></template>
-        <el-form label-width="120px" class="bind-form">
-          <el-form-item label="回调 URL">
-            <el-input :model-value="callbackUrl" readonly>
-              <template #append><el-button link type="primary" @click="copyText(callbackUrl)">复制</el-button></template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="Token" required>
-            <el-input v-model="msgCfg.token" placeholder="与公众号后台填写的 Token 一致" />
-          </el-form-item>
-          <el-form-item label="EncodingAESKey">
-            <el-input v-model="msgCfg.aesKey" placeholder="安全/兼容模式填写（明文模式可留空）" />
-          </el-form-item>
-          <el-form-item label="启用消息接收">
-            <el-switch v-model="msgCfg.urlEnabled" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="msgCfgSaving" @click="saveMsgCfg">保存配置</el-button>
-          </el-form-item>
-        </el-form>
+        <div class="mpinfo">
+          <div class="mi-row">
+            <div class="mi-label">URL<span class="mi-sub">（服务器地址）</span></div>
+            <div class="mi-value"><span class="mi-text">{{ callbackUrl || '—' }}</span></div>
+            <div class="mi-ops"><el-link type="primary" :underline="false" @click="copyText(callbackUrl)">点击复制</el-link></div>
+          </div>
+
+          <div class="mi-row">
+            <div class="mi-label">Token<span class="mi-sub">（令牌）</span></div>
+            <div class="mi-value">
+              <el-input v-if="editing === 'token'" v-model="msgCfg.token" size="small" class="mi-input" maxlength="32" placeholder="英文或数字，3-32 位" />
+              <span v-else class="mi-text" :class="{ 'mi-empty': !msgCfg.token }">{{ msgCfg.token || '未设置' }}</span>
+            </div>
+            <div class="mi-ops">
+              <template v-if="editing === 'token'">
+                <el-link type="primary" :underline="false" @click="stopEdit()">完成</el-link>
+                <el-link :underline="false" @click="cancelEdit()">取消</el-link>
+              </template>
+              <template v-else>
+                <el-link type="primary" :underline="false" @click="startEdit('token')">修改</el-link>
+                <el-link type="primary" :underline="false" @click="regen('token')">生成新的</el-link>
+                <el-link type="primary" :underline="false" @click="copyText(msgCfg.token)">点击复制</el-link>
+              </template>
+            </div>
+          </div>
+
+          <div class="mi-row">
+            <div class="mi-label">EncodingAESKey<span class="mi-sub">（消息加密密钥）</span></div>
+            <div class="mi-value">
+              <el-input v-if="editing === 'aesKey'" v-model="msgCfg.aesKey" size="small" class="mi-input" maxlength="43" placeholder="安全/兼容模式必填，明文模式可留空" />
+              <span v-else class="mi-text" :class="{ 'mi-empty': !msgCfg.aesKey }">{{ msgCfg.aesKey || '未设置（明文模式）' }}</span>
+            </div>
+            <div class="mi-ops">
+              <template v-if="editing === 'aesKey'">
+                <el-link type="primary" :underline="false" @click="stopEdit()">完成</el-link>
+                <el-link :underline="false" @click="cancelEdit()">取消</el-link>
+              </template>
+              <template v-else>
+                <el-link type="primary" :underline="false" @click="startEdit('aesKey')">修改</el-link>
+                <el-link type="primary" :underline="false" @click="regen('aesKey')">生成新的</el-link>
+                <el-link type="primary" :underline="false" @click="copyText(msgCfg.aesKey)">点击复制</el-link>
+              </template>
+            </div>
+          </div>
+
+          <div class="mi-row">
+            <div class="mi-label">启用消息接收<span class="mi-sub">（关闭后粉丝消息不再回调本系统）</span></div>
+            <div class="mi-value"><el-switch v-model="msgCfg.urlEnabled" @change="msgCfgDirty = true" /></div>
+            <div class="mi-ops"></div>
+          </div>
+        </div>
+        <div class="mpinfo-foot">
+          <el-button type="primary" :loading="msgCfgSaving" @click="saveMsgCfg">保存配置</el-button>
+          <span v-if="msgCfgDirty" class="mi-dirty">有修改尚未保存</span>
+          <span v-else class="mi-hint">改完密钥后，需同步到公众号后台「基本配置 → 服务器配置」才会生效</span>
+        </div>
       </el-card>
     </GatedTab>
 
@@ -587,6 +624,7 @@ import {
   mpStatsUsers, mpStatsArticles,
 } from '../../api/index.js';
 import GatedTab from './GatedTab.vue';
+import { genMpToken, genMpEncodingAESKey, isValidMpToken, isValidMpAesKey } from '../../utils/mpSecrets.js';
 
 const activeTab = ref('connect');
 const loading = ref(false);
@@ -612,6 +650,10 @@ const liveMenu = ref(null);
 const msgCfg = reactive({ token: '', aesKey: '', urlEnabled: false });
 const callbackUrl = ref('');
 const msgCfgSaving = ref(false);
+// 服务器配置的行内编辑态：null=展示态，'token'/'aesKey'=正在编辑该行
+const editing = ref(null);
+const editBackup = ref('');
+const msgCfgDirty = ref(false);
 
 // 自动回复
 const replyRules = ref([]);
@@ -1055,16 +1097,47 @@ async function loadMsgCfg() {
     msgCfg.aesKey = r.config.encodingAESKey || '';
     msgCfg.urlEnabled = !!r.config.urlEnabled;
     callbackUrl.value = r.callbackUrl || '';
+    editing.value = null;
+    msgCfgDirty.value = false;
   } catch (e) {
     ElMessage.error(e || '读取消息配置失败');
   }
 }
+// —— 行内编辑（对齐第三方平台：值是展示态，靠「修改 / 生成新的 / 点击复制」操作）——
+function startEdit(field) {
+  editing.value = field;
+  editBackup.value = msgCfg[field] || '';
+  msgCfgDirty.value = true;
+}
+function stopEdit() {
+  editing.value = null;
+  msgCfgDirty.value = true;
+}
+function cancelEdit() {
+  if (editing.value) msgCfg[editing.value] = editBackup.value;
+  editing.value = null;
+  msgCfgDirty.value = true;
+}
+// 「生成新的」只落到本地编辑态，不直接写库：密钥一旦变而公众号后台没同步，
+// 微信侧验签会立刻失败、粉丝消息静默中断，所以必须让用户显式点「保存配置」再自己去后台同步。
+function regen(field) {
+  const val = field === 'token' ? genMpToken() : genMpEncodingAESKey();
+  msgCfg[field] = val;
+  editing.value = null;
+  msgCfgDirty.value = true;
+  ElMessage.success(field === 'token' ? '已生成新的 Token，请保存后同步到公众号后台' : '已生成新的 EncodingAESKey，请保存后同步到公众号后台');
+}
 async function saveMsgCfg() {
-  if (!msgCfg.token) return ElMessage.warning('请填写 Token');
+  // 生成的值一定合法，手写的才需要拦：位数/字符集不对时微信侧握手会失败且报错很含糊
+  if (!msgCfg.token) return ElMessage.warning('请填写或生成 Token');
+  if (!isValidMpToken(msgCfg.token)) return ElMessage.warning('Token 必须为英文或数字，长度 3-32 位');
+  if (!isValidMpAesKey(msgCfg.aesKey)) return ElMessage.warning('EncodingAESKey 必须为 43 位字母数字（明文模式可留空）');
+  if (editing.value) editing.value = null;
   msgCfgSaving.value = true;
   try {
     const r = await mpSaveMessageConfig({ msgToken: msgCfg.token, encodingAESKey: msgCfg.aesKey, urlEnabled: msgCfg.urlEnabled });
     callbackUrl.value = r.callbackUrl || callbackUrl.value;
+    msgCfgDirty.value = false;
     ElMessage.success('已保存');
   } catch (e) {
     ElMessage.error(e || '保存失败');
@@ -1350,6 +1423,21 @@ onMounted(async () => {
 .conn-wrap { max-width: 960px; }
 .conn-card { margin-top: 16px; }
 .conn-title { font-weight: 600; }
+/* 服务器配置：行式展示 + 行尾操作（对齐第三方平台「公众号信息」的呈现） */
+.mpinfo { border-top: 1px solid #f2f3f5; }
+.mi-row { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid #f2f3f5; }
+.mi-row:last-child { border-bottom: none; }
+.mi-label { flex: 0 0 220px; font-size: 14px; color: #1d2129; }
+.mi-sub { color: #86909c; }
+.mi-value { flex: 1; min-width: 0; }
+.mi-input { max-width: 420px; }
+.mi-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #4e5969; word-break: break-all; }
+.mi-text.mi-empty { color: #c9cdd4; font-family: inherit; }
+.mi-ops { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; }
+.mi-ops .el-link { font-size: 13px; }
+.mpinfo-foot { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.mi-dirty { font-size: 13px; color: #e6a23c; }
+.mi-hint { font-size: 13px; color: #86909c; }
 .conn-desc { color: #4e5969; margin: 0 0 12px; font-size: 13px; }
 .conn-hint { color: #86909c; font-size: 12px; margin: 8px 0 0; }
 .bind-form { margin-top: 8px; max-width: 520px; }
