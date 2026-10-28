@@ -8,6 +8,7 @@ import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
 import { WxMpService } from '../services/wx-mp.js';
+import { toWechatMenu, normalizeSavedMenu, MENU_NAME_LIMIT } from '../services/mp-menu.js';
 import { ciUploadMini } from '../services/mini-ci.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
 import { checkTenantQuota, checkTenantSolutionQuota } from '../services/billing.js';
@@ -2388,9 +2389,12 @@ router.get('/card/trends', requireTenant, (req, res) => {
       res.json({
         canMenu,
         accountType,
-        saved: saved ? JSON.parse(saved.menu_json) : null,
+        // 统一归一化为 UI 语义格式下发：历史草稿（微信格式）与新草稿（UI 语义）前端拿到的东西一致
+        saved: saved ? { button: normalizeSavedMenu(JSON.parse(saved.menu_json)) } : null,
         syncedAt: saved?.synced_at || null,
         live,
+        // 名称长度阈值由服务端单一事实来源下发，避免前后端各写一份口径漂移
+        limits: MENU_NAME_LIMIT,
       });
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -2398,12 +2402,17 @@ router.get('/card/trends', requireTenant, (req, res) => {
   });
 
   // 保存菜单草稿（仅落库，不发布）
+  // 草稿统一存「UI 语义格式」（type=send/view/miniprogram/shop/goods/home），
+  // 发布时才由 mp-menu.js 转成微信认识的真实 type —— 这样"跳转小店"这类
+  // 网页版专有选项不会因为微信只回传 miniprogram 而丢失语义。
   router.post('/mp/menu/save', requireTenant, requireTenantAdmin, (req, res) => {
     const ch = wxMp.getChannel(req.customerId);
     if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
     const menu = req.body?.menu;
     if (!menu || !Array.isArray(menu.button)) return res.status(400).json({ error: '菜单格式不正确（需含 button 数组）' });
-    const json = JSON.stringify(menu);
+    // 归一化：历史微信格式草稿 → UI 语义格式，避免同一份草稿出现两种结构
+    const normalized = { button: normalizeSavedMenu(menu) };
+    const json = JSON.stringify(normalized);
     const existing = db.prepare('SELECT id FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
     if (existing) {
       db.prepare('UPDATE mp_menu SET menu_json = ?, updated_at = datetime(\'now\') WHERE channel_apps_id = ?').run(json, ch.id);
@@ -2421,7 +2430,9 @@ router.get('/card/trends', requireTenant, (req, res) => {
       if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持发布自定义菜单' });
       const saved = db.prepare('SELECT menu_json FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
       if (!saved) return res.status(400).json({ error: '请先保存菜单草稿' });
-      const menu = JSON.parse(saved.menu_json);
+      const draft = JSON.parse(saved.menu_json);
+      // UI 语义 → 微信真实 type；校验不过在此拦下，不去打微信接口
+      const menu = toWechatMenu(draft);
       await wxMp.createMenu(ch, menu);
       const syncedAt = new Date().toISOString();
       db.prepare('UPDATE mp_menu SET synced_at = ?, updated_at = datetime(\'now\') WHERE channel_apps_id = ?').run(syncedAt, ch.id);

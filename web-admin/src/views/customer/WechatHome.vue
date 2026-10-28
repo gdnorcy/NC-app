@@ -217,29 +217,20 @@
         description="图片/图文素材来自微信侧，可上传图片、新增图文，或一键从微信拉取已存在素材做本地镜像。群发需选用图文素材。" />
       <el-radio-group v-model="materialType" @change="loadMaterial" class="material-type">
         <el-radio label="image">图片</el-radio>
+        <el-radio label="voice">音频</el-radio>
+        <el-radio label="video">视频</el-radio>
         <el-radio label="news">图文</el-radio>
       </el-radio-group>
       <div class="menu-toolbar">
         <div class="menu-ops">
           <el-button :loading="materialSyncing" @click="syncMaterial">从微信拉取</el-button>
           <el-button v-if="materialType === 'image'" type="primary" @click="pickImage">上传图片</el-button>
-          <el-button v-else type="primary" @click="openNewsDialog">新增图文</el-button>
+          <el-button v-else-if="materialType === 'news'" type="primary" @click="openNewsDialog">新增图文</el-button>
           <input ref="fileInput" type="file" accept="image/*" hidden @change="onImagePicked" />
         </div>
       </div>
 
-      <el-table v-if="materialType === 'image'" :data="materialItems" border stripe v-loading="materialLoading">
-        <el-table-column label="预览" width="90">
-          <template #default="{ row }"><img v-if="row.url" :src="row.url" class="mat-thumb" /></template>
-        </el-table-column>
-        <el-table-column prop="title" label="名称" />
-        <el-table-column prop="media_id" label="media_id" min-width="200" />
-        <el-table-column label="微信创建时间" width="170">
-          <template #default="{ row }">{{ row.wx_created_at ? new Date(row.wx_created_at * 1000).toLocaleString() : '-' }}</template>
-        </el-table-column>
-      </el-table>
-
-      <el-table v-else :data="materialItems" border stripe v-loading="materialLoading">
+      <el-table v-if="materialType === 'news'" :data="materialItems" border stripe v-loading="materialLoading">
         <el-table-column prop="title" label="标题" />
         <el-table-column label="图文内容" min-width="240">
           <template #default="{ row }">
@@ -247,6 +238,17 @@
           </template>
         </el-table-column>
         <el-table-column prop="media_id" label="media_id" min-width="200" />
+      </el-table>
+
+      <el-table v-else :data="materialItems" border stripe v-loading="materialLoading">
+        <el-table-column label="预览" width="90">
+          <template #default="{ row }"><img v-if="row.url" :src="row.url" class="mat-thumb" /><span v-else class="news-item">-</span></template>
+        </el-table-column>
+        <el-table-column prop="title" label="名称" />
+        <el-table-column prop="media_id" label="media_id" min-width="200" />
+        <el-table-column label="微信创建时间" width="170">
+          <template #default="{ row }">{{ row.wx_created_at ? new Date(row.wx_created_at * 1000).toLocaleString() : '-' }}</template>
+        </el-table-column>
       </el-table>
 
       <el-dialog v-model="newsDialogVisible" title="新增图文素材" width="640px">
@@ -415,21 +417,42 @@
             <div class="wp-status"><span>1:21</span><span class="wp-signal">▮▮▮ ▪</span></div>
             <div class="wp-top"><span class="wp-back">‹</span><span class="wp-user">👤</span></div>
             <div class="wp-screen">
-              <div v-if="currentTop && currentTop.hasSub" class="wp-subpop">
-                <div v-for="(s, i) in currentTop.sub" :key="i" class="wp-subitem" :class="{ active: selectedSub === i }" @click="selectedSub = i">{{ s.name || '子菜单' + (i + 1) }}</div>
-                <div v-if="currentTop.sub.length < 5" class="wp-subadd" @click="addSubMenu(currentTop)">+ 添加</div>
+              <!-- 官方版式：选中一级菜单后，子菜单以浮层形式从底部升起；
+                   当前子菜单在浮层内直接改名，「＋ 添加」就地新增 —— 无需先勾选「设为含子菜单」 -->
+              <div v-if="currentTop" class="wp-subpop-wrap">
+                <div class="wp-subpop">
+                  <div
+                    v-for="(s, i) in currentTop.sub"
+                    :key="i"
+                    class="wp-subitem"
+                    :class="{ active: selectedSub === i }"
+                    @click="selectedSub = i"
+                  >
+                    <input
+                      v-if="selectedSub === i"
+                      ref="subNameInput"
+                      v-model="s.name"
+                      class="wp-subinput"
+                      placeholder="子菜单名称"
+                      @click.stop
+                      @keydown.enter.prevent="selectedSub = i < currentTop.sub.length - 1 ? i + 1 : null"
+                    />
+                    <span v-else>{{ s.name || '子菜单名称' }}</span>
+                  </div>
+                  <div v-if="currentTop.sub.length < 5" class="wp-subadd" @click="addSubMenu(currentTop)">＋ 添加</div>
+                </div>
+                <!-- 官方版式：删除是独立的圆形按钮 -->
+                <span class="wp-del" title="删除当前菜单" @click="delSelected">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>
+                </span>
               </div>
             </div>
             <div class="wp-foot">
               <span class="wp-emoji">☺</span>
               <div class="wp-tabs">
                 <div v-for="(b, i) in buttons" :key="i" class="wp-tab" :class="{ active: selectedTop === i }" @click="selectTop(i)">{{ b.name || '菜单' + (i + 1) }}</div>
-                <div v-if="buttons.length < 3" class="wp-tab wp-tab-add" @click="addTopMenu">+</div>
+                <div v-if="buttons.length < 3" class="wp-tab wp-tab-add" @click="addTopMenu">＋</div>
               </div>
-            </div>
-            <div v-if="selectedTop != null" class="wp-float">
-              <span v-if="selectedSub != null" class="wf-btn" @click="selectedSub = null">↑</span>
-              <span class="wf-btn" @click="delSelected">🗑</span>
             </div>
           </div>
         </div>
@@ -441,54 +464,93 @@
             <template v-if="currentMenu">
               <el-form label-width="72px" class="wxm-form">
                 <el-form-item label="名称">
-                  <el-input v-model="currentMenu.name" maxlength="8" show-word-limit class="wxm-input" :placeholder="selectedSub != null ? '子菜单名称' : '菜单名称'" />
-                  <div class="wxm-tip">仅支持中英文和数字，字数不超过8个汉字或16个字母。</div>
+                  <el-input v-model="currentMenu.name" maxlength="16" show-word-limit class="wxm-input" :placeholder="selectedSub != null ? '子菜单名称' : '菜单名称'" />
+                  <div class="wxm-tip">
+                    仅支持中英文和数字。{{ selectedSub != null ? '二级菜单不超过 8 个汉字或 16 个字母' : '一级菜单不超过 4 个汉字或 8 个字母' }}。
+                  </div>
                 </el-form-item>
 
                 <el-form-item label="消息类型">
                   <el-radio-group v-model="currentMenu.type" class="wxm-radios">
-                    <el-radio label="click" :disabled="isParent">发送消息</el-radio>
+                    <el-radio label="send" :disabled="isParent">发送消息</el-radio>
                     <el-radio label="view" :disabled="isParent">跳转网页</el-radio>
                     <el-radio label="miniprogram" :disabled="isParent">跳转小程序</el-radio>
-                    <el-radio label="shop" disabled>跳转小店</el-radio>
-                    <el-radio label="goods" disabled>跳转商品</el-radio>
-                    <el-radio label="home" disabled>跳转账号主页</el-radio>
+                    <el-radio label="shop" :disabled="isParent">跳转小店</el-radio>
+                    <el-radio label="goods" :disabled="isParent">跳转商品</el-radio>
+                    <el-radio label="home" :disabled="isParent">跳转账号主页</el-radio>
                   </el-radio-group>
+                  <div v-if="typeNote" class="wxm-tip">{{ typeNote }}</div>
                 </el-form-item>
 
-                <el-form-item v-if="!isParent && currentMenu.type === 'click'" label="菜单内容">
+                <!-- 发送消息：菜单内容（对齐官方：图标 chip 横排，可选项为微信 API 真正支持的类型） -->
+                <el-form-item v-if="!isParent && currentMenu.type === 'send'" label="菜单内容">
                   <div class="wxm-chips">
-                    <span class="wxchip is-on" title="暂不支持直接编辑内容"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>已发表内容</span>
-                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M12 6v13M9 19h6"/></svg>文字</span>
-                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M4 17l4.5-4.5 3 3L15 12l5 5"/></svg>图片</span>
-                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>音频</span>
-                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="11" height="12" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>视频号动态</span>
-                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>视频</span>
-                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12"/></svg>卡券</span>
+                    <span
+                      class="wxchip"
+                      :class="{ 'is-on': currentMenu.contentType === 'text' }"
+                      title="点击后微信推送该事件 Key，由自动回复规则响应"
+                      @click="currentMenu.contentType = 'text'"
+                    ><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M12 6v13M9 19h6"/></svg>文字</span>
+                    <span
+                      class="wxchip"
+                      :class="{ 'is-on': currentMenu.contentType === 'image' }"
+                      title="下发图片素材（media_id）"
+                      @click="currentMenu.contentType = 'image'"
+                    ><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M4 17l4.5-4.5 3 3L15 12l5 5"/></svg>图片</span>
+                    <span
+                      class="wxchip"
+                      :class="{ 'is-on': currentMenu.contentType === 'voice' }"
+                      title="下发音频素材（media_id）"
+                      @click="currentMenu.contentType = 'voice'"
+                    ><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>音频</span>
+                    <span
+                      class="wxchip"
+                      :class="{ 'is-on': currentMenu.contentType === 'video' }"
+                      title="下发视频素材（media_id）"
+                      @click="currentMenu.contentType = 'video'"
+                    ><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>视频</span>
+                    <span class="wxchip is-off" title="微信菜单接口不支持「已发表内容」类型，暂不可用">
+                      <svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>已发表内容</span>
+                    <span class="wxchip is-off" title="微信菜单接口不支持「视频号动态」类型，暂不可用">
+                      <svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="11" height="12" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>视频号动态</span>
+                    <span class="wxchip is-off" title="微信菜单接口不支持「卡券」类型，暂不可用">
+                      <svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12"/></svg>卡券</span>
                   </div>
-                  <div class="wxm-tip">本版本以「事件 Key」触发自动回复，富媒体内容请到「自动回复」中配置。</div>
+                  <div class="wxm-tip">文字以「事件 Key」推送给开发者；图片 / 音频 / 视频直接下发永久素材。灰色项微信菜单接口不支持。</div>
+                </el-form-item>
+
+                <el-form-item v-if="!isParent && currentMenu.type === 'send' && currentMenu.contentType === 'text'" label="事件 Key">
+                  <el-input v-model="currentMenu.key" class="wxm-input" placeholder="如 NEWS_LATEST" />
+                  <div class="wxm-tip">用户点击后微信推送该 Key，可在「自动回复」中配置关键字规则响应。</div>
+                </el-form-item>
+
+                <el-form-item v-if="!isParent && currentMenu.type === 'send' && currentMenu.contentType !== 'text'" label="素材">
+                  <el-select v-model="currentMenu.mediaId" filterable class="wxm-input" placeholder="选择素材" :loading="menuMaterialLoading">
+                    <el-option v-for="m in menuMaterialOptions" :key="m.media_id" :label="m.title || m.media_id" :value="m.media_id" />
+                  </el-select>
+                  <div class="wxm-tip">
+                    需先在「素材管理」中同步{{ materialTypeLabel }}素材。
+                    <el-link type="primary" :underline="false" @click="goMaterial">去素材管理</el-link>
+                  </div>
                 </el-form-item>
 
                 <el-form-item v-if="!isParent && currentMenu.type === 'view'" label="网页链接">
                   <el-input v-model="currentMenu.url" class="wxm-input" placeholder="https://" />
                 </el-form-item>
 
-                <el-form-item v-if="!isParent && currentMenu.type === 'click'" label="事件 Key">
-                  <el-input v-model="currentMenu.key" class="wxm-input" placeholder="如 NEWS_LATEST" />
+                <el-form-item v-if="!isParent && currentMenu.type === 'home'" label="主页链接">
+                  <el-input v-model="currentMenu.url" class="wxm-input" placeholder="https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=..." />
+                  <div class="wxm-tip">公众号主页地址，在微信公众平台「首页链接」或账号信息处获取。</div>
                 </el-form-item>
 
-                <el-form-item v-if="!isParent && currentMenu.type === 'miniprogram'" label="AppID">
-                  <el-input v-model="currentMenu.appid" class="wxm-input" placeholder="小程序 AppID" />
+                <el-form-item v-if="!isParent && (currentMenu.type === 'miniprogram' || currentMenu.type === 'shop' || currentMenu.type === 'goods')" label="AppID">
+                  <el-input v-model="currentMenu.appid" class="wxm-input" placeholder="wx 开头的 AppID" />
                 </el-form-item>
-                <el-form-item v-if="!isParent && currentMenu.type === 'miniprogram'" label="页面路径">
-                  <el-input v-model="currentMenu.pagepath" class="wxm-input" placeholder="pages/index/index" />
+                <el-form-item v-if="!isParent && (currentMenu.type === 'miniprogram' || currentMenu.type === 'shop' || currentMenu.type === 'goods')" label="页面路径">
+                  <el-input v-model="currentMenu.pagepath" class="wxm-input" :placeholder="currentMenu.type === 'goods' ? 'pages/product/detail?productId=xxx' : 'pages/index/index'" />
                 </el-form-item>
-                <el-form-item v-if="!isParent && currentMenu.type === 'miniprogram'" label="备用网页">
+                <el-form-item v-if="!isParent && (currentMenu.type === 'miniprogram' || currentMenu.type === 'shop' || currentMenu.type === 'goods')" label="备用网页">
                   <el-input v-model="currentMenu.url" class="wxm-input" placeholder="https://（旧版微信兜底）" />
-                </el-form-item>
-
-                <el-form-item v-if="isTopSelected">
-                  <el-checkbox v-model="currentMenu.hasSub" @change="(v) => toggleParent(currentMenu, v)">设为含子菜单</el-checkbox>
                 </el-form-item>
 
                 <el-form-item>
@@ -596,7 +658,12 @@ const userCumulate = ref([]);
 const articleStats = ref([]);
 
 function emptyLeaf() {
-  return { name: '', type: 'view', key: '', url: '', appid: '', pagepath: '', sub: [] };
+  // type 是「UI 语义类型」（send/view/miniprogram/shop/goods/home），
+  // 与微信 API 的真实 type 不是一一对应 —— 发布时由服务端 mp-menu.js 统一转换。
+  return {
+    name: '', type: 'view', contentType: 'text', key: '', mediaId: '',
+    url: '', appid: '', pagepath: '', sub: [],
+  };
 }
 function emptyNews() {
   return { title: '', author: '', digest: '', content: '', content_source_url: '', thumb_media_id: '' };
@@ -688,24 +755,43 @@ async function doUnbind() {
 }
 
 // —— 菜单序列化 / 反序列化 ——
+// 草稿一律用「UI 语义类型」建模（send/view/miniprogram/shop/goods/home），
+// 与微信 API 的真实 type 不是一一对应（微信没有"跳转小店/商品/主页"这三个 type）。
+// 发布时由服务端 mp-menu.js 转成微信认识的真实 type —— 前端不重复实现这套映射。
+const UI_TYPES = ['send', 'view', 'miniprogram', 'shop', 'goods', 'home'];
+
 function serializeLeaf(x) {
-  const o = { name: x.name, type: x.type };
-  if (x.type === 'view') o.url = x.url;
-  else if (x.type === 'click') o.key = x.key;
-  else if (x.type === 'miniprogram') { o.appid = x.appid; o.url = x.url; o.pagepath = x.pagepath; }
-  return o;
+  return {
+    name: x.name,
+    type: x.type,
+    contentType: x.contentType || 'text',
+    key: x.key || '',
+    mediaId: x.mediaId || '',
+    url: x.url || '',
+    appid: x.appid || '',
+    pagepath: x.pagepath || '',
+  };
 }
 function deserLeaf(x) {
+  const t = x.type || 'view';
   return {
-    name: x.name || '', type: x.type || 'view', key: x.key || '', url: x.url || '',
-    appid: x.appid || '', pagepath: x.pagepath || '', sub: [],
+    name: x.name || '',
+    // 兼容历史微信格式草稿：click → send/text，media_id → send/image
+    type: UI_TYPES.includes(t) ? t : (t === 'click' ? 'send' : (t === 'media_id' ? 'send' : 'view')),
+    contentType: x.contentType || (t === 'media_id' ? 'image' : 'text'),
+    key: x.key || '',
+    mediaId: x.mediaId || (t === 'media_id' ? (x.media_id || '') : ''),
+    url: x.url || '',
+    appid: x.appid || '',
+    pagepath: x.pagepath || '',
+    sub: [],
   };
 }
 function serialize() {
   return {
     button: buttons.value.map((b) => {
       if (b.hasSub && b.sub.length) {
-        return { name: b.name, sub_button: b.sub.map(serializeLeaf) };
+        return { name: b.name, hasSub: true, sub: b.sub.map(serializeLeaf) };
       }
       return serializeLeaf(b);
     }),
@@ -714,8 +800,8 @@ function serialize() {
 function deserialize(saved) {
   if (!saved || !Array.isArray(saved.button)) return [emptyLeaf()];
   return saved.button.map((b) => {
-    if (b.sub_button && b.sub_button.length) {
-      return { name: b.name || '', type: 'view', key: '', url: '', appid: '', pagepath: '', hasSub: true, sub: b.sub_button.map(deserLeaf) };
+    if (b.hasSub && Array.isArray(b.sub) && b.sub.length) {
+      return { ...emptyLeaf(), name: b.name || '', hasSub: true, sub: b.sub.map(deserLeaf) };
     }
     const leaf = deserLeaf(b);
     leaf.hasSub = false;
@@ -734,6 +820,8 @@ async function loadMenu() {
   menuLoading.value = true;
   try {
       const r = await mpGetMenu();
+      // 名称长度阈值由服务端下发（单一事实来源）
+      if (r.limits) menuLimits.value = r.limits;
       // 无草稿时也给一个空一级菜单（对齐官方：编辑区始终有可编辑对象，不是一片空白）
       buttons.value = deserialize(r.saved);
       selectedTop.value = buttons.value.length ? 0 : null;
@@ -748,22 +836,55 @@ async function loadMenu() {
   }
 }
 
+// 名称长度：阈值来自服务端 GET /mp/menu 的 limits（单一事实来源，避免前后端各写一份漂移）
+const menuLimits = ref({ top: { maxUnits: 8, maxBytes: 16 }, sub: { maxUnits: 16, maxBytes: 60 } });
+// 半角计量：全角字符算 2，其余算 1
+const FULLWIDTH_RE = /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿ꀀ-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦]/;
+function countUnits(s) {
+  let u = 0;
+  for (const ch of String(s || '')) u += FULLWIDTH_RE.test(ch) ? 2 : 1;
+  return u;
+}
+function countBytes(s) {
+  return new TextEncoder().encode(String(s || '')).length;
+}
+function checkName(name, kind) {
+  const limit = menuLimits.value[kind] || menuLimits.value.top;
+  const v = String(name || '').trim();
+  if (!v) return '名称不能为空';
+  if (countUnits(v) > limit.maxUnits) return `名称过长：最多 ${limit.maxUnits / 2} 个汉字或 ${limit.maxUnits} 个字母`;
+  if (countBytes(v) > limit.maxBytes) return `名称过长：UTF-8 最多 ${limit.maxBytes} 字节`;
+  return '';
+}
+
+function validateLeaf(m, kind) {
+  const name = String(m.name || '').trim();
+  const nameErr = checkName(name, kind);
+  if (nameErr) return `菜单「${name || '未命名'}」${nameErr}`;
+  if (!m.type) return `菜单「${name}」未选择动作类型`;
+  if (m.type === 'view' && !m.url) return `菜单「${name}」缺少跳转链接`;
+  if (m.type === 'home' && !m.url) return `菜单「${name}」缺少公众号主页链接`;
+  if (m.type === 'send') {
+    if (m.contentType === 'text' && !m.key) return `菜单「${name}」缺少事件 Key`;
+    if (m.contentType !== 'text' && !m.mediaId) return `菜单「${name}」缺少素材`;
+  }
+  if (m.type === 'miniprogram' || m.type === 'shop' || m.type === 'goods') {
+    if (!m.appid) return `菜单「${name}」缺少小程序 AppID`;
+    if (!m.pagepath) return `菜单「${name}」缺少小程序页面路径`;
+  }
+  return '';
+}
+
 function validate() {
   for (const b of buttons.value) {
-    if (!b.name) return '一级菜单名称不能为空';
     if (!b.hasSub) {
-      if (!b.type) return `菜单「${b.name}」未选择动作类型`;
-      if (b.type === 'view' && !b.url) return `菜单「${b.name}」缺少跳转链接`;
-      if (b.type === 'click' && !b.key) return `菜单「${b.name}」缺少事件 Key`;
-      if (b.type === 'miniprogram' && (!b.appid || !b.pagepath)) return `菜单「${b.name}」缺少小程序参数`;
+      const e = validateLeaf(b, 'top');
+      if (e) return e;
     } else {
-      if (!b.sub.length) return `菜单「${b.name}」的子菜单为空`;
+      if (!b.sub.length) return `菜单「${b.name || '未命名'}」的子菜单为空`;
       for (const s of b.sub) {
-        if (!s.name) return '子菜单名称不能为空';
-        if (!s.type) return `子菜单「${s.name}」未选择动作类型`;
-        if (s.type === 'view' && !s.url) return `子菜单「${s.name}」缺少跳转链接`;
-        if (s.type === 'click' && !s.key) return `子菜单「${s.name}」缺少事件 Key`;
-        if (s.type === 'miniprogram' && (!s.appid || !s.pagepath)) return `子菜单「${s.name}」缺少小程序参数`;
+        const e = validateLeaf(s, 'sub');
+        if (e) return e;
       }
     }
   }
@@ -805,6 +926,7 @@ async function pushMenu() {
   const selectedTop = ref(null);
   const selectedSub = ref(null);
   const previewVisible = ref(false);
+  const subNameInput = ref(null);
   const currentMenu = computed(() => {
     if (selectedTop.value == null) return null;
     const top = buttons.value[selectedTop.value];
@@ -813,9 +935,54 @@ async function pushMenu() {
     return top;
   });
   const isParent = computed(() => !!currentMenu.value && !!currentMenu.value.hasSub);
-  const isTopSelected = computed(() => selectedTop.value != null && selectedSub.value == null);
   const currentTop = computed(() => (selectedTop.value == null ? null : buttons.value[selectedTop.value] || null));
   const panelTitle = computed(() => (selectedSub.value != null ? '子菜单信息' : '菜单信息'));
+
+  // 各类型的落地说明：微信 API 没有「跳转小店/商品/主页」这三个 type，
+  // 这里明确告诉用户最终会以什么形式下发，避免"点了没反应"的困惑。
+  const TYPE_NOTE = {
+    send: '文字以事件 Key 推送；图片 / 音频 / 视频直接下发永久素材。',
+    view: '点击后打开网页链接。',
+    miniprogram: '点击后跳转关联的小程序页面，需公众号已在「小程序管理」中关联该小程序。',
+    shop: '微信菜单接口无「跳转小店」类型，实际以小程序形式跳转：填微信小店的 AppID 与页面路径，并需公众号已关联该小程序。',
+    goods: '微信菜单接口无「跳转商品」类型，实际以小程序形式跳转：填微信小店的 AppID 与商品详情页路径，并需公众号已关联该小程序。',
+    home: '微信菜单接口无「跳转账号主页」类型，实际以网页形式跳转：填公众号主页地址。',
+  };
+  const typeNote = computed(() => (currentMenu.value ? (TYPE_NOTE[currentMenu.value.type] || '') : ''));
+
+  // 素材下拉（图片 / 音频 / 视频）
+  const menuMaterialItems = ref([]);
+  const menuMaterialLoading = ref(false);
+  const MATERIAL_TYPE_LABEL = { image: '图片', voice: '音频', video: '视频' };
+  const materialTypeLabel = computed(() => MATERIAL_TYPE_LABEL[currentMenu.value?.contentType] || '图片');
+  const menuMaterialOptions = computed(() => {
+    const ct = currentMenu.value?.contentType || 'image';
+    return menuMaterialItems.value.filter((m) => !m.media_type || m.media_type === ct);
+  });
+  async function loadMenuMaterials() {
+    const ct = currentMenu.value?.contentType;
+    if (!ct || ct === 'text') return;
+    menuMaterialLoading.value = true;
+    try {
+      const r = await mpGetMaterial(ct);
+      menuMaterialItems.value = r.items || [];
+    } catch (e) {
+      menuMaterialItems.value = [];
+    } finally {
+      menuMaterialLoading.value = false;
+    }
+  }
+  function goMaterial() { activeTab.value = 'material'; }
+
+  // 切换菜单内容类型（文字/图片/音频/视频）时自动加载对应素材，避免下拉空白
+  watch(
+    () => [currentMenu.value?.contentType, currentMenu.value?.type, selectedTop.value, selectedSub.value],
+    () => {
+      if (currentMenu.value?.type === 'send' && currentMenu.value?.contentType !== 'text') loadMenuMaterials();
+    },
+    { immediate: true },
+  );
+
   function selectTop(i) { selectedTop.value = i; selectedSub.value = null; }
   function addTopMenu() {
     if (buttons.value.length >= 3) return ElMessage.warning('最多 3 个一级菜单');
@@ -823,26 +990,35 @@ async function pushMenu() {
     selectedTop.value = buttons.value.length - 1;
     selectedSub.value = null;
   }
+  // 官方交互：一级菜单被选中时，浮层里直接列出该菜单的子菜单项，
+  // 「＋ 添加」就地新增并自动进入编辑态 —— 无需先勾选「设为含子菜单」。
   function addSubMenu(b) {
     if (b.sub.length >= 5) return ElMessage.warning('最多 5 个子菜单');
     addSub(b);
+    b.hasSub = true;
     selectedSub.value = b.sub.length - 1;
+    focusSubName();
+  }
+  function focusSubName() {
+    // 等 DOM 更新后再聚焦，避免 input 尚未渲染导致 focus 落空
+    setTimeout(() => {
+      const el = subNameInput.value;
+      const node = Array.isArray(el) ? el[0] : el;
+      if (node && node.focus) node.focus();
+    }, 0);
   }
   function delSelected() {
     if (selectedTop.value == null) return;
-    if (selectedSub.value != null) {
-      buttons.value[selectedTop.value].sub.splice(selectedSub.value, 1);
-      selectedSub.value = null;
+    const top = buttons.value[selectedTop.value];
+    if (selectedSub.value != null && selectedSub.value >= 0) {
+      top.sub.splice(selectedSub.value, 1);
+      if (!top.sub.length) top.hasSub = false;
+      selectedSub.value = top.sub.length ? 0 : null;
     } else {
       buttons.value.splice(selectedTop.value, 1);
       selectedSub.value = null;
       if (selectedTop.value >= buttons.value.length) selectedTop.value = buttons.value.length - 1;
     }
-  }
-  function toggleParent(b, val) {
-    b.hasSub = !!val;
-    if (b.hasSub && b.sub.length === 0) b.sub.push(emptyLeaf());
-    if (!b.hasSub) { b.sub = []; selectedSub.value = null; }
   }
   function fmtTime(s) {
     if (!s) return '';
@@ -1216,27 +1392,34 @@ onMounted(async () => {
 .wxm-alert { margin-bottom: 16px; }
 .wxm-card { display: flex; background: #fff; border: 1px solid #e5e6eb; border-radius: 6px; overflow: hidden; }
 
-/* 手机预览 */
-.wxm-phone { flex: 0 0 240px; width: 240px; padding: 18px 14px; border-right: 1px solid #f2f3f5; }
-.wp-frame { position: relative; display: flex; flex-direction: column; width: 205px; height: 380px; margin: 0 auto; border: 1px solid #dcdee0; border-radius: 6px; background: #fff; overflow: hidden; }
-.wp-status { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; font-size: 11px; color: #86909c; }
-.wp-signal { font-size: 9px; letter-spacing: 1px; }
-.wp-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 12px 8px; color: #4e5969; font-size: 16px; }
+/* 手机预览（尺寸按官方样机比例放大，便于看清菜单文字与层级） */
+.wxm-phone { flex: 0 0 320px; width: 320px; padding: 22px 18px; border-right: 1px solid #f2f3f5; }
+.wp-frame { position: relative; display: flex; flex-direction: column; width: 284px; height: 528px; margin: 0 auto; border: 1px solid #dcdee0; border-radius: 8px; background: #fff; overflow: hidden; }
+.wp-status { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; font-size: 13px; color: #86909c; }
+.wp-signal { font-size: 11px; letter-spacing: 1px; }
+.wp-top { display: flex; align-items: center; justify-content: space-between; padding: 3px 16px 10px; color: #4e5969; font-size: 20px; }
+.wp-back { font-size: 22px; line-height: 1; }
 .wp-screen { flex: 1; position: relative; }
-.wp-subpop { position: absolute; left: 88px; bottom: 8px; width: 70px; background: #fff; border: 1px solid #e5e6eb; border-radius: 3px; box-shadow: 0 1px 6px rgba(0,0,0,.08); overflow: hidden; }
-.wp-subitem { padding: 9px 4px; font-size: 11px; color: #4e5969; text-align: center; border-bottom: 1px solid #f2f3f5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.wp-subitem.active { color: #07C160; box-shadow: inset 0 0 0 1px #07C160; border-radius: 2px; }
-.wp-subadd { padding: 9px 4px; font-size: 11px; color: #86909c; text-align: center; cursor: pointer; }
-.wp-foot { display: flex; align-items: stretch; height: 38px; border-top: 1px solid #e5e6eb; background: #f7f8fa; }
-.wp-emoji { flex: 0 0 30px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #dcdee0; color: #4e5969; font-size: 13px; }
+/* 子菜单浮层：官方是「贴在底部导航上方的小面板」，带下尖角 */
+.wp-subpop-wrap { position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; display: flex; align-items: flex-start; gap: 12px; }
+.wp-subpop { position: relative; min-width: 168px; background: #fff; border: 1px solid #e5e6eb; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.10); overflow: hidden; }
+.wp-subpop::after { content: ''; position: absolute; left: 50%; bottom: -5px; width: 8px; height: 8px; background: #fff; border-right: 1px solid #e5e6eb; border-bottom: 1px solid #e5e6eb; transform: translateX(-50%) rotate(45deg); }
+.wp-subitem { padding: 11px 6px; font-size: 13px; color: #4e5969; text-align: center; border-bottom: 1px solid #f2f3f5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.wp-subitem.active { color: #07C160; }
+.wp-subinput { width: 100%; border: 0; outline: 0; text-align: center; font-size: 13px; color: #07C160; background: transparent; padding: 0; }
+.wp-subinput::placeholder { color: #07C160; }
+.wp-subadd { padding: 11px 6px; font-size: 13px; color: #4e5969; text-align: center; cursor: pointer; }
+.wp-subadd:hover { background: #f7f8fa; }
+/* 官方版式：删除是独立圆形按钮（白底 + 细边框 + 阴影） */
+.wp-del { flex: 0 0 auto; width: 34px; height: 34px; margin-top: 12px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e5e6eb; border-radius: 50%; box-shadow: 0 2px 10px rgba(0,0,0,.10); cursor: pointer; color: #4e5969; }
+.wp-del:hover { background: #f7f8fa; }
+.wp-del svg { width: 17px; height: 17px; }
+.wp-foot { display: flex; align-items: stretch; height: 46px; border-top: 1px solid #e5e6eb; background: #f7f8fa; }
+.wp-emoji { flex: 0 0 38px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #dcdee0; color: #4e5969; font-size: 15px; }
 .wp-tabs { flex: 1; display: flex; min-width: 0; }
-.wp-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 0 3px; font-size: 11px; color: #4e5969; border-left: 1px solid #dcdee0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wp-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 0 4px; font-size: 13px; color: #4e5969; border-left: 1px solid #dcdee0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wp-tab.active { color: #07C160; background: #fff; }
-.wp-tab-add { flex: 0 0 22px; color: #86909c; }
-.wp-float { position: absolute; right: 14px; bottom: 126px; display: flex; flex-direction: column; background: #fff; border: 1px solid #e5e6eb; border-radius: 5px; box-shadow: 0 1px 6px rgba(0,0,0,.10); overflow: hidden; }
-.wf-btn { width: 28px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #4e5969; cursor: pointer; border-bottom: 1px solid #f2f3f5; }
-.wf-btn:last-child { border-bottom: none; }
-.wf-btn:hover { background: #f7f8fa; }
+.wp-tab-add { flex: 0 0 28px; color: #86909c; }
 
 /* 右侧信息面板 */
 .wxm-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -1251,8 +1434,11 @@ onMounted(async () => {
 .wxm-radios :deep(.el-radio__input.is-checked .el-radio__inner) { border-color: #07C160; background-color: #07C160; }
 .wxm-radios :deep(.el-radio__input.is-checked + .el-radio__label) { color: #07C160; }
 .wxm-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
-.wxchip { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #86909c; cursor: default; }
-.wxchip.is-on { color: #4e5969; padding: 3px 8px; border: 1px solid #e5e6eb; border-radius: 3px; background: #f7f8fa; }
+.wxchip { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #4e5969; cursor: pointer; user-select: none; }
+.wxchip:hover { color: #07C160; }
+.wxchip.is-on { color: #07C160; padding: 3px 8px; border: 1px solid #07C160; border-radius: 3px; }
+.wxchip.is-off { color: #c9cdd4; cursor: not-allowed; }
+.wxchip.is-off:hover { color: #c9cdd4; }
 .wxi { width: 14px; height: 14px; }
 .wxm-empty { color: #86909c; padding: 60px 0; text-align: center; }
 .wp-panel-foot { padding: 14px 26px; border-top: 1px solid #f2f3f5; display: flex; justify-content: flex-end; gap: 12px; }
