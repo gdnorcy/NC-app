@@ -53,4 +53,19 @@ describe('消息服务器配置：密钥生成与操作', () => {
     expect(body).toContain('genMpEncodingAESKey');
     expect(body).not.toContain('mpSaveMessageConfig');
   });
+
+  it('刻意不提供「消息加密方式 / 数据格式」两个选项', () => {
+    // 加密方式是在微信公众平台后台选的（服端按有没有 Encrypt 节点自动识别）；
+    // 数据格式公众号侧只有 XML（XML/JSON 那个选项是开放平台小程序的）。
+    // 在后台再做一份就是第二处真相，必然与微信后台漂移 —— 锁住不要被重新加回来。
+    expect(script).not.toMatch(/encryptMode|encrypt_mode|dataFormat|data_format/i);
+    expect(tpl).not.toMatch(/安全模式|明文模式[\s\S]{0,200}el-radio/);
+    // 页面上必须说明白为什么没有这两个选项
+    expect(tpl).toContain('无需在此重复选择');
+  });
+
+  it('EncodingAESKey 留空时在 UI 上告知后果（不是静默）', () => {
+    expect(tpl).toContain('未设置（公众号后台改用安全/兼容模式时会丢消息）');
+    expect(script).toContain('公众号后台请保持明文模式');
+  });
 });
