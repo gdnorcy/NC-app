@@ -161,6 +161,18 @@ app.use((req, res, next) => {
   });
   app.use('/uploads', express.static(config.uploadsDir, { fallthrough: true }));
 
+  // 微信「JS 接口安全域名」验证文件：要求 https://域名/MP_verify_xxxx.txt 能直接取到明文。
+  // 🔴 这台机的 Node 服务没有把 publicDir 整目录挂在根上（静态一律走前缀 /card、/admin-assets、/uploads…），
+  //    所以直接把文件丢到 public 根目录是取不到的，必须有一条根路径路由来托它。
+  // 落盘目录：MP_VERIFY_DIR，默认 server/public/verify（不进 git，避免部署时被冲突）。
+  const mpVerifyDir = process.env.MP_VERIFY_DIR || path.join(config.publicDir, 'verify');
+  app.get(/^\/MP_verify_[\w-]+\.txt$/, (req, res, next) => {
+    const file = path.join(mpVerifyDir, path.basename(req.path));
+    fs.promises.access(file, fs.constants.R_OK)
+      .then(() => res.type('text/plain').sendFile(file))
+      .catch(() => next());
+  });
+
   // 登录 / 方案 / 场景 / 客户项目 / 用户 API
   app.use('/api/auth', createAuthRouter(database));
   app.use('/api', createPlansRouter(database));
