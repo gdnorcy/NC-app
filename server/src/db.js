@@ -4,7 +4,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { config } from './config.js';
 import { TIER_PKG } from './services/member.js';
-import { DEFAULT_CODESET, randomTraceKeys } from './services/traceCode.js';
+import { DEFAULT_CODESET, randomTraceKeys, serializeTraceRule } from './services/traceCode.js';
 
 /**
  * 三层数据模型：
@@ -2533,6 +2533,8 @@ function migrate(db) {
   seedTrace(db);
   // ⚠️ 必须晚于 seedTrace：trace_code_rules / trace_codes 表要先存在。
   seedTraceCodeRules(db);
+  // ⚠️ 必须晚于 seedTrace：P1/P2 的新增列与 trace_activations 表都基于 trace_* 表已存在。
+  migrateTraceExtras(db);
 }
 
 /**
@@ -2552,8 +2554,52 @@ function seedTraceCodeRules(db) {
   if (!colExists(db, 'trace_code_rules', 'is_confirmed')) {
     db.exec('ALTER TABLE trace_code_rules ADD COLUMN is_confirmed INTEGER NOT NULL DEFAULT 0');
   }
+  // 🔴 locked_at（印刷锁定）：存量库补列。空串 = 未锁定（老租户一律视为未锁定，
+  //    避免升级即锁死 —— 锁定应由「本系统正式生成过一次」这个动作触发，而不是升级动作）。
+  if (!colExists(db, 'trace_code_rules', 'locked_at')) {
+    db.exec("ALTER TABLE trace_code_rules ADD COLUMN locked_at TEXT NOT NULL DEFAULT ''");
+  }
   const tenants = db.prepare('SELECT id FROM projects WHERE id IS NOT NULL AND id != 0').all();
   for (const { id } of tenants) ensureTenantTraceRule(db, id);
+}
+
+/**
+ * 🔴 防伪溯源 P1/P2 的存量库补列（幂等，ALTER 天然只跑一次）。
+ *
+ * 为什么要单独一个函数：seedTrace 用的是 CREATE TABLE IF NOT EXISTS —— 存量库的表已存在，
+ *   建表语句里新增的列**不会**被补上（SQLite 不会重建表）→ 新代码读列会报 no such column。
+ *   所以每个新增列都必须在这里显式 ALTER。
+ */
+function migrateTraceExtras(db) {
+  if (!tableExists(db, 'trace_batches')) return;
+  // P1：演示/试印码计数（与正式码 num 完全分离，不占正式统计、不触发结构锁）
+  if (!colExists(db, 'trace_batches', 'demo_num')) {
+    db.exec('ALTER TABLE trace_batches ADD COLUMN demo_num INTEGER NOT NULL DEFAULT 0');
+  }
+  // P2：批次激活口令密文（租户自有密钥，存密文、回显脱敏）
+  if (!colExists(db, 'trace_batches', 'activate_pin_cipher')) {
+    db.exec("ALTER TABLE trace_batches ADD COLUMN activate_pin_cipher TEXT NOT NULL DEFAULT ''");
+  }
+  // P1：试印/演示码标记（扫码落库时按流水号预留段打标；统计口径排除 is_demo=1）
+  if (tableExists(db, 'trace_codes') && !colExists(db, 'trace_codes', 'is_demo')) {
+    db.exec('ALTER TABLE trace_codes ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0');
+  }
+  // P2：批次激活记录（先印后绑：码印出来时未激活，经销商激活后消费者才查得到溯源信息）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trace_activations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      batch_id INTEGER NOT NULL,
+      -- 激活方式：admin=租户后台点激活 / dealer=经销商凭激活码自助激活
+      source TEXT NOT NULL DEFAULT 'admin',
+      -- 激活人标识（openid 或后台用户名）
+      actor TEXT NOT NULL DEFAULT '',
+      remark TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id, batch_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_activations_batch ON trace_activations (tenant_id, batch_id);
+  `);
 }
 
 /**
@@ -2569,9 +2615,25 @@ function seedTraceCodeRules(db) {
  * 所以必须是两个来源相加：已扫的（trace_codes）+ 已生成未扫的（trace_batches.num/tnum）。
  */
 export function countTraceCodesGenerated(db, tenantId) {
-  const scanned = Number(db.prepare('SELECT COUNT(*) AS c FROM trace_codes WHERE tenant_id = ?').get(tenantId)?.c || 0);
+  // 🔴 is_demo=1 的行是试印/演示码（扫码落库时按流水号预留段打标）：
+  //    它们不计入正式码数 → 试印品不会触发结构锁、也不污染正式统计。
+  const scanned = Number(db.prepare('SELECT COUNT(*) AS c FROM trace_codes WHERE tenant_id = ? AND is_demo = 0').get(tenantId)?.c || 0);
   const printed = Number(db.prepare('SELECT COALESCE(SUM(num), 0) + COALESCE(SUM(tnum), 0) AS c FROM trace_batches WHERE tenant_id = ?').get(tenantId)?.c || 0);
   return scanned + printed;
+}
+
+/**
+ * 批次是否已激活（P2 先印后绑闸门）。
+ *
+ * 🔴 语义：开启动作闸门（settings.isjihuo=1）后，批次在被激活之前，
+ *    消费者扫码只会看到「该批次尚未激活，请联系经销商扫码激活」，看不到溯源详情。
+ *    这是对标系统的「先印后绑」：码先印出来发给经销商，经销商扫码绑定后才对外流通。
+ *
+ * @returns {boolean} true = 已激活（可查详情）
+ */
+export function isTraceBatchActivated(db, tenantId, batchId) {
+  const row = db.prepare('SELECT id FROM trace_activations WHERE tenant_id = ? AND batch_id = ?').get(Number(tenantId), Number(batchId));
+  return !!row;
 }
 
 /**
@@ -2591,7 +2653,7 @@ export function ensureTenantTraceRule(db, tenantId) {
   const rule = { k, m: { 1: DEFAULT_CODESET.m[1], 2: DEFAULT_CODESET.m[2], 3: DEFAULT_CODESET.m[3], 4: DEFAULT_CODESET.m[4], 5: DEFAULT_CODESET.m[5] }, s: 0, zdl: DEFAULT_CODESET.zdl };
   db.prepare(`INSERT OR IGNORE INTO trace_code_rules (tenant_id, m1, rule_json, publish_no, is_confirmed, created_at, updated_at)
     VALUES (?, ?, ?, '', ?, datetime('now'), datetime('now'))`)
-    .run(tid, DEFAULT_CODESET.m[1], JSON.stringify(rule), keepLegacyKeys ? 1 : 0);
+    .run(tid, DEFAULT_CODESET.m[1], serializeTraceRule(rule), keepLegacyKeys ? 1 : 0);
 }
 
 /** —— 防伪溯源 trace 应用（行业应用 code=trace）——
@@ -2635,6 +2697,10 @@ function seedTrace(db) {
       rule_json TEXT NOT NULL DEFAULT '{}',
       -- 发布版本号/规则版本号（租户自定义；码制变更时用于区分新旧批次）
       publish_no TEXT NOT NULL DEFAULT '',
+      -- 🔴 印刷锁定时间：非空 = 已正式生成过防伪码 → 密钥(k)与结构(m)锁定不可改。
+      --    空串 = 未锁定。对标系统的「印刷后锁死 K1~K5 不可改」在此落地。
+      --    演示/试印码不写此列（试印的目的就是先试后定，锁了就没法改了）。
+      locked_at TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE (tenant_id)
@@ -2658,10 +2724,15 @@ function seedTrace(db) {
       province TEXT NOT NULL DEFAULT '',
       city TEXT NOT NULL DEFAULT '',
       district TEXT NOT NULL DEFAULT '',
-      -- 已生成防伪码数量
+      -- 已生成防伪码数量（正式码）
       num INTEGER NOT NULL DEFAULT 0,
-      -- 已生成套标数量
+      -- 已生成套标数量（正式套标）
       tnum INTEGER NOT NULL DEFAULT 0,
+      -- 🔴 已生成**试印/演示码**数量（不占正式库存、不计正式统计、不触发结构锁）。
+      --    试印码与正式码共用同一批次号段但流水号连续不冲突（正式码从 num+demo_num 之后接着排）。
+      demo_num INTEGER NOT NULL DEFAULT 0,
+      -- 批次激活口令（经销商自助激活用）密文；租户自有密钥，存密文、回显脱敏
+      activate_pin_cipher TEXT NOT NULL DEFAULT '',
       -- 有效查询次数
       rcon INTEGER NOT NULL DEFAULT 0,
       -- 生成/印刷配置快照，原字段推断
@@ -2735,6 +2806,10 @@ function seedTrace(db) {
       is_err INTEGER NOT NULL DEFAULT 0,
       is_gz INTEGER NOT NULL DEFAULT 0,
       agent_id INTEGER NOT NULL DEFAULT 0,
+      -- 🔴 P1 试印/演示码标记：**扫码落库时**按流水号是否落在预留段判定（isDemoSerial），
+      --    不是生成时预登记 —— 生成动作本来就不往这张表写（这张表只存被扫过的码）。
+      --    统计口径一律排除 is_demo=1（试印品不能混进正式码数、不能触发结构锁）。
+      is_demo INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE (tenant_id, code)

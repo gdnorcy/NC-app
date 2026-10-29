@@ -1,6 +1,25 @@
 import crypto from 'node:crypto';
 import { readSecret } from '../crypto.js';
 import { WxCrypto } from './wx-component.js';
+import { pickDisplaySlots } from './traceSlots.js';
+import { canonicalBatchSegment, DEFAULT_CODESET, parseTraceCode, parseTraceRule, verifyTraceCode } from './traceCode.js';
+
+// 溯源带参二维码 SCAN 回复所需的局部工具（不污染 wx-mp 通用服务）
+function safeJsonLocal(text, fallback) {
+  try { return JSON.parse(text || ''); } catch { return fallback; }
+}
+function absUrl(base, url) {
+  const u = String(url || '').trim();
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u; // 已是绝对地址（含 http/https）
+  if (!base) return u;
+  return `${base.replace(/\/+$/, '')}/${u.replace(/^\/+/, '')}`;
+}
+function substitute(tpl, code, tenantId) {
+  return String(tpl || '')
+    .replace(/\{CODE\}/g, code)
+    .replace(/\{TID\}/g, String(tenantId));
+}
 
 // 公众号 access_token（手动对接模式）内存缓存：微信 cgi-bin/token 每日限 2000 次且有效期 7200s，
 // 同进程内按 appid 复用，避免菜单「拉取/发布」连续调用时反复换 token。
@@ -232,6 +251,83 @@ export class WxMpService {
     return this._wxJson(token, '/cgi-bin/material/add_news', { articles });
   }
 
+  /**
+   * 生成公众号带参二维码（永久字符串码，scene_str 编码防伪码）。
+   * 返回 ticket 与可直接展示的二维码图片地址（showUrl），后台可 <img src> 展示或自行换图。
+   * 🔴 scene_str 限 64 字节；防伪码约 20 位 ASCII，绰绰有余。固定用 QR_LIMIT_STR_SCENE（永久、无过期）。
+   *
+   * 🔴 微信侧硬规则：`QR_LIMIT_STR_SCENE`（永久字符串码）**只对「已认证服务号」开放**；
+   *    订阅号 / 未认证服务号 / 未开通该接口权限的账号一律返回 **48001（api unauthorized）**。
+   *    原实现走 _wxJson 的通用错误（"微信接口失败(48001): api unauthorized"），
+   *    商户看不懂 → 这里翻译成人话，并保留 wxErrcode 供上层分支。
+   */
+  async createParamQr(channel, sceneStr) {
+    const token = await this.resolveToken(channel);
+    const body = {
+      action_name: 'QR_LIMIT_STR_SCENE',
+      action_info: { scene: { scene_str: String(sceneStr || '').slice(0, 64) } },
+    };
+    let data;
+    try {
+      data = await this._wxJson(token, '/cgi-bin/qrcode/create', body);
+    } catch (e) {
+      if (Number(e?.wxErrcode) === 48001) {
+        const err = new Error('访问公众平台接口失败，api 功能未授权：带参二维码（永久码）只对「已认证服务号」开放，当前公众号没有这个权限（微信错误码 48001）。请改用已认证服务号，或改走「普通二维码 + C 端溯源页」方案。');
+        err.wxErrcode = 48001;
+        throw err;
+      }
+      throw e;
+    }
+    const ticket = data.ticket;
+    if (!ticket) throw new Error('生成二维码失败：微信未返回 ticket');
+    return {
+      ticket,
+      url: data.url || '',
+      showUrl: `https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(ticket)}`,
+    };
+  }
+
+  /**
+   * 带参二维码能力预检（回答「这个公众号能不能出带参二维码」）。
+   *
+   * 🔴 开放平台授权模式能查认证状态：`get_authorizer_info.authorization_status`
+   *    （0=未认证 / 1=已认证 / 2=已过期）+ `service_type_info.id`（0/1=订阅号 / 2/3=服务号）。
+   * 🔴 手动对接模式（只填了 app_secret）**微信没有开放查询认证状态的接口** → 返回 supported=null，
+   *    只能以实际出码时的返回为准（撞 48001 即无权限）。不猜、不编。
+   */
+  async checkParamQrCapability(channel) {
+    const out = {
+      supported: null,
+      authStatus: null,
+      accountType: '',
+      mode: channel?.auth_status === 'authorized' ? 'open' : 'manual',
+      reason: '',
+    };
+    if (!channel?.appid) {
+      out.reason = '该租户未配置公众号';
+      return out;
+    }
+    if (channel.auth_status === 'authorized') {
+      try {
+        const info = await this.component.getAuthorizerInfo(channel.appid);
+        const authStatus = Number(info?.authorization_status ?? -1);
+        const sid = Number(info?.service_type_info?.id ?? -1);
+        out.authStatus = authStatus;
+        out.accountType = sid === 2 || sid === 3 ? '服务号' : (sid === 0 || sid === 1 ? '订阅号' : '未知');
+        const isService = sid === 2 || sid === 3;
+        const isVerified = authStatus === 1;
+        out.supported = isService && isVerified;
+        if (!isVerified) out.reason = '该公众号未完成微信认证，带参二维码（永久码）只对已认证服务号开放';
+        else if (!isService) out.reason = '该公众号是订阅号，带参二维码（永久码）只对已认证服务号开放';
+      } catch (e) {
+        out.reason = `查询公众号认证状态失败：${e.message || e}`;
+      }
+    } else {
+      out.reason = '手动对接模式无法查询认证状态（微信未开放该接口）；出码时若返回 48001 即表示该公众号无带参二维码权限';
+    }
+    return out;
+  }
+
   /** 素材总数（按类型）。 */
   async getMaterialCount(channel) {
     const token = await this.resolveToken(channel);
@@ -415,8 +511,100 @@ export class WxMpService {
     return `<xml><ToUserName><![CDATA[${this.escapeCdata(fromUser)}]]></ToUserName><FromUserName><![CDATA[${this.escapeCdata(toUser)}]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[${type}]]></MsgType>${inner}</xml>`;
   }
 
+  /**
+   * 取租户的防伪码制（与 routes/trace.js 的 getRule 同口径）。
+   * 🔴 k 逐格回落默认值，**绝不整表替换**（整表替换会把租户自定义的 k 冲掉 →
+   *    已印出去的码全部验真失败）。空 k 会让校验位退化成常量 → 防伪码可伪造。
+   */
+  getTraceRule(tenantId) {
+    const row = this.db.prepare('SELECT rule_json FROM trace_code_rules WHERE tenant_id = ?').get(Number(tenantId));
+    const rule = parseTraceRule(row?.rule_json);
+    const m = rule.m || {};
+    const k = rule.k || {};
+    const kk = {};
+    for (let i = 1; i <= 5; i += 1) {
+      kk[i] = String(k[i] ?? '') || String(DEFAULT_CODESET.k[i] ?? '');
+    }
+    return {
+      m: { 1: String(m[1] ?? 'FW'), 2: Number(m[2] ?? 7), 3: Number(m[3] ?? 6), 4: Number(m[4] ?? 5), 5: Number(m[5] ?? 20) },
+      k: kk,
+      zdl: Number(rule.zdl ?? 10) || 10,
+    };
+  }
+
+  /**
+   * 按码里切出的批次段反查批次（与 routes/trace.js 的 findBatchBySegment 同口径）：
+   * 精确匹配 → 回落 canonicalBatchSegment 比对（兼容库里存原始串的历史批次）。
+   */
+  findTraceBatch(tenantId, segment, rule) {
+    const seg = String(segment || '');
+    if (!seg) return null;
+    const exact = this.db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ? AND batch = ?').get(Number(tenantId), seg);
+    if (exact) return exact;
+    const rows = this.db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ?').all(Number(tenantId));
+    for (const row of rows) {
+      if (canonicalBatchSegment(row.batch, rule) === seg) return row;
+    }
+    return null;
+  }
+
+  /**
+   * 溯源带参二维码 SCAN/扫码关注 → 弹图文卡片。
+   *
+   * 🔴 scene 直接编码防伪码（用户拍板「绑单码」）：EventKey 去掉 qrscene_ 前缀后即是码值。
+   *
+   * 🔴 判定「是不是溯源码」**不能**靠 trace_codes 里有没有这一行：
+   *    那张表只在消费者首次扫码查询时才 INSERT —— 刚印出来、还没人扫过的码
+   *    在库里根本没有行 → 原实现直接 return null → 消费者第一次扫这张二维码
+   *    什么都看不到（最该弹卡片的时候不弹）。
+   *    正确判据 = ① 校验位通过 + ② 能反查到本租户的批次。
+   *
+   * 🔴 SCAN 不登记查询（登记发生在用户点开 H5 溯源页时），所以弹卡片时按「扫码前」的查询态挑展示位：
+   *    isFirstQuery = 该码查询次数 <= 1；isTopQueryer = 当前 openid 是该码首位查询人。
+   * 🔴 图文 URL 支持占位符 {CODE}/{TID}：租户在展示位 link 里填
+   *    `https://域名/card/#/pages/trace/index?co={CODE}&tid={TID}` 即可让每张码扫出的卡片跳到「自己的」溯源页；
+   *    link 留空则回落到 H5 溯源页绝对地址。
+   * 🔴 PicUrl 必须是绝对地址（微信要求），封面若是 /uploads/... 相对路径在此补齐 baseUrl。
+   */
+  resolveTraceScanReply(channel, scene, fromUser, baseUrl = '') {
+    const tenantId = Number(channel.customer_id || 0);
+    if (!tenantId) return null;
+    const code = String(scene || '').trim();
+    if (!code) return null;
+    const rule = this.getTraceRule(tenantId);
+    if (!verifyTraceCode(code, rule)) return null; // 校验位不过 → 不是本租户的防伪码
+    const parsed = parseTraceCode(code, rule);
+    const batch = this.findTraceBatch(tenantId, parsed.batch, rule);
+    if (!batch) return null; // 批次不属于本租户 → 非溯源场景，回落其它回复规则
+    const rec = this.db.prepare('SELECT * FROM trace_codes WHERE tenant_id = ? AND code = ?').get(tenantId, code);
+    const row = this.db.prepare('SELECT settings_json FROM trace_settings WHERE tenant_id = ?').get(tenantId);
+    const settings = safeJsonLocal(row?.settings_json, {});
+    // 🔴 P2 激活闸门（先印后绑）：批次未激活时不给溯源卡片，只回一句引导语 ——
+    //    公众号卡片是消费者看得见的入口，卡片一弹就等于「这批货已到经销商」被提前说破。
+    if (Number(settings.isjihuo || 0) === 1) {
+      const act = this.db.prepare('SELECT id FROM trace_activations WHERE tenant_id = ? AND batch_id = ?').get(tenantId, Number(batch.id));
+      if (!act) {
+        return this.buildTextReply({ toUser: channel.appid, fromUser, content: '该批次尚未激活，请联系经销商扫码激活后再查询溯源信息。' });
+      }
+    }
+    const slots = Array.isArray(settings.displaySlots) ? settings.displaySlots : [];
+    if (!slots.length) return null;
+    const isFirstQuery = Number(rec?.num || 0) <= 1;
+    const isTopQueryer = Boolean(rec?.openid) && rec.openid === fromUser;
+    const picked = pickDisplaySlots(slots, { isFirstQuery, isTopQueryer });
+    if (!picked.length) return null;
+    const h5Fallback = `${String(baseUrl || '').replace(/\/+$/, '')}/card/#/pages/trace/index?co=${encodeURIComponent(code)}&tid=${tenantId}`;
+    const articles = picked.map((s) => ({
+      title: substitute(s.title || '溯源信息', code, tenantId),
+      description: '',
+      picurl: absUrl(baseUrl, s.cover),
+      url: substitute(s.link || h5Fallback, code, tenantId),
+    }));
+    return this.buildNewsReply({ toUser: channel.appid, fromUser, articles });
+  }
+
   /** 按消息匹配回复规则并构造被动回复 XML（toUser/fromUser 已按被动回复语义交换）。 */
-  resolveReply(channel, msg) {
+  resolveReply(channel, msg, ctx = {}) {
     const fromUser = msg.fromUser; // 粉丝 openid
     const toUser = msg.toUser; // 公众号 appid
     const make = (rule) => {
@@ -437,9 +625,29 @@ export class WxMpService {
       }
       return null;
     };
-    if (msg.msgType === 'event' && (msg.event || '').toLowerCase() === 'subscribe') {
-      const rule = this.getSubscribeRule(channel.id);
-      return rule ? make(rule) : null;
+    // 溯源带参二维码：SCAN/扫码关注 → 弹图文卡片（无命中则回落通用规则）
+    const tryTraceScan = (eventKey) => {
+      const scene = (eventKey || '').replace(/^qrscene_/, '');
+      if (!scene) return null;
+      return this.resolveTraceScanReply(channel, scene, fromUser, ctx.baseUrl);
+    };
+    if (msg.msgType === 'event') {
+      const ev = (msg.event || '').toLowerCase();
+      if (ev === 'scan') {
+        const r = tryTraceScan(msg.eventKey);
+        if (r) return r;
+        return null; // SCAN 非溯源场景：不回复（微信允许无应答）
+      }
+      if (ev === 'subscribe') {
+        // 扫码关注：EventKey = qrscene_<scene>；非溯源场景回落通用关注回复
+        if ((msg.eventKey || '').startsWith('qrscene_')) {
+          const r = tryTraceScan(msg.eventKey);
+          if (r) return r;
+        }
+        const rule = this.getSubscribeRule(channel.id);
+        return rule ? make(rule) : null;
+      }
+      return null;
     }
     if (msg.msgType === 'text') {
       const hits = this.matchReplyRules(channel.id, msg.content || '');
@@ -496,7 +704,7 @@ export class WxMpService {
    *    避免"微信后台选A、我们这配成B"的两份真相。
    * 返回 { reply }：reply 为回复 XML 字符串（可能已加密）；无匹配返回 { reply: null }。
    */
-  async handleInboundMessage({ appid, query, body }) {
+  async handleInboundMessage({ appid, query, body, baseUrl = '' }) {
     const channel = this.db.prepare("SELECT * FROM channel_apps WHERE appid = ?").get(appid);
     if (!channel) return { reply: null };
     const cfg = this.getMessageConfig(channel.id);
@@ -531,7 +739,7 @@ export class WxMpService {
     }
 
     const msg = this.parseMessageXml(xml);
-    const reply = this.resolveReply(channel, msg);
+    const reply = this.resolveReply(channel, msg, { baseUrl });
     if (!reply) return { reply: null };
 
     if (encrypted) {

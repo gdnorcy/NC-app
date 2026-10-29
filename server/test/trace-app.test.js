@@ -71,11 +71,12 @@ describe('防伪溯源 trace：接入回归锁', () => {
   });
 
   // ── 1) 建表：SQLite 方言 + 表齐全 ──────────────────────────────────────
-  it('7 张业务表建成且列名统一为 is_rewarded / credit_type', () => {
+  it('trace_ 业务表齐全且列名统一为 is_rewarded / credit_type', () => {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'trace_%'").all().map((r) => r.name).sort();
-    // #469 新增 trace_platform_settings / trace_cocom_recharges，故共 9 张 trace_ 业务表
+    // #469 新增 trace_platform_settings / trace_cocom_recharges（9 张）；
+    // P2 先印后绑新增 trace_activations（批次激活记录，UNIQUE(tenant_id,batch_id)）→ 共 10 张。
     assert.deepEqual(tables, [
-      'trace_batch_rules', 'trace_batches', 'trace_cocom_recharges',
+      'trace_activations', 'trace_batch_rules', 'trace_batches', 'trace_cocom_recharges',
       'trace_code_rules', 'trace_codes', 'trace_histories',
       'trace_platform_settings', 'trace_settings', 'trace_wrong_attempts',
     ]);

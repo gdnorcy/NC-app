@@ -32,7 +32,7 @@ import request from 'supertest';
 import { config } from '../src/config.js';
 import { createDb, hashPassword, ensureTenantTraceRule, countTraceCodesGenerated } from '../src/db.js';
 import { createApp } from '../src/app.js';
-import { DEFAULT_CODESET } from '../src/services/traceCode.js';
+import { DEFAULT_CODESET, parseTraceRule } from '../src/services/traceCode.js';
 
 describe('防伪码制：随机密钥 + 停用批次禁生成 + 结构锁计数口径', () => {
   let tmpDir, db, app, server;
@@ -96,7 +96,8 @@ describe('防伪码制：随机密钥 + 停用批次禁生成 + 结构锁计数�
 
   const auth = (r) => r.set('Authorization', `Bearer ${tenantToken}`);
   const ruleRow = (t) => db.prepare('SELECT * FROM trace_code_rules WHERE tenant_id = ?').get(t);
-  const ruleObj = (t) => JSON.parse(ruleRow(t)?.rule_json || '{}');
+  // 🔴 H2：k 现在加密落库，读取必须走 parseTraceRule 解密，断言才看得到明文 k
+  const ruleObj = (t) => parseTraceRule(ruleRow(t)?.rule_json || '{}');
 
   // ── 1) 新租户随机 k ──────────────────────────────────────────────────
   it('新租户播种随机 k1–k4（10 位数字），且不等于默认码表', () => {

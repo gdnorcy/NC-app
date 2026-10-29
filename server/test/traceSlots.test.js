@@ -9,7 +9,7 @@ import { SLOTMAX, SLOTWHEN, normalizeDisplaySlots, pickDisplaySlots } from '../s
 // ============================================================
 
 function slot(when, extra = {}) {
-  return { when, title: 't', cover: '', link: '', color: '', ...extra };
+  return { when, title: 't', cover: '', link: '', ...extra };
 }
 
 function normalizeOne(extra) {
@@ -38,16 +38,6 @@ test('展示条件非法一律抛（0/1/2/4/5 之外）', () => {
 
 test('五个合法展示条件全部收（含 0 关闭）', () => {
   assert.deepEqual(normalizeDisplaySlots(VALIDWHENS.map((w) => slot(w))).map((s) => s.when), VALIDWHENS);
-});
-
-test('颜色：非法抛', () => {
-  assert.throws(() => normalizeOne({ color: 'red' }), /颜色必须是/);
-});
-
-test('颜色：#rgb / #rrggbb 通过、空串放行（空串 = 交给 C 端主题色）', () => {
-  assert.equal(normalizeOne({ color: '#fff' }).color, '#fff');
-  assert.equal(normalizeOne({ color: '#ff00ff' }).color, '#ff00ff');
-  assert.equal(normalizeOne({ color: '' }).color, '');
 });
 
 test('接口密钥不透明透传：原样保留、且不被校验/解密', () => {

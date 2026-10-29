@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { encryptSecret, readSecret } from '../crypto.js';
 
 const WI = [7, 19, 11, 5, 1, 2, 3, 7, 19, 13, 5, 3, 11, 2, 7, 13, 2, 5, 7, 3, 19, 17];
 const WU = [5, 7, 13, 19, 7, 3, 2, 17, 5, 3, 7, 19, 7, 11, 3, 7, 2, 13, 1, 7, 11, 5];
@@ -163,4 +164,82 @@ export function batchLenOf(codeset = {}) {
 export function canonicalBatchSegment(batch, codeset = {}) {
   const len = batchLenOf(codeset);
   return cleanTraceCode(batch).slice(0, len).padStart(len, '0');
+}
+
+/* ===================== P1 试印/演示码：号段隔离 ===================== */
+
+/**
+ * 🔴 试印码预留的流水号数量（m3 位空间**顶部**的这些值专供试印码）。
+ *
+ * 为什么必须预留独立号段：试印码与正式码若共用号段，流水号会重复 →
+ *   同一个码值既出现在试印包、又出现在正式包 → 试印包印出来的东西扫出来
+ *   与正式码无法区分，等于把「试印」的意义（印刷前先验证一批）彻底作废。
+ *
+ * 取顶部而不是中段：顶部号段（999000+）在业务上几乎不会被正式流水号碰到，
+ *   一眼就能从码面看出是试印段，排查时不会与正常流水号混淆。
+ */
+export const DEMO_SERIAL_RESERVED = 1000;
+
+/**
+ * 试印号段起点（= 流水号空间上限 - 预留量）。
+ * @returns {number} 0 = 当前码制流水号太短，容不下试印号段（调用方须拒绝试印生成）
+ */
+export function demoSerialBase(codeset = {}) {
+  const m = codeset.m || {};
+  const serialLen = Math.max(1, Number(valueAt(m, 3, 6)) || 6);
+  const space = 10 ** serialLen;
+  if (space <= DEMO_SERIAL_RESERVED) return 0;
+  return space - DEMO_SERIAL_RESERVED;
+}
+
+/** 某个流水号是否落在试印号段内（用于扫码侧兜底识别） */
+export function isDemoSerial(serial, codeset = {}) {
+  const base = demoSerialBase(codeset);
+  if (!base) return false;
+  const n = Number(String(serial ?? '').trim());
+  return Number.isFinite(n) && n >= base;
+}
+
+/* ===================== H2：码制密钥 k 落库加密 ===================== */
+
+/**
+ * 🔴 解析 trace_code_rules.rule_json（兼容历史明文 / 新加密两种形态）。
+ *
+ * 为什么集中在这里：rule_json 的读取点不止一处（routes/trace.js 的 getRule、
+ * services/wx-mp.js 的 getTraceRule），写入点也不止一处（saveRule、ensureTenantTraceRule、
+ * markTraceRulePrinted）。k 一旦加密存储，所有读取点都必须先解密 —— 把「解密」收口到这一个函数，
+ * 任何新读取点只要走 parseTraceRule 就不会漏。
+ *
+ * 形态兼容：
+ *   - k 是对象（历史明文 / 未加密）→ 原样返回（不破坏存量数据）。
+ *   - k 是字符串（新加密）→ readSecret 解密后 JSON.parse 还原成对象。
+ *     readSecret 自带「解密失败回退原值」，故主密钥轮换等极端情况不会让整行解析崩掉。
+ *
+ * 🔴 H2 安全意义：校验密钥 k1~k4（40 位）直接决定防伪码能否被伪造。
+ *   明文落库时，数据库文件/备份一旦泄露，攻击者可对同租户任意 (批次, 流水号) 算出有效码。
+ *   加密存储（AES-256-GCM，主密钥来自 STORAGE_KEY）把泄露面收敛到「同时拿到 DB + STORAGE_KEY」。
+ */
+export function parseTraceRule(raw) {
+  let rule;
+  if (typeof raw === 'string') {
+    try { rule = JSON.parse(raw || '{}'); } catch { rule = {}; }
+  } else {
+    rule = raw || {};
+  }
+  if (rule && typeof rule.k === 'string' && rule.k.length) {
+    try { rule.k = JSON.parse(readSecret(rule.k)); } catch { rule.k = {}; }
+  }
+  return rule;
+}
+
+/**
+ * 🔴 序列化 trace_code_rules.rule_json，并把 k 段加密存储。
+ * 仅当 k 是对象时才加密（已是字符串=已加密，原样保留，避免二次加密导致历史数据膨胀）。
+ */
+export function serializeTraceRule(rule) {
+  const out = { ...rule };
+  if (out.k && typeof out.k === 'object' && !Array.isArray(out.k)) {
+    out.k = encryptSecret(JSON.stringify(out.k));
+  }
+  return JSON.stringify(out);
 }

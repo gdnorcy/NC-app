@@ -68,10 +68,10 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
   const storedJson = () => db.prepare('SELECT settings_json FROM trace_settings WHERE tenant_id = ?').get(T)?.settings_json || '';
 
   const SLOTS = [
-    { when: 1, title: '全部可见', cover: '/a.png', link: '/pages/a', color: '#ff0000' },
-    { when: 2, title: '仅首查', cover: '/b.png', link: '/pages/b', color: '#00ff00' },
-    { when: 5, title: '首位每次', cover: '/c.png', link: '/pages/c', color: '' },
-    { when: 4, title: '非首位', cover: '/d.png', link: '/pages/d', color: '#0000ff' },
+    { when: 1, title: '全部可见', cover: '/a.png', link: '/pages/a' },
+    { when: 2, title: '仅首查', cover: '/b.png', link: '/pages/b' },
+    { when: 5, title: '首位每次', cover: '/c.png', link: '/pages/c' },
+    { when: 4, title: '非首位', cover: '/d.png', link: '/pages/d' },
   ];
 
   // ── 1) 密钥：密文落库、明文不落库 ────────────────────────────────────

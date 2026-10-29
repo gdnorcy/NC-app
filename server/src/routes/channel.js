@@ -128,7 +128,7 @@ export function createChannelRouter(db) {
   router.post('/wx-message/:appid', async (req, res) => {
     const { appid } = req.params;
     try {
-      const { reply } = await wxMp.handleInboundMessage({ appid, query: req.query, body: req.body });
+      const { reply } = await wxMp.handleInboundMessage({ appid, query: req.query, body: req.body, baseUrl: publicBaseUrl(req) });
       if (!reply) return res.send('success');
       res.set('Content-Type', 'text/xml');
       res.send(reply);
