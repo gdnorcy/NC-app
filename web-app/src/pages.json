@@ -394,6 +394,13 @@
             "navigationBarTitleText": "防伪溯源",
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "activate",
+          "style": {
+            "navigationBarTitleText": "批次激活",
+            "navigationStyle": "custom"
+          }
         }
       ]
     }

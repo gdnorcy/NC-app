@@ -2,7 +2,7 @@
  * 首页展示位（C 端防伪验真结果页下方的推广位区）。
  *
  * 业务形状：租户在后台配一组展示位（最多 8 个），每个位带
- * 封面图 + 颜色 + 展示条件 + 标题 + 链接 + 接口密钥。C 端按
+ * 封面图 + 展示条件 + 标题 + 链接 + 接口密钥。C 端按
  * 「展示条件」与本次查询态决定是否渲染该位。
  *
  * 🔴 数量上限依据：当前公众号「上传图文消息素材」接口限制一个图文消息支持
@@ -36,7 +36,6 @@ export const SLOTWHEN = {
 };
 
 const WHENVALUES = new Set(Object.values(SLOTWHEN));
-const HEXCOLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 function text(value, max) {
   return String(value ?? '').trim().slice(0, max);
@@ -58,16 +57,11 @@ export function normalizeDisplaySlots(input) {
     if (!WHENVALUES.has(when)) {
       throw new Error(`第 ${index + 1} 个展示位的展示条件非法：${String(slot.when)}（允许 0 关闭 / 1 全部 / 2 首次 / 4 非首位 / 5 首位每次）`);
     }
-    const color = text(slot.color, 9);
-    if (color && !HEXCOLOR.test(color)) {
-      throw new Error(`第 ${index + 1} 个展示位的颜色必须是 #rgb 或 #rrggbb，当前：${color}`);
-    }
     const out = {
       when,
       title: text(slot.title, 32),
       cover: text(slot.cover, 500),
       link: text(slot.link, 500),
-      color,
     };
     // 🔴 接口密钥不透明透传：路由层已加密，本模块不解密/不校验/不打印。
     //    （预留字段，当前无消费点 —— 见文件头说明）

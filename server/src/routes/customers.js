@@ -3,7 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { config } from '../config.js';
-import { toCustomer, toPlan, genShareToken, addOperationLog, ensureTenantDefaultLevels } from '../db.js';
+import { toCustomer, toPlan, genShareToken, addOperationLog, ensureTenantDefaultLevels, ensureTenantTraceRule } from '../db.js';
 import { requireAuth, issueToken } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 
@@ -240,6 +240,14 @@ export function createCustomersRouter(db) {
       ensureTenantDefaultLevels(db, info.lastInsertRowid);
     } catch (e) {
       console.error('新租户会员档即时播种失败（重启后将重试）:', e?.message || e);
+    }
+    // 3b：新租户即时播种防伪码制（k1–k4 随机，与启动时 seedTraceCodeRules 同一函数）。
+    // 不播种的话租户会一直跑在 DEFAULT_CODESET 默认码表上 → 跨租户算法相同、防伪强度退化。
+    // 失败不阻断建租户（首次访问防伪溯源时会懒播种，重启也会补）。
+    try {
+      ensureTenantTraceRule(db, info.lastInsertRowid);
+    } catch (e) {
+      console.error('新租户防伪码制播种失败（重启后将重试）:', e?.message || e);
     }
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_customer', targetType: 'customer', targetId: info.lastInsertRowid, detail: `创建客户: ${customerName}`, ip: req.ip });
     res.status(201).json({ project: toCustomer(row) });

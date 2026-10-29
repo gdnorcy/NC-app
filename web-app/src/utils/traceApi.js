@@ -48,3 +48,15 @@ export function myGoods(params, tid) {
 export function claimReward(data, tid) {
   return request('/claim' + qs({ tid }), 'POST', data);
 }
+
+/**
+ * 经销商自助激活批次（P2 先印后绑）。
+ *
+ * 🔴 租户标识只能走 URL ?tid=（公开段不认 body 里的 tid，否则改一个参数就能激活别人家的批次）。
+ * @param {string} batch 批次号
+ * @param {string} pin 8 位激活口令
+ * @param {string} tid 租户 ID
+ */
+export function activateBatch(batch, pin, tid) {
+  return request('/batch-activate' + qs({ tid }), 'POST', { batch, pin });
+}

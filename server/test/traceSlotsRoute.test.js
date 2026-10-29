@@ -68,10 +68,10 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
   const storedJson = () => db.prepare('SELECT settings_json FROM trace_settings WHERE tenant_id = ?').get(T)?.settings_json || '';
 
   const SLOTS = [
-    { when: 1, title: '全部可见', cover: '/a.png', link: '/pages/a', color: '#ff0000' },
-    { when: 2, title: '仅首查', cover: '/b.png', link: '/pages/b', color: '#00ff00' },
-    { when: 5, title: '首位每次', cover: '/c.png', link: '/pages/c', color: '' },
-    { when: 4, title: '非首位', cover: '/d.png', link: '/pages/d', color: '#0000ff' },
+    { when: 1, title: '全部可见', cover: '/a.png', link: '/pages/a' },
+    { when: 2, title: '仅首查', cover: '/b.png', link: '/pages/b' },
+    { when: 5, title: '首位每次', cover: '/c.png', link: '/pages/c' },
+    { when: 4, title: '非首位', cover: '/d.png', link: '/pages/d' },
   ];
 
   // ── 1) 密钥：密文落库、明文不落库 ────────────────────────────────────
@@ -188,5 +188,29 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
       assert.equal(res.body.num, expect, `第 ${expect} 次查询 num 应递增到 ${expect}，实际 ${res.body.num}`);
       assert.equal(res.body.first, false, '第二次起 first 应为 false');
     }
+  });
+
+  // ── 8) 复访备注必须递进：第 N 次查询备注 = 「第N次查询」（回归锁） ──────
+  // 🔴 原 bug：备注用「自增前的 record.num」拼，第 2、3 次查询的备注仍写「第1次查询」。
+  //    两台手机扫同一码（不同 openid）即触发：计数 num 是对的，但查询记录备注全标「第1次查询」。
+  it('复访备注递进：第1/2/3次查询备注分别为「第1次/第2次/第3次查询」', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches'))
+      .send({ batch: 'RMK01', product: '备注产品' });
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`))
+      .send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    // 三个不同 openid 模拟「同一码被两台/三台手机扫」（不同人 → 不命中 21 秒同人防抖）
+    const openids = ['aaa', 'bbb', 'ccc'];
+    const expectRemarks = ['第1次查询', '第2次查询', '第3次查询'];
+    for (let i = 0; i < openids.length; i += 1) {
+      const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', openids[i]).send({ co: code });
+      assert.equal(res.status, 200, JSON.stringify(res.body));
+      const remark = db.prepare('SELECT remark FROM trace_histories WHERE tenant_id = ? AND summary = ? AND openid = ? ORDER BY id DESC LIMIT 1')
+        .get(T, code, openids[i])?.remark;
+      assert.equal(remark, expectRemarks[i], `第 ${i + 1} 次查询备注应为「${expectRemarks[i]}」，实际「${remark}」`);
+    }
+    const num = db.prepare('SELECT num FROM trace_codes WHERE tenant_id = ? AND code = ?').get(T, code)?.num;
+    assert.equal(Number(num), 3, `三次查询后 num 应为 3，实际 ${num}`);
   });
 });

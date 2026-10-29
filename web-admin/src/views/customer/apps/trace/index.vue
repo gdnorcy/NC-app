@@ -21,15 +21,36 @@
     <main class="trace-content">
       <!-- ============ 批次管理 ============ -->
       <section v-show="activeTab === 'batches'">
+        <!-- 🔴 码制软引导：只提示不阻断。硬拦会让「用默认码制直接干活」的租户一进来就卡死，
+             而真正不可逆的坑（生成后结构参数锁死）放在保存/生成接口上兜底。 -->
+        <el-alert v-if="!ruleConfirmed" type="warning" :closable="false" show-icon class="mb12">
+          <div class="guide-row">
+            <span>防伪码制（前缀 / 各段长度 / 校验字符集）由系统初始化，还没经你确认。<b>一旦生成过码，结构参数就永久锁定不可改</b>，请先核对再生成。</span>
+            <el-button size="small" type="primary" @click="gotoRuleTab">去核对码制</el-button>
+          </div>
+        </el-alert>
         <div class="filter-bar">
           <el-input v-model.trim="batchQuery.keyword" placeholder="批次号 / 产品 / 厂家 / 品牌" class="w260" clearable
             @keyup.enter="batchQuery.page = 1; loadBatches()" @clear="batchQuery.page = 1; loadBatches()" />
           <el-button type="primary" @click="batchQuery.page = 1; loadBatches()"><el-icon><Search /></el-icon>查询</el-button>
           <el-button type="success" @click="openBatchCreate"><el-icon><Plus /></el-icon>新增批次</el-button>
+          <!-- 🔴 公众号带参二维码能力预检：永久码只对「已认证服务号」开放，
+               订阅号/未认证服务号出码会直接撞 48001 → 先在界面上说清楚，别让商户印完才发现。 -->
+          <el-tag v-if="mpQrCap && mpQrCap.supported === true" type="success" size="small" effect="plain">公众号带参二维码：可用</el-tag>
+          <el-tag v-else-if="mpQrCap && mpQrCap.supported === false" type="danger" size="small" effect="plain" :title="mpQrCap.reason">公众号带参二维码：不可用</el-tag>
+          <el-tag v-else-if="mpQrCap" type="info" size="small" effect="plain" :title="mpQrCap.reason">公众号带参二维码：状态未知</el-tag>
+          <!-- 🔴 G3 批量激活：闸门开启后存量批次要逐个激活，几百个批次 = 几百次点击。
+               只在闸门开启时才显示（闸门没开，激活无意义）。 -->
+          <el-button v-if="Number(s.isjihuo)" type="warning" plain size="small" :disabled="!batchSelection.length" @click="batchActivateSelected">
+            批量激活（{{ batchSelection.length }}）
+          </el-button>
           <span class="list-total">共 {{ batchTotal }} 个批次</span>
         </div>
 
-        <el-table v-loading="batchLoading" :data="batchList" class="mt12" empty-text="暂无批次">
+        <el-table v-loading="batchLoading" :data="batchList" class="mt12" empty-text="暂无批次"
+          @selection-change="onBatchSelectionChange">
+          <!-- 多选列：仅闸门开启时才允许勾选（关着时激活没意义，避免误操作） -->
+          <el-table-column v-if="Number(s.isjihuo)" type="selection" width="46" :selectable="(row) => !Number(row.activated)" />
           <el-table-column prop="batch" label="批次号" width="140" />
           <el-table-column prop="product" label="产品" min-width="160" show-overflow-tooltip />
           <el-table-column prop="factory" label="厂家" width="140" show-overflow-tooltip />
@@ -37,19 +58,34 @@
           <el-table-column label="已查次数" width="100" align="center">
             <template #default="{ row }"><span>{{ Number(row.rcon || 0) }}</span></template>
           </el-table-column>
-          <el-table-column label="状态" width="100" align="center">
+          <!-- 🔴 P1 试印数：与正式码（num）完全分离，试印不占正式库存 -->
+          <el-table-column label="试印数" width="90" align="center">
+            <template #default="{ row }"><span>{{ Number(row.demo_num || 0) }}</span></template>
+          </el-table-column>
+          <!-- 🔴 批次启停（is_active）叫「启用/停用」，与下面 P2 的「先印后绑激活」区分开：
+               两个都叫「激活」的话，租户根本分不清自己点的是哪个。 -->
+          <el-table-column label="批次状态" width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="Number(row.is_active) ? 'success' : 'info'" size="small">{{ Number(row.is_active) ? '已激活' : '停用' }}</el-tag>
+              <el-tag :type="Number(row.is_active) ? 'success' : 'info'" size="small">{{ Number(row.is_active) ? '启用' : '停用' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="280" fixed="right">
-                <template #default="{ row }">
-                  <el-button link type="primary" size="small" @click="openGen(row)">生成</el-button>
-                  <el-button link type="primary" size="small" @click="downloadCodes(row)">下载码包</el-button>
-                  <el-button v-if="!Number(row.is_active)" link type="success" size="small" @click="activateBatch(row)">激活</el-button>
-                  <el-button link type="primary" size="small" @click="openBatchEdit(row)">编辑</el-button>
-                  <el-button link type="danger" size="small" @click="removeBatch(row)">删除</el-button>
-                </template>
+          <!-- 🔴 P2 先印后绑：闸门开启时，未激活批次消费者扫码只得到「请联系经销商扫码激活」 -->
+          <el-table-column label="先印后绑" width="110" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="!Number(s.isjihuo)" type="info" size="small" effect="plain">闸门未开</el-tag>
+              <el-tag v-else-if="Number(row.activated)" type="success" size="small">已激活</el-tag>
+              <el-tag v-else type="warning" size="small">待激活</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="320" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="openGen(row)">生成</el-button>
+              <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="openGen(row)">下载码包</el-button>
+              <el-button v-if="!Number(row.is_active)" link type="success" size="small" @click="activateBatch(row)">启用</el-button>
+              <el-button v-if="Number(s.isjihuo) && !Number(row.activated)" link type="warning" size="small" @click="activateBatchGate(row)">激活</el-button>
+              <el-button link type="primary" size="small" @click="openBatchEdit(row)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="removeBatch(row)">删除</el-button>
+            </template>
           </el-table-column>
         </el-table>
 
@@ -78,8 +114,10 @@
           <el-table-column label="异常" width="90" align="center">
             <template #default="{ row }"><el-tag v-if="Number(row.is_err)" type="danger" size="small">异常</el-tag></template>
           </el-table-column>
-          <el-table-column label="操作" width="120" fixed="right">
+          <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
+              <!-- 🔴 出公众号带参二维码：消费者用微信扫 → 在公众号内弹出图文卡片（溯源结果） -->
+              <el-button link type="primary" size="small" @click="openMpQr(row.code)">出带参码</el-button>
               <el-button link type="danger" size="small" @click="markError(row)">标记异常</el-button>
             </template>
           </el-table-column>
@@ -105,32 +143,36 @@
           <section v-show="settingTab === 'rule'">
             <el-card class="set-card" shadow="never">
               <template #header><span class="card-title">码制配置</span></template>
+              <!-- 🔴 P0 印刷锁定：正式印刷过防伪码后，密钥(k1~k4)与结构(m1~m5)永久锁死 ——
+                   改了会让已印出去的码全部失效。这里直接禁用输入框，别让用户填完再被服务端拒。 -->
+              <el-alert v-if="ruleLocked" type="error" :closable="false" show-icon class="mb12"
+                :title="`码制已锁定（${ruleLockedAtText} 已正式印刷防伪码）：前缀 / 各段长度 / 校验字符集 k1~k4 均不可修改`" />
               <el-alert v-if="ruleSelfCheck !== ''" type="warning" :closable="false" show-icon :title="ruleSelfCheck" class="mb12" />
               <el-form label-width="130px" class="rule-form">
                 <el-row :gutter="20">
                   <el-col :span="8">
                     <el-form-item label="码前缀 m1" required>
-                      <el-input v-model.trim="ruleForm.m1" maxlength="2" placeholder="2 位，如 FW" />
+                      <el-input v-model.trim="ruleForm.m1" maxlength="2" placeholder="2 位，如 FW" :disabled="ruleLocked" />
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="批次号长度 m2">
-                      <el-input-number v-model="ruleForm.m2" :min="1" :max="12" controls-position="right" />
+                      <el-input-number v-model="ruleForm.m2" :min="1" :max="12" controls-position="right" :disabled="ruleLocked" />
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="流水号长度 m3">
-                      <el-input-number v-model="ruleForm.m3" :min="1" :max="12" controls-position="right" />
+                      <el-input-number v-model="ruleForm.m3" :min="1" :max="12" controls-position="right" :disabled="ruleLocked" />
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="校验位长度 m4">
-                      <el-input-number v-model="ruleForm.m4" :min="1" :max="12" controls-position="right" />
+                      <el-input-number v-model="ruleForm.m4" :min="1" :max="12" controls-position="right" :disabled="ruleLocked" />
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="防伪码总长 m5">
-                      <el-input-number v-model="ruleForm.m5" :min="6" :max="40" controls-position="right" />
+                      <el-input-number v-model="ruleForm.m5" :min="6" :max="40" controls-position="right" :disabled="ruleLocked" />
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
@@ -140,20 +182,65 @@
                   </el-col>
                 </el-row>
                 <el-form-item label="校验字符集 k1" required>
-                  <el-input v-model.trim="ruleForm.k1" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k1" maxlength="10" placeholder="10 位" :disabled="ruleLocked">
+                    <template #append><el-button :loading="kRandomizing === 1" :disabled="ruleLocked" @click="randomizeKey(1)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item label="校验字符集 k2" required>
-                  <el-input v-model.trim="ruleForm.k2" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k2" maxlength="10" placeholder="10 位" :disabled="ruleLocked">
+                    <template #append><el-button :loading="kRandomizing === 2" :disabled="ruleLocked" @click="randomizeKey(2)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item label="校验字符集 k3" required>
-                  <el-input v-model.trim="ruleForm.k3" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k3" maxlength="10" placeholder="10 位" :disabled="ruleLocked">
+                    <template #append><el-button :loading="kRandomizing === 3" :disabled="ruleLocked" @click="randomizeKey(3)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item label="校验字符集 k4" required>
-                  <el-input v-model.trim="ruleForm.k4" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k4" maxlength="10" placeholder="10 位" :disabled="ruleLocked">
+                    <template #append><el-button :loading="kRandomizing === 4" :disabled="ruleLocked" @click="randomizeKey(4)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
+                <el-form-item label="系统保留位 k5">
+                  <el-input :model-value="ruleForm.k5" disabled placeholder="1 位">
+                    <template #append><el-tag size="small" type="info" effect="plain">不可修改</el-tag></template>
+                  </el-input>
+                  <span class="form-hint">k5 是算法保留盐位（1 位），由系统固定，不参与位运算校验字符集，租户不可更改</span>
+                </el-form-item>
+
+                <el-dialog v-model="downloadDlg.visible" title="下载码制配置备份" width="520px" append-to-body>
+                  <el-alert type="warning" :closable="false" show-icon class="mb12">
+                    本文件含防伪密钥（k1~k5），泄露可被用于伪造该租户的防伪码。请离线妥善保管，勿经微信 / 邮件 / 云盘明文传输。
+                  </el-alert>
+                  <el-form label-width="120px">
+                    <el-form-item label="备份方式">
+                      <el-radio-group v-model="downloadDlg.mode">
+                        <el-radio value="encrypted">加密（推荐）</el-radio>
+                        <el-radio value="plain">明文</el-radio>
+                      </el-radio-group>
+                    </el-form-item>
+                    <template v-if="downloadDlg.mode === 'encrypted'">
+                      <el-form-item label="加密密码" required>
+                        <el-input v-model="downloadDlg.password" type="password" show-password placeholder="设置解密密码" />
+                      </el-form-item>
+                      <el-form-item label="确认密码" required>
+                        <el-input v-model="downloadDlg.confirmPwd" type="password" show-password placeholder="再输一次" />
+                      </el-form-item>
+                      <el-alert type="error" :closable="false" class="mb12">
+                        平台不保存此密码，遗忘将无法恢复备份。
+                      </el-alert>
+                    </template>
+                  </el-form>
+                  <template #footer>
+                    <el-button @click="downloadDlg.visible = false">取消</el-button>
+                    <el-button type="primary" :loading="downloadPreparing" @click="doDownload">下载 .txt</el-button>
+                  </template>
+                </el-dialog>
                 <el-form-item>
                   <el-button type="primary" :loading="ruleSaving" @click="saveRule">保存码制</el-button>
-                  <span class="form-hint">已生成过防伪码后，前缀/各长度参数将被锁定不可改，否则已印码全部失效</span>
+                  <el-button :loading="downloadPreparing" @click="openDownload">下载码制配置</el-button>
+                  <span class="form-hint" v-if="ruleLocked">已正式印刷过防伪码，码制结构与校验密钥已永久锁定；仅「错误次数上限」仍可调整</span>
+                  <span class="form-hint" v-else>已生成过防伪码后，前缀/各长度参数将被锁定不可改，否则已印码全部失效</span>
                 </el-form-item>
               </el-form>
             </el-card>
@@ -280,7 +367,7 @@
 
           <!-- ===== 通用设置（首页展示位） ===== -->
           <section v-show="settingTab === 'general'">
-            <!-- 首页展示位：C 端验真结果页下方的推广位（多展位，各配封面图+颜色+展示条件） -->
+            <!-- 首页展示位：C 端验真结果页下方的推广位（多展位，各配封面图+展示条件） -->
             <el-card class="set-card" shadow="never">
               <template #header>
                 <div class="slot-head">
@@ -303,18 +390,14 @@
                 </div>
                 <el-form label-width="90px" class="slot-form">
                   <el-form-item label="封面图">
-                    <el-upload :show-file-list="false" :http-request="(o) => uploadSlotCover(o, i)" accept="image/*">
+                    <div class="slot-cover-pick" @click="openCoverPicker(i)">
                       <img v-if="it.cover" :src="it.cover" class="slot-thumb" />
                       <div v-else class="slot-add">+ 选择图片</div>
-                    </el-upload>
+                    </div>
                     <span class="form-hint">建议 240×180；未上传时 C 端显示占位底色</span>
                   </el-form-item>
                   <el-form-item label="标题">
                     <el-input v-model.trim="it.title" maxlength="32" placeholder="展示位标题" class="slot-in" />
-                  </el-form-item>
-                  <el-form-item label="颜色">
-                    <el-color-picker v-model="it.color" />
-                    <span class="form-hint">用于 C 端标题文字色；留空则跟随页面主文本色</span>
                   </el-form-item>
                   <el-form-item label="展示条件">
                     <el-select v-model="it.when" class="slot-when">
@@ -336,6 +419,7 @@
                 <el-button :disabled="s.displaySlots.length >= SLOT_MAX" @click="addSlot">+ 新增展示位</el-button>
               </div>
             </el-card>
+            <MaterialPicker v-model="coverPicker.show" @confirm="onPickCover" />
           </section>
 
           <!-- ===== 红包设置（配置占位，待接入租户微信支付凭据） ===== -->
@@ -513,7 +597,7 @@
             <h4>二、批次与码制</h4>
             <p>在「批次管理」新增批次并生成防伪码；码制（前缀 / 各段长度 / 校验字符集）一旦生成过码将被锁定，请先规划好码制再生成。</p>
             <h4>三、首页展示位</h4>
-            <p>在「防伪设置 → 通用设置」配置 C 端验真结果页下方的推广位，最多 8 个，可设置封面图、标题、颜色、展示条件与跳转链接。</p>
+            <p>在「防伪设置 → 通用设置」配置 C 端验真结果页下方的推广位，最多 8 个，可设置封面图、标题、展示条件与跳转链接。</p>
             <h4>四、数据统计与排查</h4>
             <p>在「数据统计」查看累计查询次数、地域分布与查询趋势；在「查询历史 / 错误码」排查异常查询。</p>
             <h4>五、防伪码库存</h4>
@@ -610,9 +694,35 @@
           <el-form-item label="主图"><el-input v-model.trim="batchDlg.form.banner" placeholder="图片 URL" /></el-form-item>
           <el-form-item label="视频"><el-input v-model.trim="batchDlg.form.video" placeholder="视频 URL" /></el-form-item>
           <el-form-item label="购买链接"><el-input v-model.trim="batchDlg.form.buyLink" /></el-form-item>
-          <el-form-item label="状态">
-            <el-switch v-model="batchDlg.form.isActive" active-text="已激活" inactive-text="停用" />
+          <el-form-item label="批次状态">
+            <el-switch v-model="batchDlg.form.isActive" active-text="启用" inactive-text="停用" />
           </el-form-item>
+
+          <!-- 🔴 P2 先印后绑（激活闸门）管理位：口令给经销商、激活/撤销在这里操作 -->
+          <el-card class="sub-card" shadow="never">
+            <template #header><span class="card-title">先印后绑（激活闸门）</span></template>
+            <el-alert type="info" :closable="false" show-icon class="mb12"
+              title="开启「功能设置 → 码激活」后，本批次在被激活之前，消费者扫码只会看到「请联系经销商扫码激活」，看不到溯源详情。激活口令请线下交给经销商，凭口令由其自助激活。" />
+            <el-form-item label="激活状态">
+              <el-tag v-if="batchDlg.activation.activated" type="success" size="small">已激活</el-tag>
+              <el-tag v-else type="warning" size="small">未激活</el-tag>
+              <span class="form-hint" style="margin-left:8px" v-if="batchDlg.activation.activated">
+                {{ batchDlg.activation.source === 'dealer' ? '经销商凭口令激活' : '租户后台激活' }}{{ batchDlg.activation.activatedAt ? ' · ' + batchDlg.activation.activatedAt : '' }}
+              </span>
+            </el-form-item>
+            <el-form-item label="激活口令">
+              <el-input :model-value="batchDlg.activation.activatePin || '未设置'" readonly placeholder="未设置">
+                <template #append>
+                  <el-button :loading="pinSaving" @click="resetActivationPin">重置口令</el-button>
+                </template>
+              </el-input>
+              <span class="form-hint">明文只在重置时显示一次，库里存密文；丢失只能重置</span>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="success" size="small" :disabled="batchDlg.activation.activated" @click="activateBatchGate(batchDlg.form)">激活批次</el-button>
+              <el-button type="warning" size="small" :disabled="!batchDlg.activation.activated" @click="revokeActivation(batchDlg.form)">撤销激活</el-button>
+            </el-form-item>
+          </el-card>
         </template>
       </el-form>
       <template #footer>
@@ -627,17 +737,89 @@
         <el-form-item label="码型">
           <el-select v-model="genDlg.codetype" class="w240">
             <el-option :value="1" label="普通文本码（含校验位，可扫码/手输）" />
+            <el-option :value="2" label="二维码码包（HTML，可印刷）" />
             <el-option :value="6" label="纯数字码" />
           </el-select>
         </el-form-item>
+        <!-- 🔴 P1 试印模式：印刷前先小批量试印（不扣库存、不锁码制、码值可区分） -->
+        <el-form-item label="生成模式">
+          <el-radio-group v-model="genDlg.demo">
+            <el-radio :value="0">正式生成</el-radio>
+            <el-radio :value="1">试印 · 演示</el-radio>
+          </el-radio-group>
+          <span class="form-hint" v-if="genDlg.demo">试印码不扣库存、不锁定码制，流水号走顶部预留段（与正式码绝不撞号），码包首行带【演示·试印】标注</span>
+          <span class="form-hint" v-else>正式生成会扣减库存，并在生成成功后永久锁定码制（密钥与结构不可再改）</span>
+        </el-form-item>
         <el-form-item label="生成数量">
-          <el-input-number v-model="genDlg.count" :min="1" :max="10000" :step="100" controls-position="right" />
-          <span class="form-hint">最多 10000 个</span>
+          <el-input-number v-model="genDlg.count" :min="1" :max="genDlg.demo ? 1000 : 10000" :step="100" controls-position="right" />
+          <span class="form-hint">{{ genDlg.demo ? '试印建议单次不超过 500 个' : '最多 10000 个' }}</span>
+          <span class="form-hint" v-if="!genDlg.demo">分多次生成会连续占用本批次的流水号段（每批接着上一批往下排，不会重号）</span>
+          <span class="form-hint form-hint-amber" v-if="!genDlg.demo && genDlg.codetype === 2 && genDlg.count >= 2000">二维码码型单次 ≥ 2000 个将自动打包为 ZIP 分文件（每码一张 SVG + 目录页），可直接分块交给印刷厂</span>
+        </el-form-item>
+        <!-- 🔴 打包格式：大批量时单 txt 在部分 IM/邮件客户端会被截断，打包成 zip 更稳 -->
+        <el-form-item label="打包格式">
+          <el-radio-group v-model="genDlg.format">
+            <el-radio :value="''">原始文件</el-radio>
+            <el-radio :value="'zip'">ZIP 压缩包</el-radio>
+          </el-radio-group>
+          <span class="form-hint">ZIP 内含一个与原始文件同名同内容的文件，解压即可直接使用</span>
+        </el-form-item>
+        <!-- 🔴 扫码地址：印在包装上的码扫出来打开什么，必须在生成前让商家看到。
+             URL 配错是「印完才发现」的事故（印 10 万个码扫出来打不开 = 全废）。 -->
+        <el-form-item label="扫码地址">
+          <div class="scan-url-box" :class="{ 'is-warn': scanUrl && !scanUrl.absolute }">
+            <template v-if="scanUrl">
+              <div v-if="scanUrl.absolute" class="scan-url-ok">
+                <el-icon color="#07c160"><CircleCheckFilled /></el-icon>
+                <span>{{ scanUrl.previewUrl }}</span>
+              </div>
+              <div v-else class="scan-url-bad">
+                <el-icon color="#f53f3f"><WarningFilled /></el-icon>
+                <span>{{ scanUrl.hint }}</span>
+              </div>
+            </template>
+            <span v-else class="form-hint">正在检测扫码地址…</span>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="genDlg.visible = false">取消</el-button>
-        <el-button type="primary" :loading="genSaving" @click="confirmGen">生成</el-button>
+        <el-button :loading="genSaving" @click="confirmGen">生成</el-button>
+        <el-button v-if="genDlg.lastGen" type="success" :loading="genSaving" @click="downloadLastGen">下载此批</el-button>
+        <el-button type="primary" :loading="genSaving" @click="confirmDownload">生成并下载</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 🔴 出公众号带参二维码弹窗（G1：此前后端有接口、后台无入口 → 能力对商家等于不存在） -->
+    <el-dialog v-model="mpQrDlg.visible" title="生成公众号带参二维码" width="520px" append-to-body>
+      <el-form label-width="100px">
+        <el-form-item label="防伪码">
+          <el-input v-model.trim="mpQrDlg.code" placeholder="输入防伪码（可手输未扫码的码）" clearable />
+        </el-form-item>
+        <el-form-item label="公众号能力">
+          <el-tag v-if="mpQrCap && mpQrCap.supported === true" type="success" size="small" effect="plain">可用</el-tag>
+          <el-tag v-else-if="mpQrCap && mpQrCap.supported === false" type="danger" size="small" effect="plain" :title="mpQrCap.reason">不可用</el-tag>
+          <el-tag v-else-if="mpQrCap" type="info" size="small" effect="plain" :title="mpQrCap.reason">状态未知</el-tag>
+          <span v-else class="form-hint">检测中…</span>
+        </el-form-item>
+        <el-form-item v-if="mpQrCap && mpQrCap.supported === false" label=" ">
+          <div class="scan-url-box">
+            <div class="scan-url-bad"><el-icon color="#f53f3f"><WarningFilled /></el-icon><span>{{ mpQrCap.reason }}</span></div>
+          </div>
+        </el-form-item>
+      </el-form>
+      <div v-if="mpQrDlg.result" class="mp-qr-result">
+        <div class="mp-qr-title">扫码后公众号内弹出溯源卡片</div>
+        <img v-if="mpQrDlg.result.imgUrl" :src="mpQrDlg.result.imgUrl" alt="公众号带参二维码" class="mp-qr-img" />
+        <div class="mp-qr-links">
+          <div>二维码链接：<a :href="mpQrDlg.result.showUrl" target="_blank" rel="noopener">{{ mpQrDlg.result.showUrl }}</a></div>
+          <div>场景值：<code>{{ mpQrDlg.result.code }}</code></div>
+        </div>
+        <el-button size="small" @click="downloadMpQr">下载二维码图片</el-button>
+      </div>
+      <template #footer>
+        <el-button @click="mpQrDlg.visible = false">关闭</el-button>
+        <el-button type="primary" :loading="mpQrSaving" @click="confirmMpQr">生成</el-button>
       </template>
     </el-dialog>
 
@@ -648,11 +830,12 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Search } from '@element-plus/icons-vue';
+import { Plus, Search, CircleCheckFilled, WarningFilled } from '@element-plus/icons-vue';
 // 🔴 标准 §5.2：必须走 customerApiCall（baseURL=/api/customer），禁止裸 fetch / 自建 request
 import { customerApiCall } from '../../../../api';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import SIcon from '../../../../components/SIcon.vue';
+import MaterialPicker from '../design/MaterialPicker.vue';
 
 const tabs = [
   { key: 'batches', label: '批次管理', icon: 'box' },
@@ -692,6 +875,20 @@ const batchQuery = reactive({ page: 1, pageSize: 20, keyword: '' });
 const batchList = ref([]);
 const batchTotal = ref(0);
 const batchLoading = ref(false);
+// 🔴 码制是否已由用户确认：false 时批次管理显示软引导。默认给 true，
+//    避免接口没吐这个字段（旧版本服务端）时新用户一进来就被黄条糊脸。
+const ruleConfirmed = ref(true);
+// 🔴 公众号带参二维码能力预检（supported: true 可用 / false 不可用 / null 未知）
+const mpQrCap = ref(null);
+async function loadMpQrCapability() {
+  try {
+    const res = await customerApiCall.get('/trace/mp-qr/capability');
+    mpQrCap.value = { supported: res.supported === true ? true : (res.supported === false ? false : null), reason: String(res.reason || ''), accountType: String(res.accountType || '') };
+  } catch (e) {
+    // 未配置公众号 / 无权限 → 不展示标签（不是错误态，别在页面上刷红字）
+    mpQrCap.value = null;
+  }
+}
 async function loadBatches() {
   batchLoading.value = true;
   try {
@@ -700,13 +897,22 @@ async function loadBatches() {
     const res = await customerApiCall.get('/trace/batches', { params });
     batchList.value = res.list || [];
     batchTotal.value = Number(res.total || 0);
+    ruleConfirmed.value = res.ruleConfirmed !== false;
   } catch (e) {
     ElMessage.error(e || '加载批次失败');
   } finally { batchLoading.value = false; }
 }
 
-const batchDlg = reactive({ visible: false, isEdit: false, form: {} });
+/** 从批次管理的软引导跳到「防伪设置 → 码制配置」 */
+function gotoRuleTab() {
+  activeTab.value = 'settings';
+  settingTab.value = 'rule';
+  loadRule();
+}
+
+const batchDlg = reactive({ visible: false, isEdit: false, form: {}, activation: { activated: false, activatePin: '', source: '', activatedAt: '', hasPin: false } });
 const batchSaving = ref(false);
+const pinSaving = ref(false);
 function emptyBatch() {
   return {
     id: 0, batch: '', product: '', factory: '', brand: '', origin: '', province: '', city: '', district: '', isChuanhuo: 0,
@@ -755,6 +961,102 @@ function openBatchEdit(row) {
     },
   };
   batchDlg.visible = true;
+  // 🔴 P2：顺带拉批次的激活态（编辑弹窗里管理口令/激活/撤销）
+  loadBatchActivation(row.id);
+}
+
+/** 拉取批次激活态（P2 先印后绑） */
+async function loadBatchActivation(id) {
+  try {
+    const res = await customerApiCall.get(`/trace/batches/${id}/activation`);
+    batchDlg.activation = {
+      activated: Boolean(res.activated),
+      activatePin: String(res.activatePin || ''),
+      source: String(res.source || ''),
+      activatedAt: String(res.activatedAt || ''),
+      hasPin: Boolean(res.hasPin),
+    };
+  } catch (e) {
+    batchDlg.activation = { activated: false, activatePin: '', source: '', activatedAt: '', hasPin: false };
+  }
+}
+
+/** P2：租户后台直接激活批次 */
+async function activateBatchGate(row) {
+  try {
+    await customerApiCall.post(`/trace/batches/${row.id}/activation`, { remark: '租户后台激活' });
+    ElMessage.success('批次已激活');
+    if (batchDlg.visible && batchDlg.form.id === row.id) loadBatchActivation(row.id);
+    loadBatches();
+  } catch (e) { ElMessage.error(e || '激活失败'); }
+}
+
+/**
+ * G3 批量激活（先印后绑）。
+ *
+ * 🔴 激活 = 放行消费者看溯源详情 → **误激活等于没设防**。所以：
+ *    ① 显式二次确认（ElMessageBox），确认文案写清「这会让这些批次的码可以被消费者查到溯源详情」；
+ *    ② 服务端要求 confirm=true 才真执行（防绕过前端直接调接口）；
+ *    ③ 不做「一键全激活」——只激活勾选中的那些。
+ */
+const batchSelection = ref([]);
+/** 表格勾选变化 → 记录选中的批次 id（模板里不能直接给 ref 赋值，ref 在模板中只解包读取） */
+function onBatchSelectionChange(rows) {
+  batchSelection.value = (rows || []).map((r) => Number(r.id)).filter((x) => x > 0);
+}
+async function batchActivateSelected() {
+  const ids = (batchSelection.value || []).map((x) => Number(x)).filter((x) => x > 0);
+  if (!ids.length) { ElMessage.warning('请先勾选要激活的批次'); return; }
+  try {
+    await ElMessageBox.confirm(
+      `即将激活 ${ids.length} 个批次。激活后，这些批次的防伪码消费者扫码即可查看溯源详情（未激活的批次消费者只会看到「请联系经销商扫码激活」）。确认继续？`,
+      '批量激活确认',
+      { type: 'warning', confirmButtonText: '确认激活', cancelButtonText: '取消' },
+    );
+  } catch (e) { return; } // 用户取消
+  try {
+    const res = await customerApiCall.post('/trace/batches/activate-batch', { ids, confirm: true, remark: '租户后台批量激活' });
+    const failed = Number(res.failed || 0);
+    if (failed > 0) {
+      ElMessage.warning(`批量激活完成：成功 ${res.success} 个，失败 ${failed} 个`);
+    } else {
+      ElMessage.success(`已激活 ${res.success} 个批次`);
+    }
+    batchSelection.value = [];
+    loadBatches();
+  } catch (e) {
+    ElMessage.error(e || '批量激活失败');
+  }
+}
+
+/** P2：重置激活口令（明文只显示这一次） */
+async function resetActivationPin() {
+  const id = Number(batchDlg.form.id || 0);
+  if (!id) return;
+  pinSaving.value = true;
+  try {
+    const res = await customerApiCall.post(`/trace/batches/${id}/activation-pin`, {});
+    const pin = String(res.activatePin || '');
+    ElMessageBox.alert(
+      `激活口令：${pin}\n\n请立即复制并线下交给经销商（明文只显示这一次，平台只存密文）。`,
+      '批次激活口令',
+      { confirmButtonText: '我已复制' },
+    );
+    await loadBatchActivation(id);
+  } catch (e) { ElMessage.error(e || '重置激活口令失败'); } finally { pinSaving.value = false; }
+}
+
+/** P2：撤销批次激活 */
+async function revokeActivation(row) {
+  try {
+    await ElMessageBox.confirm('撤销后，本批次的码在闸门开启时消费者将只能看到「请联系经销商扫码激活」。确定撤销吗？', '撤销激活', { type: 'warning' });
+  } catch { return; }
+  try {
+    await customerApiCall.delete(`/trace/batches/${row.id}/activation`);
+    ElMessage.success('已撤销激活');
+    await loadBatchActivation(Number(row.id || 0));
+    loadBatches();
+  } catch (e) { ElMessage.error(e || '撤销激活失败'); }
 }
 async function saveBatch() {
   const f = batchDlg.form;
@@ -805,9 +1107,27 @@ async function removeBatch(row) {
 }
 
 /* ----------------- 生成 / 下载 ----------------- */
-const genDlg = reactive({ visible: false, row: null, codetype: 1, count: 100 });
+// 🔴 lastGen 持有「最近一次生成」的产物，用于「生成后再下载同一批」：
+//    系统生成码时不落库（只累加批次 num），所以二次请求必然是另一批新码。
+//    要「同一批」就必须复用同一次生成返回的内容，绝不能调两次生成接口。
+const genDlg = reactive({ visible: false, row: null, codetype: 1, count: 100, demo: 0, format: '', lastGen: null });
 const genSaving = ref(false);
-function openGen(row) { genDlg.row = row; genDlg.codetype = 1; genDlg.count = 100; genDlg.visible = true; }
+// 🔴 扫码地址状态：弹窗打开时拉一次（/trace/scan-url）。
+//    absolute=false = 没配站点根域名 → 印出去的码扫出来打不开，必须在生成前拦住。
+const scanUrl = ref(null);
+async function loadScanUrl() {
+  try {
+    const res = await customerApiCall.get('/trace/scan-url');
+    scanUrl.value = { absolute: res.absolute === true, previewUrl: String(res.previewUrl || ''), hint: String(res.hint || ''), source: String(res.source || '') };
+  } catch (e) {
+    scanUrl.value = null;
+  }
+}
+function openGen(row) {
+  genDlg.row = row; genDlg.codetype = 1; genDlg.count = 100; genDlg.demo = 0; genDlg.format = ''; genDlg.lastGen = null;
+  genDlg.visible = true;
+  loadScanUrl();
+}
 async function confirmGen() {
   if (!genDlg.row) return;
   genSaving.value = true;
@@ -815,34 +1135,82 @@ async function confirmGen() {
     const res = await customerApiCall.post(`/trace/batches/${genDlg.row.id}/generate-codes`, {
       codetype: genDlg.codetype,
       codeno: Number(genDlg.count || 1),
+      demo: genDlg.demo ? 1 : 0,
+      format: genDlg.format || '',
     });
-    ElMessage.success(`已生成 ${res.created ?? 0} 个防伪码`);
-    genDlg.visible = false;
-    loadBatches();
+    // 🔴 不关弹窗、留住产物：让「下载此批」能下载这同一批，而不是重新生成
+    genDlg.lastGen = { content: res.content, contentType: res.contentType, filename: res.filename, created: res.created, demo: Boolean(res.demo), encoding: res.encoding || '' };
+    ElMessage.success(`已生成 ${res.created ?? 0} 个${res.demo ? '试印·演示' : ''}防伪码，可点「下载此批」获取同一批`);
   } catch (e) {
     ElMessage.error(e || '生成失败');
   } finally { genSaving.value = false; }
 }
-async function downloadCodes(row) {
-  try {
-    // 🔴 二维码/大批量码包走 GET 导出（attachment 下载），避免把大体积 HTML 拉进 JS 内存
-    const res = await customerApiCall.get(`/trace/batches/${row.id}/export`, {
-      params: { codetype: 2, codeno: 100 },
-      responseType: 'blob',
-    });
-    const blob = res instanceof Blob ? res : new Blob([res]);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `securitycode_${row.batch}.html`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    ElMessage.success('码包已开始下载');
-  } catch (e) {
-    ElMessage.error(e || '下载失败');
+/**
+ * 保存产物到本地。
+ * 🔴 encoding='base64' 是 ZIP 通道：JSON 里传二进制只能靠 base64，
+ *    少了这一步会把 base64 文本当文件内容存下来 → 下载到的 zip 打不开。
+ */
+function saveBlob(content, contentType, filename, encoding) {
+  const isBase64 = encoding === 'base64';
+  const blob = isBase64
+    ? new Blob([base64ToBytes(String(content ?? ''))], { type: contentType || 'application/zip' })
+    : new Blob([String(content ?? '')], { type: contentType || 'text/plain; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `trace-${genDlg.row?.batch || ''}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+/** base64 → Uint8Array（ZIP 通道专用；atob 在部分环境缺失，自己解不依赖它） */
+function base64ToBytes(b64) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const clean = String(b64 || '').replace(/[^A-Za-z0-9+/=]/g, '');
+  const len = clean.length;
+  const bytes = new Uint8Array(Math.floor((len * 3) / 4));
+  let p = 0;
+  for (let i = 0; i < len; i += 4) {
+    const e0 = chars.indexOf(clean[i]);
+    const e1 = chars.indexOf(clean[i + 1]);
+    const e2 = chars.indexOf(clean[i + 2]);
+    const e3 = chars.indexOf(clean[i + 3]);
+    if (p < bytes.length) bytes[p++] = (e0 << 2) | (e1 >> 4);
+    if (e2 >= 0 && p < bytes.length) bytes[p++] = ((e1 & 15) << 4) | (e2 >> 2);
+    if (e3 >= 0 && p < bytes.length) bytes[p++] = ((e2 & 3) << 6) | e3;
   }
+  return bytes;
+}
+// 下载「生成」按钮刚产出的同一批（内容已在 lastGen，不二次生成）
+function downloadLastGen() {
+  if (!genDlg.lastGen) return;
+  saveBlob(genDlg.lastGen.content, genDlg.lastGen.contentType, genDlg.lastGen.filename, genDlg.lastGen.encoding);
+  ElMessage.success(`已下载 ${genDlg.lastGen.created ?? 0} 个防伪码（与刚生成的是同一批）`);
+}
+/**
+ * 🔴 生成并下载 = 单次生成 + 当场落盘同一批。只调一次 generate-codes，
+ *    拿返回 content 直接下载 —— 不复用 /export（那会是第二次独立生成，得到不同流水号的另一批）。
+ *    数量与码型全部取自弹窗（genDlg.count / genDlg.codetype），不再写死 100。
+ */
+async function confirmDownload() {
+  if (!genDlg.row) return;
+  genSaving.value = true;
+  try {
+    const res = await customerApiCall.post(`/trace/batches/${genDlg.row.id}/generate-codes`, {
+      codetype: genDlg.codetype,
+      codeno: Number(genDlg.count || 1),
+      demo: genDlg.demo ? 1 : 0,
+      format: genDlg.format || '',
+    });
+    saveBlob(res.content, res.contentType, res.filename, res.encoding);
+    genDlg.lastGen = { content: res.content, contentType: res.contentType, filename: res.filename, created: res.created, demo: Boolean(res.demo), encoding: res.encoding || '' };
+    ElMessage.success(`已生成并下载 ${res.created ?? 0} 个${res.demo ? '试印·演示' : ''}防伪码（同一批）`);
+    genDlg.visible = false;
+    loadBatches();
+  } catch (e) {
+    ElMessage.error(e || '生成并下载失败');
+  } finally { genSaving.value = false; }
 }
 
 /* ----------------- 防伪码记录 ----------------- */
@@ -870,9 +1238,58 @@ async function markError(row) {
   } catch (e) { ElMessage.error(e || '标记失败'); }
 }
 
+/* ----------------- 公众号带参二维码（G1：后台出码入口） ----------------- */
+// 🔴 之前后端有接口、后台**没有入口** → 商家无法自助出带参码，该能力等于不存在。
+//    出码对象是**任意防伪码**（含尚未被扫码的码）：trace_codes 表只记录被扫过的码，
+//    所以弹窗允许手输码值，不依赖列表。
+const mpQrDlg = reactive({ visible: false, code: '', result: null });
+const mpQrSaving = ref(false);
+function openMpQr(code) {
+  mpQrDlg.code = String(code || '').trim().toUpperCase();
+  mpQrDlg.result = null;
+  mpQrDlg.visible = true;
+  loadMpQrCapability();
+}
+async function confirmMpQr() {
+  const code = String(mpQrDlg.code || '').trim().toUpperCase();
+  if (!code) { ElMessage.warning('请输入防伪码'); return; }
+  mpQrSaving.value = true;
+  try {
+    const res = await customerApiCall.post(`/trace/codes/${encodeURIComponent(code)}/mp-qr`, { code });
+    // 🔴 图片走服务端代理（同源）：微信图片站有防盗链，前端直连大概率显示空白。
+    const imgUrl = `/api/customer/trace/mp-qr/image?ticket=${encodeURIComponent(res.ticket)}&code=${encodeURIComponent(res.code)}`;
+    mpQrDlg.result = { ticket: res.ticket, showUrl: res.showUrl, code: res.code, imgUrl };
+    ElMessage.success('已生成公众号带参二维码');
+  } catch (e) {
+    // 🔴 48001 的中文提示由服务端给出 → 这里直接透传，不二次包装（避免丢掉可操作建议）
+    ElMessage.error(typeof e === 'string' ? e : (e?.message || '生成失败'));
+  } finally { mpQrSaving.value = false; }
+}
+function downloadMpQr() {
+  const r = mpQrDlg.result;
+  if (!r?.imgUrl) return;
+  const a = document.createElement('a');
+  a.href = r.imgUrl;
+  a.download = `mpqr_${r.code}.jpg`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 /* ----------------- 码制配置 ----------------- */
-const ruleForm = reactive({ m1: 'FW', m2: 7, m3: 6, m4: 5, m5: 20, k1: '', k2: '', k3: '', k4: '', zdl: 10 });
+const ruleForm = reactive({ m1: 'FW', m2: 7, m3: 6, m4: 5, m5: 20, k1: '', k2: '', k3: '', k4: '', k5: '', zdl: 10 });
 const ruleSaving = ref(false);
+const kRandomizing = ref(0);
+// 🔴 P0 印刷锁定态：服务端 locked=true 时禁用结构与密钥输入。
+const ruleLocked = ref(false);
+const ruleLockedAt = ref('');
+// 🔴 服务端时间统一是 UTC（datetime('now')）→ 解析必须补 'Z'，否则本地时区差 8 小时。
+const ruleLockedAtText = computed(() => {
+  const raw = String(ruleLockedAt.value || '').trim();
+  if (!raw) return '此前';
+  const t = new Date(raw.replace(' ', 'T') + 'Z');
+  return Number.isNaN(t.getTime()) ? raw : t.toLocaleString('zh-CN');
+});
 // 🔴 码长自洽校验：前缀长度 + m2 + m3 + m4 必须等于 m5，否则生成的码会被截断撞码
 const ruleSelfCheck = computed(() => {
   const expect = String(ruleForm.m1 || '').length + Number(ruleForm.m2) + Number(ruleForm.m3) + Number(ruleForm.m4);
@@ -890,6 +1307,8 @@ async function loadRule() {
     const r = res.rule || {};
     const m = r.m || {};
     const k = r.k || {};
+    ruleLocked.value = res.locked === true;
+    ruleLockedAt.value = String(res.lockedAt || '');
     ruleForm.m1 = String(m[1] || 'FW');
     ruleForm.m2 = Number(m[2] || 7);
     ruleForm.m3 = Number(m[3] || 6);
@@ -899,9 +1318,34 @@ async function loadRule() {
     ruleForm.k2 = String(k[2] || '');
     ruleForm.k3 = String(k[3] || '');
     ruleForm.k4 = String(k[4] || '');
+    // 🔴 k5 是服务端保留位（1 位，参与算法但不可由租户改），只读展示 + 备份下载用。
+    //    这里只取展示值，落库时随 k1~k4 一起回传，后端 saveRule 会原样保住它。
+    ruleForm.k5 = String(k[5] || '7');
     ruleForm.zdl = Number(r.zdl || 10);
   } catch (e) { ElMessage.error(e || '加载码制失败'); }
 }
+/**
+ * 随机填充单个校验字符集 k1~k4。
+ * 🔴 随机串必须向服务端取（/trace/code-rule/random-keys），不许在前端本地生成：
+ *    ① 密钥随机源单一出处，前端抄一份就是两端漂移；
+ *    ② 这些是防伪密钥，前端 Math.random 强度不够，服务端用的是 crypto.randomInt。
+ * 🔴 只填表单、**不落库**：换掉租户正在用的 k 会让已印出去的码全部验真失败，
+ *    落库必须由用户点「保存码制」显式确认。
+ */
+async function randomizeKey(n) {
+  kRandomizing.value = n;
+  try {
+    const res = await customerApiCall.get('/trace/code-rule/random-keys');
+    const v = String(res?.[`k${n}`] || '');
+    if (v.length !== 10) throw new Error('随机字符集返回异常');
+    ruleForm[`k${n}`] = v;
+  } catch (e) {
+    ElMessage.error(e || '随机字符集生成失败');
+  } finally {
+    kRandomizing.value = 0;
+  }
+}
+
 async function saveRule() {
   if (ruleSelfCheck.value) { ElMessage.warning(ruleSelfCheck.value); return; }
   ruleSaving.value = true;
@@ -909,12 +1353,105 @@ async function saveRule() {
     // 🔴 后端 saveRule 接收扁平字段（m1..m5, k1..k4, zdl），不是整包 rule 对象
     await customerApiCall.put('/trace/code-rule', {
       m1: ruleForm.m1, m2: ruleForm.m2, m3: ruleForm.m3, m4: ruleForm.m4, m5: ruleForm.m5,
-      k1: ruleForm.k1, k2: ruleForm.k2, k3: ruleForm.k3, k4: ruleForm.k4, zdl: ruleForm.zdl,
+      k1: ruleForm.k1, k2: ruleForm.k2, k3: ruleForm.k3, k4: ruleForm.k4, k5: ruleForm.k5, zdl: ruleForm.zdl,
     });
     ElMessage.success('码制已保存');
+    // 保存即确认 → 批次管理的软引导当场消失，不用刷新页面
+    ruleConfirmed.value = true;
   } catch (e) {
     ElMessage.error(e || '保存码制失败');
   } finally { ruleSaving.value = false; }
+}
+
+/* ----------------- 码制配置下载备份 ----------------- */
+const downloadPreparing = ref(false);
+const downloadDlg = reactive({ visible: false, mode: 'encrypted', password: '', confirmPwd: '' });
+
+/** 拼出明文备份内容（独立于加密逻辑，便于单测与回读还原共用）。 */
+function buildBackupText() {
+  const f = ruleForm;
+  const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  return [
+    '防伪码制配置备份',
+    `生成时间: ${ts}`,
+    `前缀 m1: ${f.m1}`,
+    `批次号长度 m2: ${f.m2}`,
+    `流水号长度 m3: ${f.m3}`,
+    `校验位长度 m4: ${f.m4}`,
+    `防伪码总长 m5: ${f.m5}`,
+    `错误次数上限 zdl: ${f.zdl}`,
+    `系统保留位 k5: ${f.k5}（不可修改）`,
+    `校验字符集 k1: ${f.k1}`,
+    `校验字符集 k2: ${f.k2}`,
+    `校验字符集 k3: ${f.k3}`,
+    `校验字符集 k4: ${f.k4}`,
+    '【警告】本文件含防伪密钥，请勿通过微信 / 邮件 / 云盘明文传输，泄露可被用于伪造防伪码。',
+  ].join('\n');
+}
+
+function triggerDownload(filename, text, mime = 'text/plain;charset=utf-8') {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * 🔴 浏览器原生 Web Crypto 加密（AES-GCM + PBKDF2），不引第三方库。
+ * 输出格式：TRACEBCK1:<b64(salt)>.<b64(iv)>.<b64(ct)>，便于将来做回读还原时识别。
+ * 明文被 AES-GCM 整体加密，无密码不可恢复。
+ */
+async function encryptBackup(text, password) {
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const keyMat = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    keyMat,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt'],
+  );
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text)));
+  const b64 = (u8) => btoa(String.fromCharCode(...u8));
+  return `TRACEBCK1:${b64(salt)}.${b64(iv)}.${b64(ct)}`;
+}
+
+function openDownload() {
+  downloadDlg.visible = true;
+  downloadDlg.mode = 'encrypted';
+  downloadDlg.password = '';
+  downloadDlg.confirmPwd = '';
+}
+
+async function doDownload() {
+  if (downloadDlg.mode === 'encrypted') {
+    if (downloadDlg.password.length < 6) { ElMessage.warning('加密密码至少 6 位'); return; }
+    if (downloadDlg.password !== downloadDlg.confirmPwd) { ElMessage.warning('两次密码不一致'); return; }
+  }
+  downloadPreparing.value = true;
+  try {
+    const text = buildBackupText();
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (downloadDlg.mode === 'encrypted') {
+      const enc = await encryptBackup(text, downloadDlg.password);
+      triggerDownload(`trace-code-rule-${stamp}.txt`, enc);
+    } else {
+      triggerDownload(`trace-code-rule-${stamp}.txt`, text);
+    }
+    ElMessage.success('已下载码制配置备份');
+    downloadDlg.visible = false;
+  } catch (e) {
+    ElMessage.error(e || '下载失败');
+  } finally {
+    downloadPreparing.value = false;
+  }
 }
 
 /* ----------------- 系统设置（多 Tab 共享的单一事实来源 s） ----------------- */
@@ -958,12 +1495,11 @@ const SLOT_WHEN_OPTIONS = [
   { value: 5, label: '首位查询人每次显示' },
   { value: 4, label: '非首位查询人显示' },
 ];
-const EMPTY_SLOT = () => ({ when: 1, title: '', cover: '', link: '', color: null, accessKey: '' });
+const EMPTY_SLOT = () => ({ when: 1, title: '', cover: '', link: '', accessKey: '' });
 
 /**
  * 服务端下发的展示位 → 表单形状。
- * 🔴 两处必须归一：① el-color-picker 用 null 表示「未设置」，空串会渲染成黑色；
- *   ② 服务端剥掉了 keyCipher 只给脱敏的 accessKey，这里补成空串避免 undefined 进输入框。
+ * 🔴 服务端剥掉了 keyCipher 只给脱敏的 accessKey，这里补成空串避免 undefined 进输入框。
  */
 function slotsForForm(list) {
   return (Array.isArray(list) ? list : []).slice(0, SLOT_MAX).map((it) => ({
@@ -971,7 +1507,6 @@ function slotsForForm(list) {
     title: String(it.title || ''),
     cover: String(it.cover || ''),
     link: String(it.link || ''),
-    color: it.color || null,
     accessKey: String(it.accessKey || ''),
   }));
 }
@@ -988,14 +1523,17 @@ function moveSlot(i, delta) {
   a[i] = a[j];
   a[j] = tmp;
 }
-async function uploadSlotCover(options, i) {
-  try {
-    const fd = new FormData();
-    fd.append('file', options.file);
-    const res = await customerApiCall.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-    s.displaySlots[i].cover = res.url;
-    ElMessage.success('上传成功');
-  } catch (e) { ElMessage.error(e); }
+// 封面图走系统素材选择器（MaterialPicker），与全站其他上传入口一致
+const coverPicker = reactive({ show: false, idx: -1 });
+function openCoverPicker(i) {
+  coverPicker.idx = i;
+  coverPicker.show = true;
+}
+function onPickCover(url) {
+  const i = coverPicker.idx;
+  if (i < 0 || i >= s.displaySlots.length) return;
+  s.displaySlots[i].cover = url;
+  coverPicker.show = false;
 }
 
 const rawJson = ref('');
@@ -1006,7 +1544,7 @@ const cocom = ref(0);
 function syncFormFromSettings(settings) {
   const src = settings || {};
   for (const key of Object.keys(s)) {
-    // 🔴 展示位单独走 slotsForForm：要补默认值、还要把空色转成 null（el-color-picker 口径）
+    // 🔴 展示位单独走 slotsForForm：要补默认值（accessKey 脱敏回填等）
     if (key === 'displaySlots') continue;
     if (src[key] !== undefined && src[key] !== null) s[key] = src[key];
   }
@@ -1041,8 +1579,13 @@ async function saveSettings() {
     // 🔴 后端 PUT /settings 接收 { settings }，settings 为对象（非字符串）
     const payload = {
       ...s,
-      // 🔴 el-color-picker 的「未设置」是 null → 落库前转回空串（后端按「空 = 跟随主题色」处理）
-      displaySlots: (s.displaySlots || []).map((it) => ({ ...it, color: it.color || '' })),
+      displaySlots: (s.displaySlots || []).map((it) => ({
+        when: it.when,
+        title: it.title,
+        cover: it.cover,
+        link: it.link,
+        accessKey: it.accessKey,
+      })),
     };
     await customerApiCall.put('/trace/settings', { settings: payload });
     // 🔴 保存后必须回读：接口密钥提交的是明文、库里存的是密文，回读才能让输入框
@@ -1171,7 +1714,7 @@ async function activateBatch(row) {
   } catch { return; }
   try {
     await customerApiCall.post(`/trace/batches/${row.id}/activate`);
-    ElMessage.success('已激活');
+    ElMessage.success('批次已启用');
     loadBatches();
   } catch (e) { ElMessage.error(e || '激活失败'); }
 }
@@ -1181,6 +1724,7 @@ onMounted(() => {
   loadCodes();
   loadSettings();
   loadRule();
+  loadMpQrCapability();
 });
 </script>
 
@@ -1209,6 +1753,21 @@ onMounted(() => {
 .set-card { margin-bottom: 16px; }
 .card-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 8px; }
+.form-hint-amber { color: #d48806; }
+/* 🔴 扫码地址提示：印在包装上的码扫出来打开什么 → 生成前必须让商家看到（URL 配错=印完才发现的全废事故） */
+.scan-url-box { font-size: 12px; line-height: 1.6; }
+.scan-url-box.is-warn { color: #f53f3f; }
+.scan-url-ok { display: flex; align-items: flex-start; gap: 6px; color: #07c160; word-break: break-all; }
+.scan-url-bad { display: flex; align-items: flex-start; gap: 6px; color: #f53f3f; }
+/* 🔴 公众号带参码出码结果区 */
+.mp-qr-result { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e6eb; }
+.mp-qr-title { font-size: 13px; color: #4e5969; margin-bottom: 10px; }
+.mp-qr-img { width: 180px; height: 180px; display: block; border: 1px solid #e5e6eb; border-radius: 4px; }
+.mp-qr-links { margin: 10px 0; font-size: 12px; color: #4e5969; line-height: 1.8; word-break: break-all; }
+.mp-qr-links code { background: #f7f8fa; padding: 1px 4px; border-radius: 3px; }
+.guide-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.guide-row span { font-size: 13px; line-height: 1.6; }
+.guide-row b { color: #d9821b; }
 .raw-json { font-family: monospace; }
 .raw-err { color: #f53f3f; font-size: 12px; margin-top: 4px; }
 .rule-form :deep(.el-input-number), .set-form :deep(.el-input-number) { width: 160px; }
@@ -1220,6 +1779,7 @@ onMounted(() => {
 .slot-item-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .slot-idx { font-size: 13px; font-weight: 600; color: #1d2129; }
 .slot-ops { margin-left: auto; display: flex; gap: 4px; }
+.slot-cover-pick { display: inline-block; cursor: pointer; }
 .slot-thumb { width: 90px; height: 68px; object-fit: cover; border-radius: 6px; display: block; border: 1px solid #e5e6eb; }
 .slot-add {
   width: 90px; height: 68px; line-height: 68px; text-align: center; cursor: pointer;

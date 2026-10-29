@@ -34,7 +34,13 @@
         <view class="tr-card tr-card-ok" v-if="result">
           <view class="tr-result-head">
             <SIcon name="verify" size="large" :color="ICON_SUCCESS" />
-            <text class="tr-result-title">{{ result.first ? '正品验证通过' : '该码已被查询过' }}</text>
+            <text class="tr-result-title">{{ resultTitle }}</text>
+          </view>
+
+          <!-- 🔴 P1 试印码提示：流水号落在「顶部预留段」→ 明确告诉扫码的人这是演示码，
+               不让试印品冒充正品（试印包流入市场时必须一眼能分清）。 -->
+          <view class="tr-demo-tip" v-if="result.demo">
+            <text>【演示·试印】本码为印刷前试印码，不是正式防伪码，请勿作为正品凭证</text>
           </view>
 
           <view class="tr-line">
@@ -81,7 +87,7 @@
                 @click="openSlot(s)"
               >
                 <image class="tr-slot-cover" :src="slotCover(s.cover)" mode="aspectFill" />
-                <text class="tr-slot-name" :style="{ color: s.color || null }">{{ s.title }}</text>
+                <text class="tr-slot-name">{{ s.title }}</text>
               </view>
             </view>
           </scroll-view>
@@ -94,6 +100,17 @@
             <text class="tr-result-title tr-title-err">{{ errorMsg }}</text>
           </view>
           <text class="tr-tip" v-if="failTip">{{ failTip }}</text>
+        </view>
+
+        <!-- 🔴 P2 激活入口：闸门开启时，消费者扫码被挡（"请联系经销商扫码激活"），
+               经销商得有个地方能激活 → 这里给出入口（经销商拿到链接直接点进来）。
+               闸门未开时不需要入口（激活无意义），故不显示。 -->
+        <view class="tr-card tr-card-act" v-if="gateOn">
+          <text class="tr-card-title">批次激活</text>
+          <text class="tr-card-desc">货到后用厂家提供的批次号与激活口令完成绑定，激活后消费者扫码才能查看溯源详情。</text>
+          <view class="tr-btn" @click="goActivate">
+            <text>去激活批次</text>
+          </view>
         </view>
 
         <view class="tr-bottom-space"></view>
@@ -126,7 +143,23 @@ const form = reactive({ co: '', yzm: '' });
 // 租户标识：公开段只认 URL ?tid= 或登录态，前端必须把 tid 透传过去
 const tid = ref('');
 
+// 🔴 P2：闸门开启且批次未激活时，服务端会带 gateRequired=true → 显示「去激活批次」入口。
+//    gateBatch 记住被拦的批次号，跳激活页时带过去（经销商少填一项）。
+const gateOn = ref(false);
+const gateBatch = ref('');
+
 const batchInfo = computed(() => (result.value && result.value.batch) || {});
+
+/**
+ * 结果标题：试印码不能显示「正品验证通过」（那是误导）。
+ * 🔴 demo 由服务端按流水号预留段判定，前端不做二次推断。
+ */
+const resultTitle = computed(() => {
+  const r = result.value;
+  if (!r) return '';
+  if (r.demo) return '演示码验证通过';
+  return r.first ? '正品验证通过' : '该码已被查询过';
+});
 
 /**
  * 首页展示位。
@@ -167,9 +200,10 @@ const successTip = computed(() => {
   const s = (result.value && result.value.settings) || {};
   const reward = (result.value && result.value.reward) || {};
   if (reward.message) return reward.message;
-  if (s.sucOne) return s.sucOne;
-  if (s.sucTwo) return s.sucTwo;
-  return '';
+  // 🔴 首查提示(sucOne)与复访提示(sucTwo)按是否首查分流；任一为空时回退到另一个，避免空白。
+  //    此前无条件优先 sucOne，导致「该码已被查询过」（result.first=false）时仍显示"首次查询提示"。
+  const isFirst = !!(result.value && result.value.first);
+  return isFirst ? (s.sucOne || s.sucTwo || '') : (s.sucTwo || s.sucOne || '');
 });
 
 const failTip = computed(() => {
@@ -205,9 +239,22 @@ async function submit() {
     result.value = await verifyTrace({ co, yzm: String(form.yzm || '').trim() }, tid.value);
   } catch (e) {
     errorMsg.value = (e && e.message) || '查询失败，请稍后重试';
+    // 🔴 P2 闸门拦截：服务端带结构化标记 gateRequired=true（不靠字符串匹配文案）→ 显示激活入口
+    gateOn.value = !!(e && e.data && e.data.gateRequired);
+    if (e && e.data && e.data.batchNo) gateBatch.value = String(e.data.batchNo);
   } finally {
     loading.value = false;
   }
+}
+
+/**
+ * P2 经销商激活页跳转。
+ * 🔴 路径必须走常量/工具函数，不要手写字符串（拼错 = 静默失败）。
+ */
+function goActivate() {
+  uni.navigateTo({
+    url: `/pages/trace/activate?tid=${encodeURIComponent(tid.value || '')}${gateBatch.value ? `&batch=${encodeURIComponent(gateBatch.value)}` : ''}`,
+  });
 }
 
 onLoad((options) => {
@@ -272,6 +319,11 @@ onLoad((options) => {
   font-weight: 600;
 }
 .tr-btn-off { opacity: 0.6; }
+/* 🔴 P2 激活入口卡：与查询卡区分（用既有令牌，不新增裸 hex） */
+.tr-card-act {
+  background: var(--bg-tag);
+  border: 1px solid var(--border);
+}
 
 .tr-result-head {
   display: flex;
@@ -285,6 +337,19 @@ onLoad((options) => {
   color: var(--success);
 }
 .tr-title-err { color: var(--danger); }
+/* 试印码提示条：红条 + 红字，一眼可辨（试印品绝不能看起来像正品）。
+   🔴 全部走既有令牌（--danger / --bg-page / --radius-md），不新增裸 hex —— 
+      裸 hex 有基线护栏（tokenAudit），每加一处都在吃掉全项目的余量。 */
+.tr-demo-tip {
+  margin: 12rpx 0 4rpx;
+  padding: 16rpx 20rpx;
+  border-radius: var(--radius-md);
+  border-left: 6rpx solid var(--danger);
+  background: var(--bg-page);
+  color: var(--danger);
+  font-size: var(--fs-3);
+  line-height: 1.6;
+}
 .tr-line {
   display: flex;
   align-items: flex-start;
