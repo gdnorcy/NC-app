@@ -865,6 +865,9 @@ export function createTraceAdminRouter(db) {
       //    落到库里的只能是 traceScanMode 里那几档之一（非法值一律回落默认档）。
       if ('scanMode' in patch) patch.scanMode = normalizeScanMode(patch.scanMode);
       if ('wxReply' in patch) patch.wxReply = normalizeTraceSwitch(patch.wxReply);
+      // 🔴 scanQuery 是**算出来的视图**（可用性依赖当前公众号配置），不是配置本身 ——
+      //    一旦被写回 settings_json，下一次读到的就是过期快照（公众号后来配好了也仍显示不可用）。
+      delete patch.scanQuery;
       saveSettings(db, req.traceTenantId, patch);
       addHistory(db, req.traceTenantId, 1, 'setting', req, '更新防伪溯源设置');
       return res.json({ ok: true });

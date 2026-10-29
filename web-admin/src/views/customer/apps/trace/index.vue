@@ -1612,7 +1612,9 @@ async function loadSettings() {
   try {
     const res = await customerApiCall.get('/trace/settings');
     cocom.value = Number(res.cocom ?? 0);
-    scanQuery.value = res.scanQuery || { current: 'web', options: [] };
+    // 🔴 方案视图在 **res.settings.scanQuery** 里（GET /settings 返回的是 { settings: {...}, cocom }，
+    //    没有顶层 scanQuery）。读错层级 = 三档全部渲染不出来（变成一个只有 label 的空壳）。
+    scanQuery.value = (res.settings && res.settings.scanQuery) || { current: 'web', options: [] };
     syncFromScanQuery();
     syncFormFromSettings(res.settings || {});
   } catch (e) { ElMessage.error(e || '加载设置失败'); }

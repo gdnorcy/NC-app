@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { config } from '../src/config.js';
-import { createDb } from '../src/db.js';
+import { createDb, hashPassword } from '../src/db.js';
 import { createApp } from '../src/app.js';
 import request from 'supertest';
 import { normalizeScanMode, buildScanQueryView, SCAN_MODE_OPTIONS } from '../src/services/traceScanMode.js';
@@ -27,10 +27,10 @@ const BATCH_NO = '0765432';
 const CODE = computeTraceCode(`FW${BATCH_NO}00000100000`, RULE);
 
 describe('扫码查询方案', () => {
-  let tmpDir, db, app, prevConfig, qrCalls;
+  let tmpDir, db, app, prevConfig, qrCalls, token;
   const prevFetch = global.fetch;
 
-  before(() => {
+  before(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'trace-scanmode-'));
     prevConfig = { ...config };
     Object.assign(config, {
@@ -53,8 +53,15 @@ describe('扫码查询方案', () => {
       .run(TID, 'FW', JSON.stringify(RULE));
     db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, is_active, rcon)
       VALUES (?, 'FW', ?, '高原绿茶', '测试茶厂', '测试牌', 1, 0)`).run(TID, BATCH_NO);
-    db.prepare('INSERT INTO trace_settings (tenant_id, settings_json, cocom) VALUES (?, ?, -888)')
+    db.prepare(`INSERT INTO trace_settings (tenant_id, settings_json, cocom) VALUES (?, ?, -888)`)
       .run(TID, JSON.stringify({ scanMode: 'web' }));
+
+    // 后台段要 JWT：按既有口径造一个租户管理员并登录取 token
+    const { hash, salt } = hashPassword('admin123');
+    db.prepare("INSERT OR IGNORE INTO users (username, phone, password_hash, password_salt, role, status, customer_id) VALUES (?, ?, ?, ?, 'tenant_admin', 'active', ?)")
+      .run('traceScanMode', '13800008888', hash, salt, TID);
+    const login = await request(app).post('/api/auth/login').send({ username: 'traceScanMode', password: 'admin123' });
+    token = login.body.token;
 
     qrCalls = [];
     global.fetch = async (url, opts) => {
@@ -83,6 +90,8 @@ describe('扫码查询方案', () => {
       VALUES (?, 'wxscanmode', 'dummy-secret', 'mp', 'none', '测试公众号')`).run(TID);
     return db.prepare('SELECT * FROM channel_apps WHERE appid = ?').get('wxscanmode');
   };
+  const authed = (req) => req.set('Authorization', `Bearer ${token}`);
+
   // 🔴 channel_apps 的租户列叫 customer_id（不是 tenant_id），mp_message_config 则按 channel_apps_id 关联
   const clearChannels = () => {
     for (const r of db.prepare('SELECT id FROM channel_apps WHERE customer_id = ?').all(TID)) {
@@ -172,6 +181,35 @@ describe('扫码查询方案', () => {
     const res = await request(app).post(`/api/trace/public/verify?tid=${TID}`).send({ co: CODE });
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal(res.body.scanMode, 'web');
+  });
+
+  test('⑨ GET /settings 下发方案视图（后台选择器的数据来源）', async () => {
+    // 🔴 真实事故：后台读成了响应顶层 res.scanQuery，而接口把视图放在 **res.settings.scanQuery**
+    //    → 三档一个都渲染不出来，界面只剩一个空 label。这条把"层级 + 三档齐全"钉死。
+    db.prepare('UPDATE trace_settings SET settings_json = ? WHERE tenant_id = ?').run(JSON.stringify({ scanMode: 'web', wxReply: 1 }), TID);
+    const res = await authed(request(app).get('/api/customer/trace/settings'));
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const sq = res.body.settings && res.body.settings.scanQuery;
+    assert.ok(sq, '方案视图必须在 settings.scanQuery 里下发');
+    assert.equal(sq.options.length, 3, '三档必须齐全');
+    assert.equal(sq.current, 'web');
+    assert.equal(Number(sq.replyEnabled), 1);
+  });
+
+  test('⑩ PUT /settings 不接收算出来的 scanQuery（避免过期快照写回配置）', async () => {
+    await authed(request(app).put('/api/customer/trace/settings')).send({
+      settings: { scanMode: 'push_dynamic', wxReply: 1, scanQuery: { current: 'web', options: [] } },
+    });
+    const saved = JSON.parse(db.prepare('SELECT settings_json FROM trace_settings WHERE tenant_id = ?').get(TID).settings_json);
+    assert.equal(saved.scanQuery, undefined, '算出来的视图不该被写回配置');
+    assert.equal(saved.scanMode, 'push_dynamic');
+    await authed(request(app).put('/api/customer/trace/settings')).send({ settings: { scanMode: 'web' } });
+  });
+
+  test('⑪ PUT /settings 的枚举白名单：非法档位回落 web', async () => {
+    await authed(request(app).put('/api/customer/trace/settings')).send({ settings: { scanMode: 'hacker' } });
+    const saved = JSON.parse(db.prepare('SELECT settings_json FROM trace_settings WHERE tenant_id = ?').get(TID).settings_json);
+    assert.equal(saved.scanMode, 'web', '非法档位必须回落默认档');
   });
 
   test('⑧ 别人的码 / 乱码 → 404 且不让微信接口被调用', async () => {
