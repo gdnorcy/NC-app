@@ -1,1 +1,0 @@
-import{aT as t,aU as a,aP as n}from"./index-jgrWDkG9.js";const i=n+"/api/trace/public",{request:r}=a(i);function c(a,n){return r("/scan-entry"+t({co:a,tid:n}))}function e(a,n){return r("/verify"+t({tid:n}),"POST",a)}function s(a,n,i){return r("/batch-activate"+t({tid:i}),"POST",{batch:a,pin:n})}export{s as a,c as s,e as v};
