@@ -85,7 +85,8 @@
     {
       "root": "pages/trace",
       "pages": [
-        "index"
+        "index",
+        "activate"
       ]
     }
   ],
