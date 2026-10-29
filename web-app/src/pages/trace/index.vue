@@ -75,6 +75,16 @@
           <text class="tr-tip" v-if="successTip">{{ successTip }}</text>
         </view>
 
+        <!-- 🔴 扫码查询方案 = 「网页 + 公众号推送」时的引导：结果由公众号推送，
+               仿冒查询网站就没办法把假结果塞给消费者（这也是该方案存在的意义）。
+               仅在微信内展示 —— 其他浏览器长按识别不了二维码，展示就是纯干扰。 -->
+        <view class="tr-card tr-card-push" v-if="pushImg || pushErr">
+          <text class="tr-card-title">请在公众号内查看验真结果</text>
+          <text class="tr-card-desc">为防止假冒查询页面，本产品的验真结果由商家认证公众号主动推送给您。请长按识别下方二维码，识别后即可收到结果（二维码仅短期有效、使用一次后失效）。</text>
+          <image v-if="pushImg" class="tr-push-img" :src="pushImg" mode="aspectFit" />
+          <text class="tr-push-err" v-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
+        </view>
+
         <!-- 首页展示位（后台配置的推广位，按展示条件由服务端挑好下发） -->
         <view class="tr-card tr-slots" v-if="slotList.length">
           <text class="tr-slots-title">推荐</text>
@@ -125,10 +135,11 @@ import { onLoad } from '@dcloudio/uni-app';
 import PageNav from '../../components/PageNav.vue';
 import SIcon from '../../components/SIcon.vue';
 import { getTid } from '../../utils/mallUtil.js';
-import { scanEntry, verifyTrace } from '../../utils/traceApi.js';
+import { scanEntry, verifyTrace, traceSceneQr } from '../../utils/traceApi.js';
 import { execCompLink } from '../../utils/compLink.js';
 import { linkFromString } from '../../utils/compLinkModel.js';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { API_HOST } from '../../utils/apiBase.js';
 
 // 🔴 SIcon 的 color 会被烘焙进产物（SVG data-URI / 预生成 PNG），var() 到不了
 //    → 必须传真实 hex。语义与 styles/token.scss 的 $success / $danger 对齐。
@@ -147,6 +158,46 @@ const tid = ref('');
 //    gateBatch 记住被拦的批次号，跳激活页时带过去（经销商少填一项）。
 const gateOn = ref(false);
 const gateBatch = ref('');
+
+// 公众号推送方案的「长按识别」引导图（同源相对地址；小程序端需补 host）
+const pushImg = ref('');
+const pushErr = ref(false);
+
+/** 是否在微信环境内（长按识别二维码的前提；不是微信就别展示引导卡） */
+const isWeChatEnv = (() => {
+  if (process.env.UNI_PLATFORM === 'mp-weixin') return true;
+  try {
+    return /micromessenger/i.test(String(navigator.userAgent || ''));
+  } catch {
+    return false;
+  }
+})();
+
+function absApiUrl(u) {
+  const s = String(u || '').trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  return `${API_HOST}${s.startsWith('/') ? '' : '/'}${s}`;
+}
+
+/**
+ * 取引导二维码。
+ * 🔴 只在档位真的要求「网页 + 公众号推送」时才请求：
+ *    默认档位（网页验真）去调一次接口 = 白烧一个公众号二维码额度 + 多一个失败点。
+ *    拿不到图就明确退化：页面本身的结果已经足够，不要让消费者以为查失败了。
+ */
+async function loadPushGuide(code) {
+  pushImg.value = '';
+  pushErr.value = false;
+  if (!code || !isWeChatEnv) return;
+  try {
+    const r = await traceSceneQr(code, tid.value);
+    pushImg.value = r && r.imageUrl ? absApiUrl(r.imageUrl) : '';
+    if (!pushImg.value) pushErr.value = true;
+  } catch {
+    pushErr.value = true;
+  }
+}
 
 const batchInfo = computed(() => (result.value && result.value.batch) || {});
 
@@ -235,8 +286,12 @@ async function submit() {
   loading.value = true;
   errorMsg.value = '';
   result.value = null;
+  pushImg.value = '';
+  pushErr.value = false;
   try {
     result.value = await verifyTrace({ co, yzm: String(form.yzm || '').trim() }, tid.value);
+    // 只有「网页 + 公众号推送」这一档才去取引导二维码
+    if (result.value && result.value.scanMode === 'push_dynamic') loadPushGuide(result.value.code || co);
   } catch (e) {
     errorMsg.value = (e && e.message) || '查询失败，请稍后重试';
     // 🔴 P2 闸门拦截：服务端带结构化标记 gateRequired=true（不靠字符串匹配文案）→ 显示激活入口
@@ -319,6 +374,10 @@ onLoad((options) => {
   font-weight: 600;
 }
 .tr-btn-off { opacity: 0.6; }
+/* 公众号推送方案的引导卡（与其它卡同令牌体系，不新增裸色值） */
+.tr-card-push { background: var(--bg-tag); text-align: center; }
+.tr-push-img { width: 320rpx; height: 320rpx; margin: 12rpx auto 4rpx; display: block; background: var(--white); border-radius: var(--radius-sm); }
+.tr-push-err { display: block; margin-top: 8rpx; font-size: var(--fs-2); color: var(--t3); }
 /* 🔴 P2 激活入口卡：与查询卡区分（用既有令牌，不新增裸 hex） */
 .tr-card-act {
   background: var(--bg-tag);

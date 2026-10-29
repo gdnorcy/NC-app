@@ -2,7 +2,8 @@ import crypto from 'node:crypto';
 import { readSecret } from '../crypto.js';
 import { WxCrypto } from './wx-component.js';
 import { pickDisplaySlots } from './traceSlots.js';
-import { canonicalBatchSegment, DEFAULT_CODESET, parseTraceCode, parseTraceRule, verifyTraceCode } from './traceCode.js';
+import { canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, parseTraceCode, parseTraceRule, verifyTraceCode } from './traceCode.js';
+import { checkQueryQuota, registerTraceQuery } from './traceQuery.js';
 
 // 溯源带参二维码 SCAN 回复所需的局部工具（不污染 wx-mp 通用服务）
 function safeJsonLocal(text, fallback) {
@@ -285,6 +286,83 @@ export class WxMpService {
       url: data.url || '',
       showUrl: `https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(ticket)}`,
     };
+  }
+
+  /**
+   * 生成「动态场景码」—— **临时**场景二维码（数字 scene_id），用于验真引导。
+   *
+   * 🔴 与 createParamQr（永久字符串码）的关键差别（也是为什么要改造）：
+   *    ① 不必为每个防伪码预先出图 → 印刷码仍是普通网址码，**不受永久码配额上限约束，可支撑大批量**；
+   *    ② 查询时现场生成、短时效 + 一次有效 → 天然防截图转发/重放；
+   *    ③ 临时码对公众号资质要求更低（永久字符串码要求已认证服务号）。
+   *
+   * 🔴 安全性：这里**不接受**调用方口头声明的身份，openid 由上层（网页授权后）注入；
+   *    留空表示当前拿不到 openid，则退化为「仅靠 时效 + 一次有效 兜底」。
+   */
+  async createTraceSceneQr(channel, code, openid = '', ttlSeconds = 1800) {
+    const tenantId = Number(channel?.customer_id || 0);
+    if (!tenantId) throw new Error('渠道未绑定租户');
+    const trimmed = String(code || '').trim();
+    if (!trimmed) throw new Error('防伪码不能为空');
+    const rule = this.getTraceRule(tenantId);
+    if (!verifyTraceCode(trimmed, rule)) throw new Error('防伪码不合法（校验位未通过）');
+    const parsed = parseTraceCode(trimmed, rule);
+    if (!this.findTraceBatch(tenantId, parsed.batch, rule)) throw new Error('防伪码不属于本租户批次');
+    const ttl = Math.min(Math.max(Number(ttlSeconds) || 1800, 60), 2592000);
+    const insert = this.db
+      .prepare('INSERT INTO trace_mp_scenes (tenant_id, code, scene_id, openid, ticket, expires_at) VALUES (?, ?, 0, ?, ?, ?)')
+      .run(tenantId, trimmed, String(openid || ''), '', this._utcAfterSeconds(ttl));
+    const rowId = Number(insert.lastInsertRowid);
+    if (!rowId) throw new Error('生成场景码失败：本地记录未写入');
+    // scene_id 取「100000 + 自增 id」：正整数且远离小数值，避免与其它自定义场景撞号。
+    const sceneId = 100000 + rowId;
+    const token = await this.resolveToken(channel);
+    const data = await this._wxJson(token, '/cgi-bin/qrcode/create', {
+      expire_seconds: ttl,
+      action_name: 'QR_SCENE',
+      action_info: { scene: { scene_id: sceneId } },
+    });
+    if (!data.ticket) throw new Error('生成场景码失败：微信未返回 ticket');
+    this.db.prepare('UPDATE trace_mp_scenes SET scene_id = ?, ticket = ? WHERE id = ?').run(sceneId, data.ticket, rowId);
+    return {
+      sceneId,
+      code: trimmed,
+      ticket: data.ticket,
+      showUrl: `https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(data.ticket)}`,
+      expiresAt: this._utcAfterSeconds(ttl),
+      ttl,
+    };
+  }
+
+  /** 生成与库内 datetime('now') 同口径的时间串（UTC，'YYYY-MM-DD HH:MM:SS'），便于直接做字符串比较。 */
+  _utcAfterSeconds(seconds) {
+    return new Date(Date.now() + (Number(seconds) || 0) * 1000).toISOString().replace('T', ' ').slice(0, 19);
+  }
+
+  /**
+   * SCAN 事件里按数字 scene_id 反查动态场景码（**只校验，不落用量**）。
+   * @returns { row } 命中可用；{ reject } 明确不可用（含引导语）；{} 不是本表管辖，交回上层走旧路径。
+   */
+  peekTraceScene(channel, sceneRaw, fromUser) {
+    const sceneId = Number(String(sceneRaw || '').trim());
+    if (!Number.isInteger(sceneId) || sceneId <= 0) return {};
+    const tenantId = Number(channel?.customer_id || 0);
+    const row = this.db.prepare('SELECT * FROM trace_mp_scenes WHERE scene_id = ? AND tenant_id = ?').get(sceneId, tenantId);
+    if (!row) return {};
+    const toUser = channel?.appid || '';
+    const reject = (content) => ({ reject: this.buildTextReply({ toUser, fromUser, content }) });
+    if (row.used_at) return reject('该二维码已被使用，请重新扫码查询。');
+    const nowStr = this._utcAfterSeconds(0);
+    if (row.expires_at && row.expires_at <= nowStr) return reject('该二维码已过期，请重新扫码查询。');
+    if (row.openid && row.openid !== String(fromUser || '').trim()) {
+      return reject('此二维码与当前微信号不匹配，请重新扫码查询。');
+    }
+    return { row };
+  }
+
+  /** 标记动态场景码已用（一次有效）。 */
+  markTraceSceneUsed(id) {
+    this.db.prepare('UPDATE trace_mp_scenes SET used_at = ? WHERE id = ?').run(this._utcAfterSeconds(0), id);
   }
 
   /**
@@ -588,19 +666,169 @@ export class WxMpService {
       }
     }
     const slots = Array.isArray(settings.displaySlots) ? settings.displaySlots : [];
-    if (!slots.length) return null;
     const isFirstQuery = Number(rec?.num || 0) <= 1;
     const isTopQueryer = Boolean(rec?.openid) && rec.openid === fromUser;
-    const picked = pickDisplaySlots(slots, { isFirstQuery, isTopQueryer });
-    if (!picked.length) return null;
     const h5Fallback = `${String(baseUrl || '').replace(/\/+$/, '')}/card/#/pages/trace/index?co=${encodeURIComponent(code)}&tid=${tenantId}`;
-    const articles = picked.map((s) => ({
-      title: substitute(s.title || '溯源信息', code, tenantId),
-      description: '',
-      picurl: absUrl(baseUrl, s.cover),
-      url: substitute(s.link || h5Fallback, code, tenantId),
-    }));
+    const picked = slots.length ? pickDisplaySlots(slots, { isFirstQuery, isTopQueryer }) : [];
+    // 🔴 展示位没配（或本次全被条件过滤掉）时**不能回 null**：
+    //    消费者长按识别了却一句话没有 = 「公众号推送」这个方案当场变成哑开关，
+    //    商户还会以为是微信没配好。兜底给一张「验真结果卡」，跳溯源页。
+    const articles = picked.length
+      ? picked.map((s) => ({
+        title: substitute(s.title || '溯源信息', code, tenantId),
+        description: '',
+        picurl: absUrl(baseUrl, s.cover),
+        url: substitute(s.link || h5Fallback, code, tenantId),
+      }))
+      : [this._traceResultArticle({ code, batch, num: Number(rec?.num || 0) || 1, first: isFirstQuery, queriedAt: rec?.queried_at, baseUrl, tenantId, settings })];
+    if (!baseUrl) return this.buildTextReply({ toUser: channel.appid, fromUser, content: articles[0].description });
     return this.buildNewsReply({ toUser: channel.appid, fromUser, articles });
+  }
+
+  /**
+   * 「验真结果卡」的单篇构造。
+   * 🔴 扫码（SCAN）与会话回复两条通道共用它 —— 两边文案若各自写一份，
+   *    消费者从两条路看到的结果口径会漂移（一边说通过、一边说已被查询）。
+   */
+  _traceResultArticle({ code, batch, num, first, queriedAt, baseUrl, tenantId, settings = {} }) {
+    const lines = [];
+    lines.push(first ? '✅ 防伪码验证通过' : '⚠️ 防伪码有效，但已被多次查询');
+    if (batch.product) lines.push(`商品：${batch.product}`);
+    if (batch.brand) lines.push(`品牌：${batch.brand}`);
+    if (batch.factory) lines.push(`生产企业：${batch.factory}`);
+    lines.push(`防伪码：${code}`);
+    lines.push(`本码查询次数：第 ${Number(num || 0)} 次`);
+    const firstAt = this._fmtBeijing(queriedAt);
+    if (firstAt) lines.push(`首次查询时间：${firstAt}`);
+    if (!first) lines.push('如非您本人查询，请谨防假冒，并联系商家核实。');
+    if (settings.ftel) lines.push(`客服电话：${settings.ftel}`);
+    return {
+      title: first
+        ? `${batch.product || batch.brand || '产品'} · 验真通过`
+        : `${batch.product || batch.brand || '产品'} · 已被查询 ${Number(num || 0)} 次`,
+      description: lines.join('\n'),
+      picurl: absUrl(baseUrl, batch.banner || ''),
+      url: `${String(baseUrl || '').replace(/\/+$/, '')}/card/#/pages/trace/index?co=${encodeURIComponent(code)}&tid=${tenantId}`,
+    };
+  }
+
+  /** 把库里的 UTC 时间串显示成北京时间（datetime('now') 落的是 UTC 裸串，直接印会把 UTC 当本地时间）。 */
+  _fmtBeijing(utcStr) {
+    const s = String(utcStr || '').trim();
+    if (!s) return '';
+    const iso = s.includes('T') ? s : `${s.replace(' ', 'T')}Z`;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+      }).format(d);
+    } catch { return s; }
+  }
+
+  /**
+   * 公众号会话里**直接发送防伪码** → 被动回复验真结果。
+   *
+   * 🔴 这是消费者最朴素的一条查询通路：标签上的码印得很小 / 微信扫码识别不出来 /
+   *    已经把码抄在纸上时，手动打一串发过来比什么都快。没有它，我们等于只有
+   *    「扫码」一条腿 —— 而竞品的完整形态本来就包含「打字查」。
+   *
+   * 🔴 三道形状闸门缺一不可（长度 / 纯大写字母数字 / 本租户码前缀）：
+   *    少了前缀这一条，用户发一句 20 个字的中文投诉也会被当成「错码」，
+   *    攒够上限后连正常咨询都被「错误次数过多」挡掉（错码频控被打成误伤正常对话）。
+   *
+   * 🔴 必须登记查询（走 registerTraceQuery 的唯一实现）：
+   *    不登记的话，消费者看完公众号回复再点开溯源页，会被判成「首次查询」→
+   *    「仅首次查询可见」的展示位与首查奖励被同一个人拿两次。
+   *    反之亦然：登记口径若与网页通道漂移，`first` 语义就错。
+   *
+   * @returns {string|null} null = 这条输入不是防伪码，交给关键词/默认回复继续处理。
+   */
+  resolveTraceTextReply(channel, text, fromUser, baseUrl = '') {
+    const tenantId = Number(channel.customer_id || 0);
+    if (!tenantId) return null;
+    // 🔴 没初始化过防伪码制的租户不该被这条路打扰：它的 getTraceRule 会退回默认值，
+    //    默认前缀 + 默认长度可能命中别人格式相近的串。
+    const hasRule = this.db.prepare('SELECT id FROM trace_code_rules WHERE tenant_id = ?').get(tenantId);
+    if (!hasRule) return null;
+
+    const rule = this.getTraceRule(tenantId);
+    const code = cleanTraceCode(text || '');
+    const totalLen = Number(rule.m[5] || 20);
+    if (!code || code.length !== totalLen) return null;
+    if (!/^[0-9A-Z]+$/.test(code)) return null;
+    if (!String(rule.m[1] || '') || !code.startsWith(String(rule.m[1]))) return null;
+
+    const row = this.db.prepare('SELECT settings_json FROM trace_settings WHERE tenant_id = ?').get(tenantId);
+    const settings = safeJsonLocal(row?.settings_json, {});
+    // 🔴 商户可关（默认开）。关掉时整条路退化为「这不是防伪码」→ 原对话逻辑不受任何影响。
+    if (Number(settings.wxReply ?? 1) !== 1) return null;
+
+    const say = (content) => this.buildTextReply({ toUser: channel.appid, fromUser, content });
+    const ip = ''; // 微信推送报文里没有客户端 IP
+
+    if (!verifyTraceCode(code, rule)) {
+      this.db.prepare('INSERT INTO trace_wrong_attempts (tenant_id, openid, ip, code, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))')
+        .run(tenantId, fromUser, ip, code);
+      // 🔴 错码频控必须与网页通道同判据（规则里的 zdl 上限），否则公众号对话成了
+      //    不限次爆破校验位的通道（校验位空间比序列号小得多，撞库成本很低）。
+      //    本通道没有 IP，只能按 openid 计数 —— 不能把空 IP 塞进 `OR ip = ?`，
+      //    那会把所有历史空 IP 行一起算上 → 立刻误伤。
+      const where = ip ? 'openid = ? OR ip = ?' : 'openid = ?';
+      const params = ip ? [tenantId, fromUser, ip] : [tenantId, fromUser];
+      const wrong = this.db.prepare(`SELECT COUNT(*) AS c FROM trace_wrong_attempts
+        WHERE tenant_id = ? AND (${where}) AND created_at > datetime('now', '-1 day')`).get(...params);
+      if (Number(wrong.c) > rule.zdl) return say('错误次数过多，请稍后再试');
+      return say('防伪码不存在或已失效，请核对后重新发送');
+    }
+
+    const parsed = parseTraceCode(code, rule);
+    const batch = this.findTraceBatch(tenantId, parsed.batch, rule);
+    if (!batch || Number(batch.is_active) !== 1) return say('防伪码不存在或已失效，请核对后重新发送');
+
+    // P2 激活闸门（先印后绑）：与 SCAN 卡片 / C 端验真同一口径，别让这条旁路提前说破到货情况。
+    if (Number(settings.isjihuo || 0) === 1) {
+      const act = this.db.prepare('SELECT id FROM trace_activations WHERE tenant_id = ? AND batch_id = ?').get(tenantId, Number(batch.id));
+      if (!act) return say('该批次尚未激活，请联系经销商扫码激活后再查询溯源信息。');
+    }
+
+    let record = this.db.prepare('SELECT * FROM trace_codes WHERE tenant_id = ? AND code = ?').get(tenantId, code);
+    const quotaMsg = checkQueryQuota({ settings, batch, record });
+    if (quotaMsg) return say(quotaMsg);
+
+    const reg = registerTraceQuery({
+      db: this.db,
+      tenantId,
+      code,
+      batch,
+      record,
+      openid: fromUser,
+      userId: 0,
+      ip,
+      // entry_type 7 = 公众号会话查询（与网页 6 / 带验证码 9 区分，便于后台统计来源）
+      entryType: '7',
+      rule,
+      serial: parsed.serial,
+    });
+    record = reg.record;
+
+    // 🔴 与 SCAN 卡片共用同一张结果卡：两条通道文案一致，
+    //    否则消费者「扫码查」和「打字查」看到的两套说法会互相打架。
+    const article = this._traceResultArticle({
+      code,
+      batch,
+      num: Number(record.num || 0),
+      first: reg.first,
+      queriedAt: record.queried_at,
+      baseUrl,
+      tenantId,
+      settings,
+    });
+    // 🔴 没有可用绝对路径时不发图文：微信图文 Url 必须是绝对地址，
+    //    相对路径发出去消费者点了打不开，还不如给纯文字（信息都在）。
+    if (!baseUrl) return say(article.description);
+    return this.buildNewsReply({ toUser: channel.appid, fromUser, articles: [article] });
   }
 
   /** 按消息匹配回复规则并构造被动回复 XML（toUser/fromUser 已按被动回复语义交换）。 */
@@ -626,9 +854,22 @@ export class WxMpService {
       return null;
     };
     // 溯源带参二维码：SCAN/扫码关注 → 弹图文卡片（无命中则回落通用规则）
+    // ① 动态场景码：纯数字 scene_id → 先按映射表换成防伪码，再走同一套卡片逻辑；
+    // ② 旧路径（兼容小批量绑单码）：scene 本身就是防伪码。
+    // 两条路并存而非替换，避免已印刷在外的永久码失效。
     const tryTraceScan = (eventKey) => {
       const scene = (eventKey || '').replace(/^qrscene_/, '');
       if (!scene) return null;
+      if (/^\d+$/.test(scene)) {
+        const hit = this.peekTraceScene(channel, scene, fromUser);
+        if (hit.reject) return hit.reject; // 过期/已用/换人 → 明确告知，而不是静默无响应
+        if (hit.row) {
+          const card = this.resolveTraceScanReply(channel, hit.row.code, fromUser, ctx.baseUrl);
+          // 🔴 只在真的要发卡片时才落用量：微信超时会重投 SCAN，提前标记会把合法重试挡掉。
+          if (card) this.markTraceSceneUsed(hit.row.id);
+          return card || null;
+        }
+      }
       return this.resolveTraceScanReply(channel, scene, fromUser, ctx.baseUrl);
     };
     if (msg.msgType === 'event') {
@@ -650,6 +891,9 @@ export class WxMpService {
       return null;
     }
     if (msg.msgType === 'text') {
+      // ① 先看是不是防伪码（发码即查）：形状不符返回 null，不会打扰关键词/默认回复。
+      const trace = this.resolveTraceTextReply(channel, msg.content, fromUser, ctx.baseUrl);
+      if (trace) return trace;
       const hits = this.matchReplyRules(channel.id, msg.content || '');
       if (hits.length) return make(hits[0]);
       const def = this.getDefaultRule(channel.id);

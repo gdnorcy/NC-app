@@ -13,6 +13,8 @@ import { buildTraceCodeFromSerial, canonicalBatchSegment, cleanTraceCode, DEFAUL
 import { generateTracePackage } from '../services/traceGenerate.js';
 import { makeZip } from '../services/zip.js';
 import { normalizeDisplaySlots, pickDisplaySlots } from '../services/traceSlots.js';
+import { checkQueryQuota, registerTraceQuery } from '../services/traceQuery.js';
+import { buildScanQueryView, normalizeScanMode, normalizeTraceSwitch } from '../services/traceScanMode.js';
 import { encryptSecret, maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
 import { applyTraceReward } from '../services/traceReward.js';
 import { getPlatformSettings } from './tracePlatform.js';
@@ -353,6 +355,72 @@ export function createTracePublicRouter(db) {
     return res.json({ code });
   });
 
+  /**
+   * 查询时**现场**生成一张短时效场景码（供溯源页引导「长按识别」）。
+   *
+   * 🔴 为什么挂在公开段：扫码的是消费者，几千几万人都不可能先登录；
+   *    挂在 `/api/customer` 那段（要 JWT）就永远到不了他们手上。
+   *    租户归属只认 URL 上的 ?tid=（publicTenant），与 /public/verify 同口径。
+   *
+   * 🔴 幂等（60 秒内复用同一张）：页面刷新、反复打开都不该每次烧一个微信额度，
+   *    而且图本来也不该变 —— 图一换，用户手里正在长按的那张就废了。
+   *    短时效 + 一次有效的兜底语义不受影响。
+   */
+  router.post('/public/mp-scene', async (req, res) => {
+    const tenantId = publicTenant(req);
+    const code = String(req.body?.code || req.query?.code || '').trim().toUpperCase();
+    if (!code) return sendError(res, 400, '缺少防伪码');
+    const { rule } = getRule(db, tenantId);
+    const parsed = parseTraceCode(code, rule);
+    if (!findBatchBySegment(db, tenantId, parsed.batch, rule)) return sendError(res, 404, '防伪码不存在');
+    const channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp' AND (auth_status = 'authorized' OR (auth_status = 'none' AND app_secret <> '')) ORDER BY id DESC LIMIT 1").get(tenantId);
+    if (!channel) return sendError(res, 400, '该商户尚未配置公众号');
+
+    const fresh = db.prepare(`SELECT * FROM trace_mp_scenes
+      WHERE tenant_id = ? AND code = ? AND used_at IS NULL AND expires_at > datetime('now') AND created_at > datetime('now', '-60 seconds')
+      ORDER BY id DESC LIMIT 1`).get(tenantId, code);
+    if (fresh) {
+      return res.json({
+        ok: true, sceneId: fresh.scene_id, code, ticket: fresh.ticket, expiresAt: fresh.expires_at, reused: true,
+        imageUrl: `/api/trace/public/mp-scene/image?tid=${tenantId}&scene=${fresh.scene_id}`,
+      });
+    }
+    try {
+      const wxMp = new WxMpService(db, new WxComponentService(db));
+      const scene = await wxMp.createTraceSceneQr(channel, code, '', Number(req.body?.ttl) || 1800);
+      return res.json({
+        ok: true, ...scene, reused: false,
+        // 🔴 回同源地址而非微信 CDN 地址：微信图片站有防盗链，前端直连大概率是空白图。
+        imageUrl: `/api/trace/public/mp-scene/image?tid=${tenantId}&scene=${scene.sceneId}`,
+      });
+    } catch (e) {
+      return sendError(res, 400, e.message || '生成引导二维码失败');
+    }
+  });
+
+  /**
+   * 临时场景码图片代理（服务端拉微信图片再转发，同源返回给前端）。
+   * 🔴 只在**本租户自己生成过的**行里按 scene_id 命中才代理：
+   *     ticket 本身就是外部不可信输入，不做成"任意 ticket 都能代理"（会成为 SSRF 跳板）。
+   */
+  router.get('/public/mp-scene/image', async (req, res) => {
+    const tenantId = publicTenant(req);
+    const sceneId = Number(req.query.scene || 0);
+    if (!sceneId) return sendError(res, 400, '缺少 scene');
+    const row = db.prepare('SELECT * FROM trace_mp_scenes WHERE tenant_id = ? AND scene_id = ?').get(tenantId, sceneId);
+    if (!row || !row.ticket) return sendError(res, 404, '二维码不存在或已过期');
+    try {
+      const upstream = await fetch(`https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(row.ticket)}`);
+      if (!upstream.ok) return sendError(res, 502, `微信二维码接口返回 ${upstream.status}`);
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+      res.setHeader('Cache-Control', 'private, max-age=60');
+      return res.send(buf);
+    } catch (e) {
+      return sendError(res, 502, e.message || '获取二维码图片失败');
+    }
+  });
+
   router.post('/public/verify', (req, res) => {
     const tenantId = publicTenant(req);
     const { settings } = getSettings(db, tenantId);
@@ -392,63 +460,26 @@ export function createTracePublicRouter(db) {
       return sendError(res, 403, '该批次尚未激活，请联系经销商扫码激活后再查询溯源信息', { gateRequired: true, batchNo: batch.batch });
     }
 
-    const upperlimit = Number(settings.upperlimit || 0);
-    if (upperlimit > 0 && Number(batch.rcon || 0) >= upperlimit && !record) {
-      return sendError(res, 400, settings.con_msg || '查询次数已达上限');
-    }
+    // 🔴 配额与计数都走 services/traceQuery.js 的唯一实现 —— 公众号回复通道
+    //    （services/wx-mp.js）写的是同一组计数器，绝不能各写一份。
+    const quotaMsg = checkQueryQuota({ settings, batch, record });
+    if (quotaMsg) return sendError(res, 400, quotaMsg);
 
-    // 🔴 事务口径 = 平台统一写法 db.exec('BEGIN'/'COMMIT'/'ROLLBACK')。
-    //    交付物原版用 better-sqlite3 的 db.transaction(fn) —— 本平台是 node:sqlite，
-    //    DatabaseSync 没有 transaction() 方法 → 调用即 TypeError → 验真接口 500。
-    // 🔴 本次是否「首查」必须在事务内定下来：下面的累加分支要靠它区分
-    //    「刚置 1 的首查」与「真正的复访」，否则 num 会算错（详见累加处注释）。
-    let isNewEntry = false;
-    let queryNo = 0;
-    db.exec('BEGIN');
-    try {
-      if (!record) {
-        // 🔴 is_demo：按流水号是否落在「顶部预留段」判定（试印码）→ 统计与结构锁都排除它。
-        const isDemo = isDemoSerial(parsed.serial, rule) ? 1 : 0;
-        const info = db.prepare(`INSERT INTO trace_codes (tenant_id, batch_id, code, entry_type, num, queried_at, openid, user_id, ip, hdtype, is_valid, is_demo, created_at, updated_at)
-          VALUES (?, ?, ?, ?, 1, datetime('now'), ?, ?, ?, ?, 1, ?, datetime('now'), datetime('now'))`)
-          .run(tenantId, batch.id, code, entryType, openid, userId, ip, Number(batch.inttype || 0), isDemo);
-        record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(info.lastInsertRowid);
-        db.prepare('UPDATE trace_batches SET rcon = rcon + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, batch.id);
-        isNewEntry = true;
-        queryNo = 1;
-      } else if (Number(record.num || 0) === 0) {
-        db.prepare(`UPDATE trace_codes SET num = 1, queried_at = datetime('now'), openid = ?, user_id = ?, ip = ?, updated_at = datetime('now')
-          WHERE tenant_id = ? AND id = ?`).run(openid, userId, ip, tenantId, record.id);
-        db.prepare('UPDATE trace_batches SET rcon = rcon + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, batch.id);
-        record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(record.id);
-        isNewEntry = true;
-        queryNo = 1;
-      } else {
-        // 🔴 复访已计数过的码：本次查询序号 = 当前 num + 1（下方 if(!isNewEntry) 会 num+1）。
-        //    原先 remark 用「未自增前的 record.num」拼，导致第 2、3…次查询的备注仍写「第1次查询」
-        //    （同码被两台手机扫、或同一人隔 21 秒后再扫，都中招）。
-        queryNo = Number(record.num || 0) + 1;
-      }
-      const recent = db.prepare(`SELECT id FROM trace_histories WHERE tenant_id = ? AND type = 0 AND summary = ? AND openid = ? AND created_at > datetime('now', '-21 seconds')`)
-        .get(tenantId, code, openid);
-      if (!recent) {
-        db.prepare(`INSERT INTO trace_histories (tenant_id, type, summary, uid, openid, ip, remark, created_at)
-          VALUES (?, 0, ?, ?, ?, ?, ?, datetime('now'))`)
-          .run(tenantId, code, userId, openid, ip, `第${queryNo}次查询`);
-        // 🔴 只有「复访」才累加 num。原写法是 `if (num > 1)`：首查把 num 置 1 后不满足，
-        //    num 永远卡在 1 → first 恒 true → 「仅首次查询可见」的展示位永远显示、
-        //    首查奖励也会重复发。判据必须是「本次是不是首查」，不是「num 是否 > 1」。
-        if (!isNewEntry) {
-          db.prepare('UPDATE trace_codes SET num = num + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, record.id);
-        }
-        record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(record.id);
-      }
-      batch = db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ? AND id = ?').get(tenantId, batch.id);
-      db.exec('COMMIT');
-    } catch (txErr) {
-      try { db.exec('ROLLBACK'); } catch { /* noop */ }
-      throw txErr;
-    }
+    const reg = registerTraceQuery({
+      db,
+      tenantId,
+      code,
+      batch,
+      record,
+      openid,
+      userId,
+      ip,
+      entryType,
+      rule,
+      serial: parsed.serial,
+    });
+    record = reg.record;
+    batch = reg.batch;
 
     const reward = applyTraceReward({
       db,
@@ -478,6 +509,9 @@ export function createTracePublicRouter(db) {
         isTopQueryer: Boolean(record.openid) && record.openid === openid,
       }).map(({ keyCipher, ...rest }) => rest),
       num: Number(record.num || 0),
+      // 🔴 当前「扫码查询方案」：C 端据此决定是否渲染「长按识别、由公众号推送结果」引导。
+      //    取值已在服务端白名单归一（traceScanMode），前端只做相等判断，不认魔法字符串以外的东西。
+      scanMode: normalizeScanMode(settings.scanMode),
       batch: {
         id: batch.id,
         batch: batch.batch,
@@ -798,6 +832,9 @@ export function createTraceAdminRouter(db) {
     const slots = Array.isArray(settings.displaySlots) ? settings.displaySlots : [];
     const view = {
       ...settings,
+      // 🔴 扫码查询方案由服务端出具（含每档是否真的可用 + 不可用的具体原因），
+      //    后台只负责渲染 —— 不做「后台写一份标签、服务端认另一份」的两份真相。
+      scanQuery: buildScanQueryView(db, req.traceTenantId, settings),
       displaySlots: slots.map((s) => {
         const { keyCipher, ...rest } = s || {};
         return { ...rest, accessKey: maskSecretValue(readSecret(keyCipher)) };
@@ -824,6 +861,10 @@ export function createTraceAdminRouter(db) {
       // 🔴 必须**整批**归一化：逐个调用会让「最多 8 个」的上限校验永远不成立
       //    （每次只看到 1 个），上限形同虚设。归一化也顺带剥掉多余字段。
       patch.displaySlots = normalizeDisplaySlots(staged);
+      // 🔴 枚举字段必须服务端白名单归一：客户端传什么是不可信的，
+      //    落到库里的只能是 traceScanMode 里那几档之一（非法值一律回落默认档）。
+      if ('scanMode' in patch) patch.scanMode = normalizeScanMode(patch.scanMode);
+      if ('wxReply' in patch) patch.wxReply = normalizeTraceSwitch(patch.wxReply);
       saveSettings(db, req.traceTenantId, patch);
       addHistory(db, req.traceTenantId, 1, 'setting', req, '更新防伪溯源设置');
       return res.json({ ok: true });
@@ -1307,6 +1348,9 @@ export function createTraceAdminRouter(db) {
       return sendError(res, 502, e.message || '获取二维码图片失败');
     }
   });
+
+  // 注：同样的「现场生成临时场景码」能力已落到**公开段** /public/mp-scene（消费者未登录，
+  // 且有 60 秒幂等复用）。此处不再保留一份后台版，避免同一件事两处定义各自漂移。
 
   router.get('/histories', (req, res) => {
     const { page, pageSize, offset } = pageParams(req);

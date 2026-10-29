@@ -73,6 +73,16 @@ describe('traceApi 请求封装', () => {
     expect(args.data).toEqual({ sj: '13800000000', rewardId: 5 });
   });
 
+  it('traceSceneQr → POST /public/mp-scene?tid= （带 body，取临时引导二维码）', async () => {
+    mockResponse(200, { ok: true, imageUrl: '/api/trace/public/mp-scene/image?tid=t1&scene=100001' });
+    const r = await traceApi.traceSceneQr('ABC123', 't1');
+    const args = uniMock.request.mock.calls[0][0];
+    expect(args.method).toBe('POST');
+    expect(args.url).toBe(BASE + '/mp-scene?tid=t1');
+    expect(args.data).toEqual({ code: 'ABC123' });
+    expect(r.imageUrl).toContain('/mp-scene/image');
+  });
+
   it('所有方法都带 tid（公开段租户定位唯一来源）', async () => {
     mockResponse(200, {});
     const methods = [
@@ -81,6 +91,8 @@ describe('traceApi 请求封装', () => {
       () => traceApi.traceHistory('c', 'TID'),
       () => traceApi.myGoods({}, 'TID'),
       () => traceApi.claimReward({}, 'TID'),
+      () => traceApi.activateBatch('b', 'p', 'TID'),
+      () => traceApi.traceSceneQr('c', 'TID'),
     ];
     for (const m of methods) {
       uniMock.request.mockClear();

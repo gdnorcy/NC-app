@@ -270,6 +270,44 @@
                   </el-col>
                 </el-row>
 
+                <!-- ===== 扫码查询方案 ===== -->
+                <!-- 🔴 三档决定「印刷什么形态的码 + 验真结果从哪里出来」，由服务端出具可用性，本页只渲染 -->
+                <el-divider content-position="left">扫码查询方案</el-divider>
+                <el-form-item label="验真结果出口">
+                  <el-radio-group v-model="s.scanMode" class="scan-mode-group">
+                    <el-radio
+                      v-for="opt in (scanQuery.options || [])"
+                      :key="opt.value"
+                      :value="opt.value"
+                      :disabled="!opt.available"
+                      class="scan-mode-radio"
+                    >
+                      <div class="scan-mode-title">
+                        {{ opt.label }}
+                        <span class="scan-mode-print">{{ opt.print }}</span>
+                      </div>
+                      <div class="scan-mode-desc">{{ opt.desc }}</div>
+                      <div v-if="!opt.available" class="scan-mode-bad">当前不可用：{{ opt.reason }}</div>
+                      <div v-else-if="opt.note" class="scan-mode-note">{{ opt.note }}</div>
+                    </el-radio>
+                  </el-radio-group>
+                  <el-alert
+                    v-if="currentMode && !currentMode.available"
+                    type="warning"
+                    :closable="false"
+                    show-icon
+                    :title="`当前所选档位暂不可用：${currentMode.reason || '前置条件未满足'}，消费者侧会回落到网页验真。`"
+                    class="mt12"
+                  />
+                  <div class="form-hint mt12">三档只影响「新版印码与结果出口」，已印刷在外的旧码仍按其自身方式可用，不会被改动。</div>
+                </el-form-item>
+                <el-col :span="16">
+                  <el-form-item label="公众号内回复验真">
+                    <el-switch v-model="s.wxReply" :active-value="1" :inactive-value="0" />
+                    <span class="form-hint">开启后，消费者在公众号会话里直接发送防伪码即可收到验真结果（含「是否已被多次查询」预警）；每次回复同时登记一次查询。</span>
+                  </el-form-item>
+                </el-col>
+
                 <el-divider content-position="left">功能开关</el-divider>
                 <el-row :gutter="20" class="switch-grid">
                   <el-col :span="8"><el-form-item label="开启历史查询"><el-switch v-model="s.ishistory" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
@@ -811,9 +849,12 @@
       <div v-if="mpQrDlg.result" class="mp-qr-result">
         <div class="mp-qr-title">扫码后公众号内弹出溯源卡片</div>
         <img v-if="mpQrDlg.result.imgUrl" :src="mpQrDlg.result.imgUrl" alt="公众号带参二维码" class="mp-qr-img" />
+        原「二维码链接」写法有误导性：showUrl 是微信图床上的图片地址（不是扫码目标），
+        这里如实标注，并提示该方案适配的场景。
         <div class="mp-qr-links">
-          <div>二维码链接：<a :href="mpQrDlg.result.showUrl" target="_blank" rel="noopener">{{ mpQrDlg.result.showUrl }}</a></div>
-          <div>场景值：<code>{{ mpQrDlg.result.code }}</code></div>
+          <div>图片地址（微信图床，仅供排查）：<a :href="mpQrDlg.result.showUrl" target="_blank" rel="noopener">{{ mpQrDlg.result.showUrl }}</a></div>
+          <div>场景值（即该防伪码）：<code>{{ mpQrDlg.result.code }}</code></div>
+          <div class="form-hint">这张图对应上面这一个码，适合「公众号直推（小批量）」方案；大批量请改用网页 + 公众号推送方案。</div>
         </div>
         <el-button size="small" @click="downloadMpQr">下载二维码图片</el-button>
       </div>
@@ -1477,7 +1518,13 @@ const s = reactive({
   isred: 0, redtype: 0, redwishing: '', rednotx: '', redremark: '', redlink: '', redbufa: 0,
   // 首页展示位
   displaySlots: [],
+  // 扫码查询方案（服务端白名单归一化后的档位）+ 公众号内回复验真
+  scanMode: 'web', wxReply: 1,
 });
+// 🔴 服务端下发的方案视图（三档标签/说明/可用性），本页不自带一份副本 ——
+//    否则「界面显示能用、服务端根本不支持」的空开关又会重演。
+const scanQuery = ref({ current: 'web', options: [] });
+const currentMode = computed(() => (scanQuery.value.options || []).find((o) => o.value === s.scanMode) || null);
 const advancedMode = ref(false);
 
 /* ----------------- 首页展示位 ----------------- */
@@ -1552,10 +1599,21 @@ function syncFormFromSettings(settings) {
   // 高级模式原本是空的（读不到当前配置，只能盲打）→ 回填一次，编辑才有意义
   rawJson.value = JSON.stringify(s, null, 2);
 }
+/**
+ * 服务端归一化后的档位回填到表单。
+ * 🔴 必须以服务端为准：库里可能存着早期写入的脏值（或已被 normalizeScanMode 回落），
+ *    直接用 s.scanMode 会把脏值当真相继续显示。
+ */
+function syncFromScanQuery() {
+  if (scanQuery.value?.current) s.scanMode = scanQuery.value.current;
+  if (scanQuery.value?.replyEnabled !== undefined) s.wxReply = Number(scanQuery.value.replyEnabled) || 0;
+}
 async function loadSettings() {
   try {
     const res = await customerApiCall.get('/trace/settings');
     cocom.value = Number(res.cocom ?? 0);
+    scanQuery.value = res.scanQuery || { current: 'web', options: [] };
+    syncFromScanQuery();
     syncFormFromSettings(res.settings || {});
   } catch (e) { ElMessage.error(e || '加载设置失败'); }
 }
@@ -1821,4 +1879,14 @@ onMounted(() => {
 .help-body h4 { margin: 14px 0 4px; font-size: 14px; color: #1d2129; }
 .help-body h4:first-child { margin-top: 0; }
 .help-body p { color: #4e5969; line-height: 1.7; margin: 0 0 8px; }
+
+/* 扫码查询方案：一档一卡，把「印什么」与「缺什么」直接写在选项里 */
+.scan-mode-group { display: block; width: 100%; }
+.scan-mode-radio { display: flex; width: 100%; height: auto; margin-right: 0; padding: 10px 0; align-items: flex-start; }
+.scan-mode-radio.is-disabled { opacity: 0.65; }
+.scan-mode-title { font-size: 14px; color: #1d2129; font-weight: 600; line-height: 22px; }
+.scan-mode-print { margin-left: 6px; font-size: 12px; font-weight: 400; color: #86909c; }
+.scan-mode-desc { margin-top: 2px; color: #4e5969; font-size: 12px; line-height: 1.7; white-space: normal; }
+.scan-mode-bad { margin-top: 4px; color: #f53f3f; font-size: 12px; }
+.scan-mode-note { margin-top: 4px; color: #86909c; font-size: 12px; }
 </style>

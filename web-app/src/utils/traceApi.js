@@ -11,6 +11,7 @@
  *    - traceHistory→ GET  /public/history
  *    - myGoods    → GET  /public/mygoods
  *    - claimReward→ POST /public/claim
+ *    - traceSceneQr→ POST /public/mp-scene（临时引导二维码，供公众号推送方案使用）
  *
  * 🔴 租户定位：公开段租户只认「URL ?tid=」或「登录态」，前端必须带 tid
  *    （与 mall 的 requireGoodsApp 同款口径）；本页由 pages/trace/index.vue 透传。
@@ -47,6 +48,18 @@ export function myGoods(params, tid) {
 /** 领取奖品 / 红包（需登录态；手机号 sj 必填） */
 export function claimReward(data, tid) {
   return request('/claim' + qs({ tid }), 'POST', data);
+}
+
+/**
+ * 取一张「长按识别 → 公众号推送验真结果」用的临时引导二维码。
+ * POST /public/mp-scene
+ *
+ * 🔴 服务端已经做了 60 秒幂等复用：同一个人反复打开溯源页不会每次
+ *    烧一个公众号二维码额度，图也不会变（换了图用户手里那张就废了）。
+ * @returns {Promise<{imageUrl:string, expiresAt:string, sceneId:number}>} imageUrl 是同源相对地址
+ */
+export function traceSceneQr(code, tid) {
+  return request('/mp-scene' + qs({ tid }), 'POST', { code });
 }
 
 /**
