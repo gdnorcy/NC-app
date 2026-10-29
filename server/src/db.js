@@ -2884,6 +2884,26 @@ function seedTrace(db) {
     CREATE INDEX IF NOT EXISTS idx_trace_cocom_tenant ON trace_cocom_recharges (tenant_id, created_at);
   `);
 
+  // 防伪溯源 · 动态场景码映射（验真引导/Q5）
+  // 🔴 设计依据：微信「永久」场景码有配额上限且需为每个码单独出图，无法支撑大批量印刷；
+  //    改查询时现场生成「临时」场景码（数字 scene_id，短时效），此处只存 scene_id → 防伪码 的映射。
+  // 🔴 openid 非空时做强绑定：换人扫一律拒绝（防截图转发/重放）；即使拿不到 openid 也靠 expires_at + 一次有效兜底。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trace_mp_scenes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      code TEXT NOT NULL DEFAULT '',
+      scene_id INTEGER NOT NULL DEFAULT 0,
+      openid TEXT NOT NULL DEFAULT '',
+      ticket TEXT NOT NULL DEFAULT '',
+      expires_at TEXT NOT NULL DEFAULT '',
+      used_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_scene_id ON trace_mp_scenes (scene_id);
+    CREATE INDEX IF NOT EXISTS idx_trace_scene_tenant ON trace_mp_scenes (tenant_id, code, created_at);
+  `);
+
   // 应用注册（分类=高级功能；icon=verify 是 SIcon 体系既有图标名 —— 交付物写的 'trace' 无对应 SVG 会渲染空白）
   db.exec("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('trace', '防伪溯源', '扫码验真、溯源码管理、批次流向、窜货预警', 'verify', '高级功能', 60, 1)");
 

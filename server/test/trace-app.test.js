@@ -74,10 +74,11 @@ describe('防伪溯源 trace：接入回归锁', () => {
   it('trace_ 业务表齐全且列名统一为 is_rewarded / credit_type', () => {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'trace_%'").all().map((r) => r.name).sort();
     // #469 新增 trace_platform_settings / trace_cocom_recharges（9 张）；
-    // P2 先印后绑新增 trace_activations（批次激活记录，UNIQUE(tenant_id,batch_id)）→ 共 10 张。
+    // P2 先印后绑新增 trace_activations（批次激活记录，UNIQUE(tenant_id,batch_id)）→ 共 10 张；
+    // 动态场景码（验真引导）新增 trace_mp_scenes（临时场景码 scene_id ↔ 防伪码 映射）→ 共 11 张。
     assert.deepEqual(tables, [
       'trace_activations', 'trace_batch_rules', 'trace_batches', 'trace_cocom_recharges',
-      'trace_code_rules', 'trace_codes', 'trace_histories',
+      'trace_code_rules', 'trace_codes', 'trace_histories', 'trace_mp_scenes',
       'trace_platform_settings', 'trace_settings', 'trace_wrong_attempts',
     ]);
     // 交付物的 isy / credittype 必须不存在（否则 JS 侧必然 no such column）
