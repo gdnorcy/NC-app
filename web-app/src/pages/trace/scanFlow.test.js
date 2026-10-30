@@ -109,4 +109,13 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(src).toMatch(/\.tr-slot \{ width: 204rpx;/);
     expect(src).toMatch(/justify-content: space-between/);
   });
+
+  test('批次没设主图时海报区不塌陷（品牌色渐变底 + min-height 兜底）', () => {
+    // 🔴 生产批次 banner 与 logo 都是空的 —— 海报容器若没有底色和最小高度，
+    //    高度=0 → 徽标与商品名溢出到卡外，看着像破版。
+    expect(src).toMatch(/min-height: 240rpx/);
+    expect(src).toMatch(/linear-gradient\(135deg, var\(--primary\), var\(--primary-deep\)\)/);
+    // 遮罩只服务于图片（没图时盖在渐变上会发灰）
+    expect(src).toMatch(/class="tr-poster-mask" v-if="posterImage"/);
+  });
 });
