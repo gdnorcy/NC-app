@@ -75,12 +75,31 @@ describe('traceApi 请求封装', () => {
 
   it('traceSceneQr → POST /public/mp-scene?tid= （带 body，取临时引导二维码）', async () => {
     mockResponse(200, { ok: true, imageUrl: '/api/trace/public/mp-scene/image?tid=t1&scene=100001' });
-    const r = await traceApi.traceSceneQr('ABC123', 't1');
+    const r = await traceApi.traceSceneQr('ABC123', 't1', 'OC-TICKET');
     const args = uniMock.request.mock.calls[0][0];
     expect(args.method).toBe('POST');
     expect(args.url).toBe(BASE + '/mp-scene?tid=t1');
-    expect(args.data).toEqual({ code: 'ABC123' });
+    // 🔴 oc 是服务端签发的身份凭据，必须随请求带回（前端自己没有 openid 可言）
+    expect(args.data).toEqual({ code: 'ABC123', oc: 'OC-TICKET' });
     expect(r.imageUrl).toContain('/mp-scene/image');
+  });
+
+  it('traceScanMode → GET /public/scan-mode?tid= （先验真再问方案会重复计数）', async () => {
+    mockResponse(200, { scanMode: 'push_dynamic', oauthReady: true });
+    await traceApi.traceScanMode('t1');
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: BASE + '/scan-mode?tid=t1',
+      method: 'GET',
+    }));
+  });
+
+  it('wxAuthStartUrl：回跳地址必须是本站相对路径（服务端只放行这类）', () => {
+    const url = traceApi.wxAuthStartUrl('t1', '/card/#/pages/trace/index?co=ABC&tid=t1');
+    // H5 端 API_HOST 为空（同源相对路径），小程序端是完整域名 → 只断言"以基址开头"
+    expect(url.startsWith(API_HOST)).toBe(true);
+    expect(url).toContain('/api/trace/public/wx-auth/start?tid=t1&redirect=');
+    expect(url).toContain(encodeURIComponent('/card/#/pages/trace/index?co=ABC&tid=t1'));
+    expect(url).not.toContain('redirect=http', '绝对外链地址不该出现在这里（服务端会 400）');
   });
 
   it('所有方法都带 tid（公开段租户定位唯一来源）', async () => {
@@ -93,6 +112,7 @@ describe('traceApi 请求封装', () => {
       () => traceApi.claimReward({}, 'TID'),
       () => traceApi.activateBatch('b', 'p', 'TID'),
       () => traceApi.traceSceneQr('c', 'TID'),
+      () => traceApi.traceScanMode('TID'),
     ];
     for (const m of methods) {
       uniMock.request.mockClear();

@@ -30,8 +30,8 @@
           </view>
         </view>
 
-        <!-- 查询结果 -->
-        <view class="tr-card tr-card-ok" v-if="result">
+        <!-- 查询结果（网页验真结果块：push_dynamic 且推送成功时隐藏，避免与公众号推送重复/被仿冒页利用） -->
+        <view class="tr-card tr-card-ok" v-if="result && showWebResult">
           <view class="tr-result-head">
             <SIcon name="verify" size="large" :color="ICON_SUCCESS" />
             <text class="tr-result-title">{{ resultTitle }}</text>
@@ -80,6 +80,7 @@
                仅在微信内展示 —— 其他浏览器长按识别不了二维码，展示就是纯干扰。 -->
         <view class="tr-card tr-card-push" v-if="pushImg || pushErr">
           <text class="tr-card-title">请在公众号内查看验真结果</text>
+          <text class="tr-push-ok" v-if="pushImg">查询成功，验真结果正通过认证公众号发送给您</text>
           <text class="tr-card-desc">为防止假冒查询页面，本产品的验真结果由商家认证公众号主动推送给您。请长按识别下方二维码，识别后即可收到结果（二维码仅短期有效、使用一次后失效）。</text>
           <image v-if="pushImg" class="tr-push-img" :src="pushImg" mode="aspectFit" />
           <text class="tr-push-err" v-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
@@ -135,11 +136,10 @@ import { onLoad } from '@dcloudio/uni-app';
 import PageNav from '../../components/PageNav.vue';
 import SIcon from '../../components/SIcon.vue';
 import { getTid } from '../../utils/mallUtil.js';
-import { scanEntry, verifyTrace, traceSceneQr } from '../../utils/traceApi.js';
+import { scanEntry, verifyTrace, traceSceneQr, traceScanMode, wxAuthStartUrl } from '../../utils/traceApi.js';
 import { execCompLink } from '../../utils/compLink.js';
 import { linkFromString } from '../../utils/compLinkModel.js';
-import { assetUrl } from '../../utils/assetUrl.js';
-import { API_HOST } from '../../utils/apiBase.js';
+import { API_HOST, IS_MP_WEIXIN } from '../../utils/apiBase.js';
 
 // 🔴 SIcon 的 color 会被烘焙进产物（SVG data-URI / 预生成 PNG），var() 到不了
 //    → 必须传真实 hex。语义与 styles/token.scss 的 $success / $danger 对齐。
@@ -181,6 +181,31 @@ function absApiUrl(u) {
 }
 
 /**
+ * 服务端资源（/uploads/... 相对路径）补全为可直连的绝对地址。
+ * 🔴 这是项目里「小程序端 /uploads 相对路径全断」的标准修法（见 apiBase.absUrl）：
+ *    - MP 端无 origin 概念，/uploads/... 会被当成「小程序包内路径」→ 加载失败 → 图片空白；
+ *      必须补 API_HOST（VITE_MP_API_BASE）成完整 https URL。
+ *    - H5 端（含微信内浏览器）补 page origin 成绝对地址，避免任何 base/子路径/CDN 边缘把
+ *      根相对 /uploads 解析到错误前缀（同源相对在特殊部署下偶尔会踩，绝对地址最稳）。
+ *    已是 https/data/blob 的地址原样返回。
+ */
+function absOriginUrl(u) {
+  const s = String(u || '').trim();
+  if (!s || /^(https?:|data:|blob:)/i.test(s)) return s;
+  if (IS_MP_WEIXIN) return `${API_HOST}${s.startsWith('/') ? '' : '/'}${s}`;
+  try {
+    const origin = (typeof window !== 'undefined' && window.location && window.location.origin) || '';
+    if (origin) return `${origin}${s.startsWith('/') ? '' : '/'}${s}`;
+  } catch { /* ignore */ }
+  return s;
+}
+
+// 网页授权凭据（服务端签发；前端只原样回传，改一个字符就失效）
+const oc = ref('');
+// 授权失败过一次就不再重复跳（否则页面会在「跳授权 → 失败 → 再跳」之间死循环）
+const oauthFailed = ref(false);
+
+/**
  * 取引导二维码。
  * 🔴 只在档位真的要求「网页 + 公众号推送」时才请求：
  *    默认档位（网页验真）去调一次接口 = 白烧一个公众号二维码额度 + 多一个失败点。
@@ -191,12 +216,43 @@ async function loadPushGuide(code) {
   pushErr.value = false;
   if (!code || !isWeChatEnv) return;
   try {
-    const r = await traceSceneQr(code, tid.value);
-    pushImg.value = r && r.imageUrl ? absApiUrl(r.imageUrl) : '';
+    const r = await traceSceneQr(code, tid.value, oc.value);
+    pushImg.value = r && r.imageUrl ? absOriginUrl(r.imageUrl) : '';
     if (!pushImg.value) pushErr.value = true;
   } catch {
     pushErr.value = true;
   }
+}
+
+/** 当前页面地址（发给服务端做授权后回跳；必须是本站相对路径） */
+function selfPath() {
+  try {
+    const { pathname = '', search = '', hash = '' } = window.location || {};
+    return `${pathname}${search}${hash}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * 扫码进来的主流程。
+ * 🔴 顺序是**先问方案 → 必要时先授权 → 才验真**，不能反过来：
+ *    反过来会在授权回跳后重复验真，把同一个人的一次查询记成两次。
+ */
+async function runScanFlow(rawCode) {
+  applyScanCode(rawCode);
+  if (isWeChatEnv && !oc.value && !oauthFailed.value && typeof window !== 'undefined') {
+    try {
+      const m = await traceScanMode(tid.value);
+      if (m && m.scanMode === 'push_dynamic' && m.oauthReady) {
+        window.location.href = wxAuthStartUrl(tid.value, selfPath());
+        return;
+      }
+    } catch {
+      /* 问不到方案就按默认档位走，不要因为一次探测失败卡住消费者 */
+    }
+  }
+  submit();
 }
 
 const batchInfo = computed(() => (result.value && result.value.batch) || {});
@@ -223,9 +279,20 @@ const slotList = computed(() => {
   return Array.isArray(s) ? s : [];
 });
 
-// 🔴 服务端图片路径（/uploads/ 相对）在 MP 端全断 → 展示点一律过 assetUrl。
+/** 是否「网页 + 公众号推送」档位 */
+const pushMode = computed(() => result.value?.scanMode === 'push_dynamic');
+/**
+ * 是否展示「网页验真」结果块。
+ * 🔴 push_dynamic 且推送引导已成功拿到图 → 不重复展示网页验真结果：
+ *    该方案存在的意义就是「只信认证公众号推来的结果」，页面上直接摆出验真结论，
+ *    等于给仿冒查询页留了可乘之机（它也能随便写「验证通过」）。所以此时只给引导去公众号收结果。
+ *    · 推送失败（pushErr）或仍在加载 → 回落展示网页结果，避免消费者一无所获。
+ */
+const showWebResult = computed(() => !pushMode.value || pushErr.value);
+
+// 🔴 服务端图片路径（/uploads/ 相对）在 MP 端全断 → 一律补成绝对地址（H5 补 origin / MP 补 API_HOST）。
 function slotCover(u) {
-  return assetUrl(u);
+  return absOriginUrl(u);
 }
 
 /** 点击展示位：跳转基建复用 execCompLink（不在本页另写一套 navigateTo） */
@@ -289,7 +356,7 @@ async function submit() {
   pushImg.value = '';
   pushErr.value = false;
   try {
-    result.value = await verifyTrace({ co, yzm: String(form.yzm || '').trim() }, tid.value);
+    result.value = await verifyTrace({ co, yzm: String(form.yzm || '').trim(), oc: oc.value }, tid.value);
     // 只有「网页 + 公众号推送」这一档才去取引导二维码
     if (result.value && result.value.scanMode === 'push_dynamic') loadPushGuide(result.value.code || co);
   } catch (e) {
@@ -315,7 +382,10 @@ function goActivate() {
 onLoad((options) => {
   // 🔴 租户上下文单一来源 = utils/mallUtil.js 的 getTid（分享 query / 启动 query / 扫码 scene / 渠道绑定）
   tid.value = getTid(options);
-  if (options && options.co) applyScanCode(options.co);
+  // 网页授权回跳带来的参数：oc = 服务端签发的身份凭据；oafail = 授权没成（按未授权继续出结果）
+  if (options && options.oc) oc.value = String(options.oc);
+  if (options && (options.oafail === '1' || options.oafail === 1)) oauthFailed.value = true;
+  if (options && options.co) runScanFlow(options.co);
 });
 </script>
 
@@ -377,6 +447,7 @@ onLoad((options) => {
 /* 公众号推送方案的引导卡（与其它卡同令牌体系，不新增裸色值） */
 .tr-card-push { background: var(--bg-tag); text-align: center; }
 .tr-push-img { width: 320rpx; height: 320rpx; margin: 12rpx auto 4rpx; display: block; background: var(--white); border-radius: var(--radius-sm); }
+.tr-push-ok { display: block; margin-bottom: 12rpx; font-size: var(--fs-4); font-weight: 600; color: var(--success); }
 .tr-push-err { display: block; margin-top: 8rpx; font-size: var(--fs-2); color: var(--t3); }
 /* 🔴 P2 激活入口卡：与查询卡区分（用既有令牌，不新增裸 hex） */
 .tr-card-act {
