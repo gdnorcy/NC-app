@@ -132,6 +132,11 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(demoIdx, '试印说明必须排在海报之前（在查询结果位置）').toBeLessThan(posterIdx);
     // 海报内不再重复放试印提示
     expect(src, '海报内不得再出现 tr-poster-demo').not.toMatch(/class="tr-poster-demo"/);
+    // 🔴 绑定名必须与脚本常量一致：曾写成 {{ demoNote }}（常量实际是 DEMO_NOTE）
+    //    → 模板拿到 undefined，试印说明渲染成空白，且常量被摇树掉（产物里搜不到文案）。
+    expect(src).toMatch(/\{\{ DEMO_NOTE \}\}/);
+    expect(src).not.toMatch(/\{\{ demoNote \}\}/);
+    expect(src).toMatch(/const DEMO_NOTE = /);
   });
 
   test('海报内嵌公众号引导二维码（pushImg，整页唯一）+ 操作引导文案', () => {

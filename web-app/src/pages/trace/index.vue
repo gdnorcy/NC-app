@@ -16,7 +16,7 @@
                 非演示码结果不再显示「查询结果」标题（由海报/明细取代）。
              🔴「推荐」展示位整体移除（用户要求）。 -->
         <view class="tr-card">
-          <text class="tr-card-title tr-title-demo" v-if="result && !reQuery && result.demo">{{ demoNote }}</text>
+          <text class="tr-card-title tr-title-demo" v-if="result && !reQuery && result.demo">{{ DEMO_NOTE }}</text>
           <text class="tr-card-title" v-else-if="enteredByScan && !result && !errorMsg">查询中…</text>
           <text class="tr-card-title" v-else-if="!result || reQuery">防伪查询</text>
           <text class="tr-card-desc" v-if="(!result || reQuery) && !(enteredByScan && !result && !errorMsg)">{{ welcomeText }}</text>
