@@ -89,7 +89,8 @@
           </view>
           <view class="tr-line">
             <text class="tr-line-label">查询次数</text>
-            <text class="tr-line-value">{{ result.num || 0 }} 次</text>
+            <!-- 🔴 达到次数上限时数值也变红（与下方提示文案同一个 overLimit 判据） -->
+            <text class="tr-line-value" :class="{ 'tr-value-danger': overLimit }">{{ result.num || 0 }} 次</text>
           </view>
           <view class="tr-line">
             <text class="tr-line-label">产品</text>
@@ -111,7 +112,8 @@
             <text class="tr-line-label">销售区域</text>
             <text class="tr-line-value">{{ regionText }}</text>
           </view>
-          <text class="tr-tip" v-if="successTip">{{ successTip }}</text>
+          <!-- 🔴 达到次数上限（超限）时提示文案变红；未超限保持常规灰色说明色 -->
+          <text class="tr-tip" :class="{ 'tr-tip-danger': overLimit }" v-if="successTip">{{ successTip }}</text>
         </view>
 
         <!-- 🔴 P3 全局活动广告位（独立区块，海报下方；服务端已替换 [FWM]/[KEY]）
@@ -410,6 +412,21 @@ const successTip = computed(() => {
   return s.sucThree || s.sucTwo || s.sucOne || '';
 });
 
+/**
+ * 是否「已达查询次数上限」（超限）。
+ * 🔴 单独抽出来是因为它同时决定**两处**变红（用户 2026-10-30 拍板：超限文案 + 查询次数都变红）：
+ *    ① 验真提示文案；② 明细里的「查询次数」数值。
+ *    两处各自再算一遍 num/limit 就会出现「文案红了、次数没红」的漂移，所以只留这一个判据。
+ * 🔴 判据与 successTip 的分档第①条**必须同式**（limit > 0 && num >= limit），
+ *    否则会出现「提示是超限档但字没红」或反过来。
+ */
+const overLimit = computed(() => {
+  const s = (result.value && result.value.settings) || {};
+  const num = Number((result.value && result.value.num) || 0);
+  const limit = Number(s.upperlimit || 0);
+  return limit > 0 && num >= limit;
+});
+
 const failTip = computed(() => {
   const s = (result.value && result.value.settings) || {};
   return s.ftel || '';
@@ -650,6 +667,9 @@ onLoad((options) => {
   color: var(--t3);
   line-height: 1.6;
 }
+/* 🔴 超限（达到后台查询次数上限）：提示文案与查询次数两处都转红 —— 复用既有 --danger 令牌，不新造色值 */
+.tr-tip-danger { color: var(--danger); }
+.tr-value-danger { color: var(--danger); font-weight: 600; }
 /* 🔴 2026-10-30 扫码出结果后收起表单，只留「已查的码 + 换个码再查」一行 */
 .tr-recheck {
   display: flex;

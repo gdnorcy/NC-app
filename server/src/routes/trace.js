@@ -654,9 +654,11 @@ export function createTracePublicRouter(db) {
         isFirstQuery: Number(record.num || 0) <= 1,
         isTopQueryer: Boolean(record.openid) && record.openid === openid,
       }) : []).map(({ keyCipher, ...rest }) => ({
+        // 🔴 authKey 是**要明文下发**的（拼进跳转链接给外部接口验签），不是凭据，
+        //    所以只剥 keyCipher（接口密钥密文）；鉴权码留着给占位符替换与前端展示。
         ...rest,
-        title: substituteSlotPlaceholders(rest.title, { code, tenantId }),
-        link: substituteSlotPlaceholders(rest.link, { code, tenantId }),
+        title: substituteSlotPlaceholders(rest.title, { code, tenantId, authKey: rest.authKey }),
+        link: substituteSlotPlaceholders(rest.link, { code, tenantId, authKey: rest.authKey }),
       })),
       num: Number(record.num || 0),
       // 🔴 当前「扫码查询方案」：C 端据此决定是否渲染「长按识别、由公众号推送结果」引导。

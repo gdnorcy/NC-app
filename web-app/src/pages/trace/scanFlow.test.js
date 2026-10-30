@@ -118,12 +118,16 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     const qrCount = (src.match(/tr-poster-qr-img" :src="pushImg"/g) || []).length;
     expect(qrCount, '海报里应恰好有一个 pushImg 二维码').toBe(1);
     expect(src, '不得再出现第二个推送引导卡里的 pushImg 图').not.toMatch(/class="tr-push-img" :src="pushImg"/);
-    expect(src, '推送引导卡整体已移除').not.toMatch(/tr-card-push/);
+    // 🔴 只查**模板类名**：源码注释里必然要提到 tr-card-push 这个历史名字来解释为什么删，
+    //    断言写裸词会命中注释 —— 那测的是「注释里不许出现这个词」，不是「块已移除」。
+    expect(src, '推送引导卡整体已移除').not.toMatch(/class="tr-card-push"/);
   });
 
   test('演示说明单独放在「查询结果」位置（海报之前，替代原「查询结果」标题）', () => {
     // 🔴 用户要求：试印说明从海报内移出，作为结果区顶部独立说明（演示码才显示）。
-    const demoIdx = src.indexOf('【演示·试印】本码为印刷前试印码');
+    // 🔴 找**模板绑定点**而不是文案字面量：文案只存在于脚本常量定义里（位置在 </template> 之后），
+    //    用文案定位会永远算出「说明排在海报之后」的假失败。
+    const demoIdx = src.indexOf('{{ DEMO_NOTE }}');
     const posterIdx = src.indexOf('class="tr-poster-card"');
     const frameIdx = src.indexOf('class="tr-poster-frame"');
     expect(demoIdx, '试印说明文案必须存在').toBeGreaterThan(-1);
@@ -221,5 +225,26 @@ describe('#531 验真提示分档（首次 / 二次 / 三次及以后 / 超限�
     const body = fnBody('successTip');
     // 三次为空时回退二次：s.sucThree || s.sucTwo || s.sucOne
     expect(body).toMatch(/s\.sucThree \|\| s\.sucTwo \|\| s\.sucOne/);
+  });
+});
+
+// #532 超限（达到后台查询次数上限）时「提示文案 + 查询次数」两处都变红
+describe('#532 超限查询字体转红（提示文案 + 查询次数）', () => {
+  test('overLimit 判据与 successTip 的超限档同式（limit > 0 && num >= limit）', () => {
+    const body = fnBody('overLimit');
+    expect(body).toMatch(/result\.value\.num/);
+    expect(body).toMatch(/s\.upperlimit/);
+    expect(body).toMatch(/limit > 0 && num >= limit/);
+  });
+
+  test('提示文案与查询次数都绑 overLimit 转红（只红一处会漂移）', () => {
+    expect(src).toMatch(/class="tr-tip" :class="\{ 'tr-tip-danger': overLimit \}"/);
+    expect(src).toMatch(/class="tr-line-value" :class="\{ 'tr-value-danger': overLimit \}"/);
+  });
+
+  test('转红复用既有 --danger 令牌，不新造色值', () => {
+    // 🔴 裸 hex / rgba 会让 tokenAudit 破基线，也会和全局主题色打架
+    expect(src).toMatch(/\.tr-tip-danger \{ color: var\(--danger\); \}/);
+    expect(src).toMatch(/\.tr-value-danger \{ color: var\(--danger\);/);
   });
 });
