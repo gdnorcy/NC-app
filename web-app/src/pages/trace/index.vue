@@ -9,11 +9,23 @@
              🔴 2026-10-30：扫码自动出结果后**把输入表单收起来** ——
                 之前扫码进来仍是「防伪查询 + 立即查询」的表单页（用户反馈：扫二维码还是这个界面），
                 对标站的形态是扫码直接给海报 + 结论。查完只剩一行「换个码再查」的入口。 -->
+        <!-- 查询/结果卡
+             🔴 2026-10-31：扫码进入**直接出结果页**，加载期间只显示「查询中…」占位，
+                不再闪「防伪查询」输入框 + 「立即查询」按钮（用户反馈的闪一下问题）。
+             🔴 演示码：标题位置（原「查询结果」处）改为试印说明，且**取消**「演示码验证通过」标题块；
+                非演示码结果不再显示「查询结果」标题（由海报/明细取代）。
+             🔴「推荐」展示位整体移除（用户要求）。 -->
         <view class="tr-card">
-          <text class="tr-card-title">{{ result && !reQuery ? '查询结果' : '防伪查询' }}</text>
-          <text class="tr-card-desc" v-if="!result || reQuery">{{ welcomeText }}</text>
+          <text class="tr-card-title tr-title-demo" v-if="result && !reQuery && result.demo">{{ demoNote }}</text>
+          <text class="tr-card-title" v-else-if="enteredByScan && !result && !errorMsg">查询中…</text>
+          <text class="tr-card-title" v-else-if="!result || reQuery">防伪查询</text>
+          <text class="tr-card-desc" v-if="(!result || reQuery) && !(enteredByScan && !result && !errorMsg)">{{ welcomeText }}</text>
 
-          <block v-if="!result || reQuery">
+          <!-- 扫码加载态：占位，不闪表单 -->
+          <view class="tr-loading" v-if="enteredByScan && !result && !errorMsg">
+            <text>正在查询验真结果…</text>
+          </view>
+          <block v-else-if="!result || reQuery">
             <input
               class="tr-input"
               v-model="form.co"
@@ -44,14 +56,10 @@
              🔴 文案 POSTER_NOTE 由用户指定（说明验真结果由认证公众号推送，用于识破仿冒查询网站）。
              🔴 二维码复用既有公众号临时引导码 pushImg（push_dynamic 才生成，仅微信内展示）；
                 整页**只此一个**二维码 —— 之前 tr-card-push 又放了一遍导致出现两个码，本版去掉。
-             🔴 demo 码顶部提示迁到海报最上方（试印品一眼可辨，不能像正品）。 -->
+             🔴 试印说明已移到上方查询卡标题位置（演示码才显示），海报内不再重复。 -->
         <view class="tr-poster-card" v-if="result && showWebResult">
-          <!-- 演示/试印提示：海报顶端，抢在一切结论之前 -->
-          <view class="tr-poster-demo" v-if="result.demo">
-            <text>【演示·试印】本码为印刷前试印码，不是正式防伪码，请勿作为正品凭证</text>
-          </view>
-
-          <!-- 底图 + 叠加层（底图用 /static 绝对路径，H5/MP 通用） -->
+          <!-- 底图 + 叠加层（底图用 /static 绝对路径，H5/MP 通用）
+               🔴 演示/试印说明已移到上方「查询结果」位置（单独成块），这里不再重复放。 -->
           <view class="tr-poster-frame">
             <image class="tr-poster-bg" src="/static/trace/poster-bg.jpg" mode="widthFix" />
 
@@ -70,7 +78,8 @@
         <!-- 🔴 验真明细：海报下方的常规信息卡（防伪码/查询次数/产品/品牌/厂家/产地/销售区域）。
              从海报块里拆出来，海报只保留「底图 + 文案 + 二维码」的邀请函式观感。 -->
         <view class="tr-card tr-detail" v-if="result && showWebResult">
-          <view class="tr-result-head">
+          <!-- 🔴 演示码不显示「演示码验证通过」标题块（用户要求取消）；非演示码正常显示验真结论 -->
+          <view class="tr-result-head" v-if="!result.demo">
             <SIcon name="verify" size="large" :color="ICON_SUCCESS" />
             <text class="tr-result-title">{{ resultTitle }}</text>
           </view>
@@ -105,25 +114,8 @@
           <text class="tr-tip" v-if="successTip">{{ successTip }}</text>
         </view>
 
-        <!-- 首页展示位（后台配置的推广位，按展示条件由服务端挑好下发）
-             🔴 #521 版式对齐对标站：海报与结论在**上**，广告位在**下**；
-                位区从横滑改为三列图文网格（一眼看全，不必左右滑，也不再依赖 MP 端横向 scroll-view）。 -->
-        <view class="tr-card tr-slots" v-if="slotList.length">
-          <text class="tr-slots-title">推荐</text>
-          <view class="tr-slots-row">
-            <view
-              class="tr-slot"
-              v-for="(s, i) in slotList"
-              :key="i"
-              @click="openSlot(s)"
-            >
-              <image class="tr-slot-cover" :src="slotCover(s.cover)" mode="aspectFill" />
-              <text class="tr-slot-name">{{ s.title }}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 🔴 P3 全局活动广告位（独立区块，海报下方；服务端已替换 [FWM]/[KEY]） -->
+        <!-- 🔴 P3 全局活动广告位（独立区块，海报下方；服务端已替换 [FWM]/[KEY]）
+             🔴 2026-10-31：首页「推荐」展示位（tr-slots）已整体移除（用户要求）。 -->
         <view class="tr-card tr-activity" v-if="activity.enabled" @click="openActivity">
           <image v-if="activity.cover" class="tr-activity-cover" :src="absOriginUrl(activity.cover)" mode="aspectFill" />
           <view class="tr-activity-body">
@@ -177,12 +169,19 @@ const ICON_DANGER = '#f53f3f';
 // 海报叠加文案（用户指定：说明验真结果由认证公众号推送，用于识破仿冒查询网站）
 const POSTER_NOTE = '为防止假冒查询页面，本产品的验真结果由商家认证公众号推送。';
 
+// 试印/演示说明（用户要求单独放到「查询结果」位置，替代原「查询结果」标题；仅演示码显示）
+const DEMO_NOTE = '【演示·试印】本码为印刷前试印码，不是正式防伪码，请勿作为正品凭证';
+
 const loading = ref(false);
 const errorMsg = ref('');
 const result = ref(null);
 const form = reactive({ co: '', yzm: '' });
 // 🔴 2026-10-30：扫码自动出结果后表单收起，这里记「用户又点了一次换个码查询」
 const reQuery = ref(false);
+
+// 扫码进入标记：加载结果期间不闪「防伪查询」输入框 + 「立即查询」按钮（用户反馈的闪一下问题）
+// 🔴 注意：traceApi 已导出同名函数 scanEntry（清洗防伪码），本 ref 改名 enteredByScan 以免冲突。
+const enteredByScan = ref(false);
 
 // 租户标识：公开段只认 URL ?tid= 或登录态，前端必须把 tid 透传过去
 const tid = ref('');
@@ -461,7 +460,7 @@ onLoad((options) => {
   // 网页授权回跳带来的参数：oc = 服务端签发的身份凭据；oafail = 授权没成（按未授权继续出结果）
   if (options && options.oc) oc.value = String(options.oc);
   if (options && (options.oafail === '1' || options.oafail === 1)) oauthFailed.value = true;
-  if (options && options.co) runScanFlow(options.co);
+  if (options && options.co) { enteredByScan.value = true; runScanFlow(options.co); }
 });
 </script>
 
@@ -537,15 +536,18 @@ onLoad((options) => {
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
-/* 演示/试印提示：海报顶端抢先提示（试印品一眼可辨，不能像正品）。
-   🔴 全部走既有令牌（--danger / --white），不新增裸 hex。 */
-.tr-poster-demo {
-  padding: 16rpx 28rpx;
-  background: var(--danger);
-  color: var(--white);
-  font-size: var(--fs-3);
-  line-height: 1.6;
+/* 🔴 演示码说明：单独放在「查询结果」标题位置（替代原「查询结果」文案），用危险色令牌突出（不新增裸 hex）。
+   普通标题仍是 --t1；仅演示码用此红色。 */
+.tr-card-title.tr-title-demo {
+  color: var(--danger);
+  line-height: 1.5;
+}
+/* 扫码加载态占位：结果回来前只显示这一行，不闪「防伪查询」表单 */
+.tr-loading {
+  padding: 28rpx 0;
   text-align: center;
+  color: var(--t3);
+  font-size: var(--fs-4);
 }
 /* 底图容器：相对定位，作为叠加层的定位上下文（底图 widthFix 决定容器高度）。 */
 .tr-poster-frame { position: relative; }
@@ -653,37 +655,7 @@ onLoad((options) => {
   font-size: var(--fs-3);
   color: var(--primary);
 }
-/* 首页展示位：三列图文网格（对标站结果页底部「相关商品」的版式）
-   🔴 用 flex 不用 grid —— 小程序端 grid 支持不稳；也不用百分比宽度（卡片 padding 一变就串行） */
-.tr-slots-title {
-  display: block;
-  font-size: var(--fs-5);
-  font-weight: 600;
-  color: var(--t1);
-  margin-bottom: 20rpx;
-}
-/* 位宽 204rpx × 3 + 间距 = 容器内宽 ≈ 646rpx（750 − 页面内边距 48 − 卡片内边距 56） */
-.tr-slots-row { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
-.tr-slot { width: 204rpx; margin-bottom: 20rpx; }
-/* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端封面图高度为 0 */
-.tr-slot-cover {
-  width: 204rpx;
-  height: 152rpx;
-  display: block;
-  border-radius: var(--radius-sm);
-  background: var(--bg-page);
-}
-.tr-slot-name {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-top: 12rpx;
-  font-size: var(--fs-4);
-  line-height: 1.4;
-  color: var(--t1);
-  white-space: normal;
-}
+/* 🔴 2026-10-31：「推荐」展示位（tr-slots）整块已移除，对应 CSS 一并删除。 */
 /* 🔴 P3 全局活动广告位：结果海报下方的一张整图（独立区块，不复用首页展示位） */
 .tr-activity {
   padding: 0;

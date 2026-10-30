@@ -93,21 +93,22 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(body).toMatch(/已被查询/);
   });
 
-  test('DOM 顺序：海报块 → 验真明细卡 → 推荐位 → 活动位（广告位在海报下面）', () => {
+  test('DOM 顺序：海报块 → 验真明细卡 → 活动位（推荐位已移除，广告位在最后）', () => {
     const posterIdx = src.indexOf('class="tr-poster-card"');
     const detailIdx = src.indexOf('class="tr-card tr-detail"');
-    const slotsIdx = src.indexOf('class="tr-card tr-slots"');
     const actIdx = src.indexOf('class="tr-card tr-activity"');
     expect(posterIdx).toBeGreaterThan(-1, '海报块必须存在');
     expect(detailIdx).toBeGreaterThan(posterIdx, '验真明细卡必须在海报之后');
-    expect(slotsIdx).toBeGreaterThan(detailIdx, '推荐位必须在明细卡之后');
-    expect(actIdx).toBeGreaterThan(slotsIdx, '活动位必须在推荐位之后');
+    expect(actIdx).toBeGreaterThan(detailIdx, '活动位必须在明细卡之后');
+    // 🔴 推荐位（tr-slots）已整体移除
+    expect(src, '推荐展示位必须已移除').not.toMatch(/class="tr-card tr-slots"/);
   });
 
-  test('推荐位改成三列图文网格（对标站版式，不再依赖横向 scroll-view）', () => {
-    expect(src).not.toMatch(/tr-slots-scroll/);
-    expect(src).toMatch(/\.tr-slot \{ width: 204rpx;/);
-    expect(src).toMatch(/justify-content: space-between/);
+  test('推荐位整体移除（用户要求，不再渲染 tr-slots / tr-slot）', () => {
+    expect(src, '模板不得再出现推荐位区块').not.toMatch(/class="tr-card tr-slots"/);
+    expect(src, '模板不得再出现单个推荐位').not.toMatch(/class="tr-slot"/);
+    expect(src, '样式不得残留 tr-slots 规则').not.toMatch(/\.tr-slots-title/);
+    expect(src, '样式不得残留 tr-slot 规则').not.toMatch(/\.tr-slot \{/);
   });
 
   test('海报用指定红金底图做背景，且整页只有一个 pushImg 二维码（杜绝两个码）', () => {
@@ -120,12 +121,17 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(src, '推送引导卡整体已移除').not.toMatch(/tr-card-push/);
   });
 
-  test('演示/试印提示位于海报最顶端（抢在底图之前，试印品一眼可辨）', () => {
-    const demoIdx = src.indexOf('class="tr-poster-demo"');
+  test('演示说明单独放在「查询结果」位置（海报之前，替代原「查询结果」标题）', () => {
+    // 🔴 用户要求：试印说明从海报内移出，作为结果区顶部独立说明（演示码才显示）。
+    const demoIdx = src.indexOf('【演示·试印】本码为印刷前试印码');
+    const posterIdx = src.indexOf('class="tr-poster-card"');
     const frameIdx = src.indexOf('class="tr-poster-frame"');
-    expect(demoIdx, '演示试印提示块必须存在').toBeGreaterThan(-1);
+    expect(demoIdx, '试印说明文案必须存在').toBeGreaterThan(-1);
+    expect(posterIdx, '海报块必须存在').toBeGreaterThan(-1);
     expect(frameIdx, '底图容器必须存在').toBeGreaterThan(-1);
-    expect(demoIdx, '试印提示必须排在底图之前（在海报顶端）').toBeLessThan(frameIdx);
+    expect(demoIdx, '试印说明必须排在海报之前（在查询结果位置）').toBeLessThan(posterIdx);
+    // 海报内不再重复放试印提示
+    expect(src, '海报内不得再出现 tr-poster-demo').not.toMatch(/class="tr-poster-demo"/);
   });
 
   test('海报内嵌公众号引导二维码（pushImg，整页唯一）+ 操作引导文案', () => {
@@ -155,12 +161,24 @@ describe('#527 扫码直接出结果（不再停在表单页）', () => {
     expect(src).not.toContain('class="tr-card-title">请在公众号内查看验真结果');
   });
 
-  test('海报块仍排在推荐位/活动位之前（版式顺序没被改动打乱）', () => {
+  test('海报块仍排在活动位之前（版式顺序没被改动打乱）', () => {
     const posterIdx = src.indexOf('class="tr-poster-card"');
-    const slotsIdx = src.indexOf('class="tr-card tr-slots"');
     const actIdx = src.indexOf('class="tr-card tr-activity"');
     expect(posterIdx).toBeGreaterThan(-1);
-    expect(slotsIdx).toBeGreaterThan(posterIdx);
     expect(actIdx).toBeGreaterThan(posterIdx);
+  });
+
+  test('扫码进入不再闪「防伪查询」表单（加载期间只显示占位，不渲染输入框+立即查询）', () => {
+    // 🔴 用户反馈：扫码先闪一下「防伪查询」输入框 + 「立即查询」按钮。
+    //    现：scanEntry 标记下，加载态显示「查询中…」占位，输入框块用 v-else-if 收起。
+    expect(src).toMatch(/const enteredByScan = ref\(false\)/);
+    expect(src).toMatch(/enteredByScan\.value = true/);
+    expect(src).toMatch(/class="tr-loading"/);
+    // 原「结果回来前还显示防伪查询表单」的写法必须消失（标题三元已改写）
+    expect(src).not.toContain("{{ result && !reQuery ? '查询结果' : '防伪查询' }}");
+  });
+
+  test('演示码不显示「演示码验证通过」标题块（明细卡标题按 !result.demo 收起）', () => {
+    expect(src).toMatch(/class="tr-result-head" v-if="!result\.demo"/);
   });
 });
