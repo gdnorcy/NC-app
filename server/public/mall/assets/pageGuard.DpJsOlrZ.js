@@ -1,1 +1,0 @@
-import{z as a,aS as o}from"./index-C6pQuTfE.js";import{u as t}from"./loginGate.D1GJQ5KX.js";function n(n){const e=t(async()=>{u.value=!0,"function"==typeof n&&await n()}),u=a(!1);return{...e,guardPage:async function(a={}){return o()?(u.value=!0,"function"==typeof n&&await n(),!0):(a.soft&&!u.value||(e.showLoginGate.value=!0),!1)},loaded:u}}export{n as u};
