@@ -5,35 +5,45 @@
 
     <scroll-view class="trace-scroll" scroll-y :show-scrollbar="false">
       <view class="trace-inner">
-        <!-- 查询卡片 -->
+        <!-- 查询卡片
+             🔴 2026-10-30：扫码自动出结果后**把输入表单收起来** ——
+                之前扫码进来仍是「防伪查询 + 立即查询」的表单页（用户反馈：扫二维码还是这个界面），
+                对标站的形态是扫码直接给海报 + 结论。查完只剩一行「换个码再查」的入口。 -->
         <view class="tr-card">
-          <text class="tr-card-title">防伪查询</text>
-          <text class="tr-card-desc">{{ welcomeText }}</text>
+          <text class="tr-card-title">{{ result && !reQuery ? '查询结果' : '防伪查询' }}</text>
+          <text class="tr-card-desc" v-if="!result || reQuery">{{ welcomeText }}</text>
 
-          <input
-            class="tr-input"
-            v-model="form.co"
-            placeholder="请输入防伪码"
-            placeholder-class="tr-ph"
-            :maxlength="40"
-          />
-          <input
-            class="tr-input"
-            v-model="form.yzm"
-            placeholder="验证码 / 暗码（可选）"
-            placeholder-class="tr-ph"
-            :maxlength="20"
-          />
+          <block v-if="!result || reQuery">
+            <input
+              class="tr-input"
+              v-model="form.co"
+              placeholder="请输入防伪码"
+              placeholder-class="tr-ph"
+              :maxlength="40"
+            />
+            <input
+              class="tr-input"
+              v-model="form.yzm"
+              placeholder="验证码 / 暗码（可选）"
+              placeholder-class="tr-ph"
+              :maxlength="20"
+            />
 
-          <view class="tr-btn" :class="{ 'tr-btn-off': loading }" @click="submit">
-            <text>{{ loading ? '查询中…' : '立即查询' }}</text>
+            <view class="tr-btn" :class="{ 'tr-btn-off': loading }" @click="submit">
+              <text>{{ loading ? '查询中…' : '立即查询' }}</text>
+            </view>
+          </block>
+
+          <view class="tr-recheck" v-else @click="reQuery = true">
+            <text class="tr-recheck-code">{{ result.code || form.co }}</text>
+            <text class="tr-recheck-btn">换个码再查</text>
           </view>
         </view>
 
         <!-- 🔴 #521 海报区：对齐对标站结果页版式 —— **大图在上，广告位在下**。
              海报图 = 批次主图 banner，缺省回落批次 logo；都没有就不出图、只留信息条（不白屏）。
-             🔴 与结果卡同门闸（showWebResult）：「网页 + 公众号推送」档位下网页结果整体不展示
-                （该方案的意义就是「只信认证公众号推来的结果」），海报同样不能露。 -->
+             🔴 2026-10-30 起不再随「网页 + 公众号推送」档位一起隐藏：
+                扫码进来直接给海报 + 结论，公众号推送降为下方的并行补充通道。 -->
         <view class="tr-poster" v-if="result && showWebResult">
           <image v-if="posterImage" class="tr-poster-img" :src="posterImage" mode="aspectFill" />
           <view class="tr-poster-mask" v-if="posterImage"></view>
@@ -91,13 +101,14 @@
           <text class="tr-tip" v-if="successTip">{{ successTip }}</text>
         </view>
 
-        <!-- 🔴 扫码查询方案 = 「网页 + 公众号推送」时的引导：结果由公众号推送，
-               仿冒查询网站就没办法把假结果塞给消费者（这也是该方案存在的意义）。
+        <!-- 🔴 公众号推送引导（扫码查询方案 = 「网页 + 公众号推送」时）：
+               2026-10-30 起它**降级为并行补充** —— 网页已经直接给结果与海报了，
+               这里只是告诉用户「认证公众号也会推一份给你」，不再把它当唯一结果出口。
                仅在微信内展示 —— 其他浏览器长按识别不了二维码，展示就是纯干扰。 -->
         <view class="tr-card tr-card-push" v-if="pushImg || pushErr">
-          <text class="tr-card-title">请在公众号内查看验真结果</text>
-          <text class="tr-push-ok" v-if="pushImg">查询成功，验真结果正通过认证公众号发送给您</text>
-          <text class="tr-card-desc">为防止假冒查询页面，本产品的验真结果由商家认证公众号主动推送给您。请长按识别下方二维码，识别后即可收到结果（二维码仅短期有效、使用一次后失效）。</text>
+          <text class="tr-card-title">公众号也会推一份验真结果</text>
+          <text class="tr-push-ok" v-if="pushImg">验真结果正通过认证公众号发送给您</text>
+          <text class="tr-card-desc">为防止假冒查询页面，本产品的验真结果同时由商家认证公众号推送一份。您也可以直接以本页结果为准。</text>
           <image v-if="pushImg" class="tr-push-img" :src="pushImg" mode="aspectFit" />
           <text class="tr-push-err" v-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
         </view>
@@ -175,6 +186,8 @@ const loading = ref(false);
 const errorMsg = ref('');
 const result = ref(null);
 const form = reactive({ co: '', yzm: '' });
+// 🔴 2026-10-30：扫码自动出结果后表单收起，这里记「用户又点了一次换个码查询」
+const reQuery = ref(false);
 
 // 租户标识：公开段只认 URL ?tid= 或登录态，前端必须把 tid 透传过去
 const tid = ref('');
@@ -345,13 +358,15 @@ function openActivity() {
 /** 是否「网页 + 公众号推送」档位 */
 const pushMode = computed(() => result.value?.scanMode === 'push_dynamic');
 /**
- * 是否展示「网页验真」结果块。
- * 🔴 push_dynamic 且推送引导已成功拿到图 → 不重复展示网页验真结果：
- *    该方案存在的意义就是「只信认证公众号推来的结果」，页面上直接摆出验真结论，
- *    等于给仿冒查询页留了可乘之机（它也能随便写「验证通过」）。所以此时只给引导去公众号收结果。
- *    · 推送失败（pushErr）或仍在加载 → 回落展示网页结果，避免消费者一无所获。
+ * 是否展示「网页验真」结果块（海报 + 结论 + 明细）。
+ * 🔴 2026-10-30 起**任何档位都展示**：
+ *    「网页 + 公众号推送」档位原先只给引导、结果只信公众号，理由是防仿冒页。
+ *    但实测反馈是：扫码后停在「防伪查询表单 + 请在公众号内查看验真结果」，
+ *    既看不到结果、更看不到海报版式 —— 这一档等于没有结果。
+ *    现在网页直接给结论与海报，公众号推送作为**并行补充**（下方引导块保留）。
+ *    防伪的真防线是防伪码本身 + 批次流向数据，不是"把结果藏起来"。
  */
-const showWebResult = computed(() => !pushMode.value || pushErr.value);
+const showWebResult = computed(() => true);
 
 // 🔴 服务端图片路径（/uploads/ 相对）在 MP 端全断 → 一律补成绝对地址（H5 补 origin / MP 补 API_HOST）。
 function slotCover(u) {
@@ -421,6 +436,8 @@ async function submit() {
   pushErr.value = false;
   try {
     result.value = await verifyTrace({ co, yzm: String(form.yzm || '').trim(), oc: oc.value }, tid.value);
+    // 查到了就把输入表单收起来（页面只剩结果 + 海报 + 广告位）
+    reQuery.value = false;
     // 只有「网页 + 公众号推送」这一档才去取引导二维码
     if (result.value && result.value.scanMode === 'push_dynamic') loadPushGuide(result.value.code || co);
   } catch (e) {
@@ -627,6 +644,25 @@ onLoad((options) => {
   font-size: var(--fs-3);
   color: var(--t3);
   line-height: 1.6;
+}
+/* 🔴 2026-10-30 扫码出结果后收起表单，只留「已查的码 + 换个码再查」一行 */
+.tr-recheck {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.tr-recheck-code {
+  flex: 1;
+  font-size: var(--fs-3);
+  color: var(--t3);
+  word-break: break-all;
+}
+.tr-recheck-btn {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: var(--fs-3);
+  color: var(--primary);
 }
 /* 首页展示位：三列图文网格（对标站结果页底部「相关商品」的版式）
    🔴 用 flex 不用 grid —— 小程序端 grid 支持不稳；也不用百分比宽度（卡片 padding 一变就串行） */

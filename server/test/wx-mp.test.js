@@ -220,7 +220,7 @@ test('resolveTraceScanReply: 非溯源 scene（码有效但批次不属于本租
   assert.equal(xml, null, '别人的批次 / 不存在的批次不能弹溯源卡片');
 });
 
-test('resolveTraceScanReply: 命中展示位 → 发单条图文卡（验真结论为主），{CODE}/{TID} 被替换、PicUrl 转绝对地址', () => {
+test('resolveTraceScanReply: 命中展示位 → 发一组图文卡（验真结论第一张 + 推广卡），{CODE}/{TID} 被替换、PicUrl 转绝对地址', () => {
   const traceCodes = [{ tenant_id: 7, code: TRACE_CODE, num: 1, openid: '' }];
   const settingsJson = JSON.stringify({
     displaySlots: [
@@ -232,22 +232,24 @@ test('resolveTraceScanReply: 命中展示位 → 发单条图文卡（验真结�
   const xml = svc.resolveTraceScanReply(TRACE_CHANNEL, TRACE_CODE, 'openidX', 'https://h.com');
   assert.ok(xml, '应返回 news XML');
   assert.ok(xml.includes('<MsgType><![CDATA[news]]>'), '应为 news 类型');
-  // 🔴 微信被动回复图文只能 1 条：这里锁死"配了 2 个展示位也只发 1 条"。
-  //    2026-10-30 线上事故根因（配 2 个位 → 发 2 条图文 → 微信整条拒收 → 粉丝端
-  //    「该公众号提供的服务出现故障」；客服接口同款数据实测 45008 article size out of limit）。
-  assert.ok(xml.includes('<ArticleCount>1</ArticleCount>'), `图文条数必须恒为 1：${xml}`);
-  assert.equal((xml.match(/<item>/g) || []).length, 1, 'XML 里只能有一个 item');
+  // 🔴 扫码是**事件消息**（扫码推事件/关注事件），微信官方规则：「其余场景最多可回复 8 条图文消息」
+  //    → 一次给一组卡片：第 1 张验真结论 + 后面跟展示位推广卡，观感接近群发。
+  //    （早期把「客服接口 1 条」当成「被动回复 1 条」，把扫码场景合法的多卡片能力砍掉了。）
+  assert.ok(xml.includes('<ArticleCount>3</ArticleCount>'), `扫码场景应发 1 验真卡 + 2 推广卡：${xml}`);
+  assert.equal((xml.match(/<item>/g) || []).length, 3, 'XML 里应有三个 item');
   // 主体是验真结论（不是广告），配图取批次主图
   assert.ok(xml.includes('https://h.com/uploads/banner.png'), '配图应取批次主图 banner');
   assert.ok(xml.includes(`溯源页 ${TRACE_CODE}`), '标题占位符应被替换');
-  assert.ok(xml.includes('仅首次'), '展示位标题作为推广露出保留');
+  assert.ok(xml.includes('仅首次'), '推广卡标题应保留');
   assert.ok(xml.includes(`https://h.com/card/#/pages/trace/index?co=${TRACE_CODE}&tid=7`), '应跳 H5 溯源页');
+  // 推广卡的图片也要是绝对地址（微信对空/相对 PicUrl 会整条拒收）
+  assert.ok(xml.includes('https://h.com/uploads/cover.png'), '推广卡 PicUrl 应转绝对地址');
   // ToUserName 必须是粉丝 openid，FromUserName 是公众号 appid
   assert.ok(xml.includes('<ToUserName><![CDATA[openidX]]>'), 'ToUserName 应为粉丝 openid');
   assert.ok(xml.includes('<FromUserName><![CDATA[wxtrace]]>'), 'FromUserName 应为公众号 appid');
 });
 
-test('resolveTraceScanReply: 🔴 无论配多少个展示位，被动回复图文恒为 1 条（微信接口硬上限）', () => {
+test('resolveTraceScanReply: 🔴 扫码（事件消息）最多 8 条图文 —— 8 个展示位也不超上限，验真结论必须在里面', () => {
   const traceCodes = [{ tenant_id: 7, code: TRACE_CODE, num: 1, openid: '' }];
   const settingsJson = JSON.stringify({
     displaySlots: Array.from({ length: 8 }, (_, i) => ({
@@ -257,10 +259,13 @@ test('resolveTraceScanReply: 🔴 无论配多少个展示位，被动回复图�
   const svc = new WxMpService(makeTraceDb({ traceCodes, settingsJson }), makeComponent());
   const xml = svc.resolveTraceScanReply(TRACE_CHANNEL, TRACE_CODE, 'openidX', 'https://h.com');
   assert.ok(xml, '应返回 news XML');
-  assert.ok(xml.includes('<ArticleCount>1</ArticleCount>'), `8 个展示位也必须只发 1 条：${xml}`);
-  assert.equal((xml.match(/<item>/g) || []).length, 1, '只能有一个 item');
+  assert.ok(xml.includes('<ArticleCount>8</ArticleCount>'), `事件消息场景上限 8 条：${xml}`);
+  assert.equal((xml.match(/<item>/g) || []).length, 8, '最多八个 item');
   // 展示位不能顶掉验真结论
   assert.ok(xml.includes('验真通过'), `主体必须是验真结论：${xml}`);
+  // 验真卡排第一
+  const firstItem = (xml.match(/<item>[\s\S]*?<\/item>/) || [''])[0];
+  assert.ok(firstItem.includes('验真通过'), '第一张必须是验真结果卡');
 });
 
 test('resolveTraceScanReply: 首扫（trace_codes 无行）也必须弹卡片（本轮修的 bug）', () => {

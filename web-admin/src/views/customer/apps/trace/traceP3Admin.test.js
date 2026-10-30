@@ -76,8 +76,11 @@ describe('#522 独立活动广告位（后台）', () => {
   });
 
   test('活动位封面上传复用系统素材选择器（与展示位同一套）', () => {
-    expect(pageSrc).toContain('activityCoverPicker');
-    expect(pageSrc).toContain('onPickActivityCover');
+    // 🔴 2026-10-30：活动位封面也并进通用图片选择器（imgPicker，target='activity'），
+    //    少一个入口 = 少一处口径不一致。
+    expect(pageSrc).toContain("openImgPicker('activity', 'cover')");
+    expect(pageSrc).toContain("picker.target === 'activity'");
+    expect(pageSrc).toContain('onPickImg');
   });
 
   test('活动位回填走「默认值 ⊕ 已存字段」合并（库里存 null 不能把设置页搞崩）', () => {
@@ -100,9 +103,22 @@ describe('#522 展示位双开关（区块总开关 + 每位隐藏）', () => {
     expect(pageSrc).toContain('slotsEnabled: 1');
   });
 
-  test('每个位有隐藏/显示开关，绑到 it.hidden（1=隐藏）', () => {
-    expect(pageSrc).toContain('v-model="it.hidden"');
-    expect(pageSrc).toContain('active-text="已隐藏"');
+  test('每个位有显示/隐藏开关，绑到 it.hidden（1=隐藏）', () => {
+    // 🔴 2026-10-30：语义改成「显示」向 —— 开关打开=这个位显示，关闭=隐藏（与用户口语一致），
+    //    底层字段仍是 hidden（1=隐藏），模板里做一层取反映射，不动服务端契约。
+    expect(pageSrc).toContain(':model-value="Number(it.hidden) === 1 ? 0 : 1"');
+    expect(pageSrc).toContain('it.hidden = Number(v) === 1 ? 0 : 1;');
+  });
+
+  test('两个开关的文字都只显示一个词（inline-prompt），不能两侧并排各一个', () => {
+    // 🔴 用户反馈：开关两侧同时渲染「显示 | 已隐藏」，看不出当前状态。
+    //    Element Plus 的 active-text/inactive-text 会把两侧都渲染出来（未激活那侧 opacity:0 也占位），
+    //    只有 inline-prompt 才是「文字画在开关内部、只显示当前状态那一个词」。
+    expect(pageSrc).toContain('inline-prompt');
+    expect(pageSrc).toContain('active-text="显示"');
+    expect(pageSrc).toContain('inactive-text="隐藏"');
+    // 旧的「已隐藏」文案不能再作为开关文字（改由卡片上的状态标签承担）
+    expect(pageSrc).not.toContain('active-text="已隐藏"');
   });
 
   test('表单回填把 hidden 归一化成 0/1（undefined 进 el-switch 会被误判成已隐藏）', () => {
@@ -121,5 +137,30 @@ describe('#522 展示位双开关（区块总开关 + 每位隐藏）', () => {
   test('过时注释必须改掉：不能再把 8 说成「公众号图文消息单条 1~8 图文的接口上限」', () => {
     // 🔴 微信被动回复图文只能 1 条；8 是我们自定的产品上限。注释说错会导致下次照着它去配展示位。
     expect(pageSrc).not.toContain('与公众号图文消息单条 1~8 图文的接口上限一致');
+  });
+});
+
+// #526 应用里图片/视频字段一律走系统链接选择器（用户 2026-10-30 拍板）
+describe('#526 图片/视频字段走系统素材选择器', () => {
+  test('企业 Logo/主图、批次 Logo/主图/视频不再让运营手填 URL', () => {
+    // 🔴 手填 URL 的坑：相对路径在 C 端 MP 端全断、外链可能失效、商品图与微信封面规格对不上。
+    expect(pageSrc).not.toContain('placeholder="图片 URL"');
+    expect(pageSrc).not.toContain('placeholder="视频 URL"');
+    expect(pageSrc).toContain("openImgPicker('settings', 'logo')");
+    expect(pageSrc).toContain("openImgPicker('settings', 'banner')");
+    expect(pageSrc).toContain("openImgPicker('batch', 'logo')");
+    expect(pageSrc).toContain("openImgPicker('batch', 'banner')");
+    expect(pageSrc).toContain("openVidPicker('batch', 'video')");
+  });
+
+  test('图片与视频各一个选择器实例（MaterialPicker 的 accept 在 setup 时定死，不能复用同一个实例改 fileType）', () => {
+    expect(pageSrc).toContain('<MaterialPicker v-model="imgPicker.show" file-type="image"');
+    expect(pageSrc).toContain('<MaterialPicker v-model="vidPicker.show" file-type="video"');
+  });
+
+  test('选中后按 target/field 写回正确对象（写错对象 = 素材选了但值没落到表单上）', () => {
+    expect(pageSrc).toContain("picker.target === 'settings'");
+    expect(pageSrc).toContain("picker.target === 'batch'");
+    expect(pageSrc).toContain("picker.target === 'activity'");
   });
 });
