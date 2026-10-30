@@ -15,12 +15,13 @@ import { makeZip } from '../services/zip.js';
 import { normalizeDisplaySlots, pickDisplaySlots } from '../services/traceSlots.js';
 import { checkQueryQuota, registerTraceQuery } from '../services/traceQuery.js';
 import { buildScanQueryView, normalizeScanMode, normalizeTraceSwitch } from '../services/traceScanMode.js';
-import { encryptSecret, maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
+import { issueOpenidTicket, readOpenidTicket } from '../services/traceOauth.js';
+import { decryptSecret, encryptSecret, maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
 import { applyTraceReward } from '../services/traceReward.js';
 import { getPlatformSettings } from './tracePlatform.js';
-import { publicBaseUrl } from '../utils/publicUrl.js';
+import { absoluteUrl, publicBaseUrl } from '../utils/publicUrl.js';
 import { countTraceCodesGenerated, isTraceBatchActivated } from '../db.js';
-import { WxMpService } from '../services/wx-mp.js';
+import { WxMpService, showQrImageUrl } from '../services/wx-mp.js';
 import { WxComponentService } from '../services/wx-component.js';
 
 // 🔴 extra：可选的**结构化补充字段**（与 error 文案并存）。
@@ -28,6 +29,18 @@ import { WxComponentService } from '../services/wx-component.js';
 //    避免前端靠字符串匹配文案判断（改一个字就失效）。
 function sendError(res, status, error, extra) {
   return res.status(status).json({ error, ...(extra && typeof extra === 'object' ? extra : {}) });
+}
+
+/**
+ * 微信「ticket 换图片」代理专用错误：把微信的 404（= ticket 失效/过期）翻译成人话，
+ * 并回落正确的 HTTP 状态（404），让前端能据此「请重新生成」而不是当成网关 502 误报。
+ * 其它非 2xx 仍按 502（上游网关/网络问题）。
+ */
+function sendWxQrError(res, upstreamStatus) {
+  if (Number(upstreamStatus) === 404) {
+    return sendError(res, 404, '二维码已失效或已过期，请重新生成');
+  }
+  return sendError(res, 502, `微信二维码接口返回 ${upstreamStatus}`);
 }
 
 function pageParams(req) {
@@ -356,6 +369,93 @@ export function createTracePublicRouter(db) {
   });
 
   /**
+   * 查询**之前**先问一嘴：这个商户当前用的是哪一档扫码查询方案。
+   * 🔴 必须放在验真之前：先验真再去网页授权 → 授权回来页面重载会**再验一次**，
+   *    而两次的 openid 不同（游客 vs 授权后）→ 21 秒去重窗口拦不住 → 查询次数虚高翻倍。
+   *    这一档是不是需要授权，只能由服务端说了算（前端不该猜）。
+   */
+  router.get('/public/scan-mode', (req, res) => {
+    const tenantId = publicTenant(req);
+    const { settings } = getSettings(db, tenantId);
+    const channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp' AND (auth_status = 'authorized' OR (auth_status = 'none' AND app_secret <> '')) ORDER BY id DESC LIMIT 1").get(tenantId);
+    return res.json({ scanMode: normalizeScanMode(settings.scanMode), oauthReady: Boolean(channel) });
+  });
+
+  // ===== 网页授权（取 openid，用于「结果必须由本人扫码才能拿到」） =====
+  // 🔴 为什么必须服务端走一趟：openid 是身份凭据，前端直传 = 谁都能冒充谁。
+  //    这里签发的 `oc` 是**服务端 AES 密文凭据**（见 services/traceOauth.js），
+  //    前端只在后续请求里原样回传，改一个字符就失效。
+  const OAUTH_COOKIE = 'trace_oauth';
+  const OAUTH_STATE_TTL_MS = 5 * 60 * 1000;
+
+  /** 只放行**本站相对路径**（防开放重定向：//evil.com 与 http://evil.com 一律拒绝）。 */
+  function safeBackPath(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    if (/^https?:\/\//i.test(s)) return '';
+    if (!s.startsWith('/')) return '';
+    if (s.startsWith('//')) return '';
+    return s;
+  }
+  function readCookie(req, name) {
+    const jar = String(req?.headers?.cookie || '');
+    const hit = jar.split(';').map((p) => p.trim()).find((p) => p.startsWith(`${name}=`));
+    return hit ? decodeURIComponent(hit.slice(name.length + 1)) : '';
+  }
+  function appendQuery(path, pairs) {
+    return `${path}${path.includes('?') ? '&' : '?'}${pairs}`;
+  }
+
+  router.get('/public/wx-auth/start', (req, res) => {
+    const tenantId = publicTenant(req);
+    const back = safeBackPath(req.query.redirect);
+    if (!back) return sendError(res, 400, '回调地址非法（必须是本站相对路径）');
+    const channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp' AND (auth_status = 'authorized' OR (auth_status = 'none' AND app_secret <> '')) ORDER BY id DESC LIMIT 1").get(tenantId);
+    if (!channel) return sendError(res, 400, '该商户尚未配置公众号');
+
+    // 🔴 state 防 CSRF：随机值存进 httpOnly cookie，回调时比对。
+    //    少了这一步，攻击者可以拿自己授权过的 code 诱使受害者完成授权 → 串号。
+    //    回跳地址也一并放进 cookie：不能信任回调 query 里的地址（那是外部输入）。
+    const state = crypto.randomBytes(12).toString('hex');
+    const jar = encryptSecret(JSON.stringify({ s: state, r: back, t: tenantId, e: Date.now() + OAUTH_STATE_TTL_MS }));
+    res.cookie(OAUTH_COOKIE, jar, { httpOnly: true, sameSite: 'lax', maxAge: OAUTH_STATE_TTL_MS, path: '/' });
+    const redirectUri = absoluteUrl(req, `/api/trace/public/wx-auth/callback?tid=${tenantId}`);
+    const url = new WxMpService(db, new WxComponentService(db)).buildOauthUrl({ channel, redirectUri, state });
+    return res.redirect(302, url);
+  });
+
+  router.get('/public/wx-auth/callback', async (req, res) => {
+    const tenantId = publicTenant(req);
+    const failed = (reason) => sendError(res, 400, reason);
+    let jar = {};
+    try {
+      jar = JSON.parse(decryptSecret(readCookie(req, OAUTH_COOKIE)));
+    } catch {
+      return failed('授权会话已失效，请重新扫码查询');
+    }
+    // 🔴 清掉一次性 cookie，避免同一个 state 被反复使用
+    res.clearCookie(OAUTH_COOKIE, { path: '/' });
+
+    const state = String(req.query.state || '');
+    if (!jar.s || state !== jar.s) return failed('授权校验失败（state 不匹配），请重新扫码查询');
+    if (Number(jar.t) !== Number(tenantId)) return failed('授权会话与当前商户不一致，请重新扫码查询');
+    if (!jar.e || Number(jar.e) < Date.now()) return failed('授权已超时，请重新扫码查询');
+    if (!req.query.code) return failed('未取得授权 code');
+
+    const channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp' AND (auth_status = 'authorized' OR (auth_status = 'none' AND app_secret <> '')) ORDER BY id DESC LIMIT 1").get(tenantId);
+    if (!channel) return failed('该商户尚未配置公众号');
+    try {
+      const wxMp = new WxMpService(db, new WxComponentService(db));
+      const openid = await wxMp.exchangeOauthOpenid(channel, String(req.query.code));
+      const ticket = issueOpenidTicket(tenantId, openid);
+      return res.redirect(302, appendQuery(String(jar.r), `oc=${encodeURIComponent(ticket)}`));
+    } catch (e) {
+      // 🔴 授权失败不能让消费者卡死：带标记回跳，页面按「未授权」继续出结果（只是不做强绑定）。
+      return res.redirect(302, appendQuery(String(jar.r), 'oafail=1'));
+    }
+  });
+
+  /**
    * 查询时**现场**生成一张短时效场景码（供溯源页引导「长按识别」）。
    *
    * 🔴 为什么挂在公开段：扫码的是消费者，几千几万人都不可能先登录；
@@ -376,9 +476,13 @@ export function createTracePublicRouter(db) {
     const channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp' AND (auth_status = 'authorized' OR (auth_status = 'none' AND app_secret <> '')) ORDER BY id DESC LIMIT 1").get(tenantId);
     if (!channel) return sendError(res, 400, '该商户尚未配置公众号');
 
+    // 🔴 openid 只从**服务端签发的凭据**里解：前端传 openid 一律不认。
+    //    拿到就做「本人绑定」（换人扫拒绝），拿不到就靠短时效 + 一次有效兜底。
+    const openid = readOpenidTicket(req.body?.oc || req.query?.oc || '', tenantId);
+    // 🔴 复用必须同 openid：否则甲开的页面可能复用到乙生成过的那张 → 绑定形同虚设。
     const fresh = db.prepare(`SELECT * FROM trace_mp_scenes
-      WHERE tenant_id = ? AND code = ? AND used_at IS NULL AND expires_at > datetime('now') AND created_at > datetime('now', '-60 seconds')
-      ORDER BY id DESC LIMIT 1`).get(tenantId, code);
+      WHERE tenant_id = ? AND code = ? AND openid = ? AND used_at IS NULL AND expires_at > datetime('now') AND created_at > datetime('now', '-60 seconds')
+      ORDER BY id DESC LIMIT 1`).get(tenantId, code, openid);
     if (fresh) {
       return res.json({
         ok: true, sceneId: fresh.scene_id, code, ticket: fresh.ticket, expiresAt: fresh.expires_at, reused: true,
@@ -387,9 +491,9 @@ export function createTracePublicRouter(db) {
     }
     try {
       const wxMp = new WxMpService(db, new WxComponentService(db));
-      const scene = await wxMp.createTraceSceneQr(channel, code, '', Number(req.body?.ttl) || 1800);
+      const scene = await wxMp.createTraceSceneQr(channel, code, openid, Number(req.body?.ttl) || 1800);
       return res.json({
-        ok: true, ...scene, reused: false,
+        ok: true, ...scene, reused: false, bound: openid ? 1 : 0,
         // 🔴 回同源地址而非微信 CDN 地址：微信图片站有防盗链，前端直连大概率是空白图。
         imageUrl: `/api/trace/public/mp-scene/image?tid=${tenantId}&scene=${scene.sceneId}`,
       });
@@ -410,8 +514,8 @@ export function createTracePublicRouter(db) {
     const row = db.prepare('SELECT * FROM trace_mp_scenes WHERE tenant_id = ? AND scene_id = ?').get(tenantId, sceneId);
     if (!row || !row.ticket) return sendError(res, 404, '二维码不存在或已过期');
     try {
-      const upstream = await fetch(`https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(row.ticket)}`);
-      if (!upstream.ok) return sendError(res, 502, `微信二维码接口返回 ${upstream.status}`);
+      const upstream = await fetch(showQrImageUrl(row.ticket));
+      if (!upstream.ok) return sendWxQrError(res, upstream.status);
       const buf = Buffer.from(await upstream.arrayBuffer());
       res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
       res.setHeader('Cache-Control', 'private, max-age=60');
@@ -430,7 +534,12 @@ export function createTracePublicRouter(db) {
     if (!raw) return sendError(res, 400, '防伪码不能为空');
     const code = yzm ? `${raw}0${yzm}` : raw;
     const entryType = yzm ? '9' : '6';
-    const { openid, userId } = actorOf(req);
+    const actor = actorOf(req);
+    // 🔴 网页授权凭据优先：它是服务端签发的，比登录态/body 里的 openid 更可信；
+    //    没有凭据时回落到原口径（登录态优先，body 兜底）。
+    const ticketOpenid = readOpenidTicket(String(req.body?.oc || ''), tenantId);
+    const openid = ticketOpenid || actor.openid;
+    const userId = actor.userId;
     const ip = String(req.ip || req.body.ip || '');
 
     if (!verifyTraceCode(code, rule)) {
@@ -1323,7 +1432,7 @@ export function createTraceAdminRouter(db) {
   /**
    * 公众号带参二维码图片代理（服务端拉微信图片再转发）。
    *
-   * 🔴 为什么不让前端直接 <img src="https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=...">：
+   * 🔴 为什么不让前端直接 <img src="微信取图地址?ticket=...">（取图地址见 showQrImageUrl）：
    *    ① 微信图片站有**防盗链**（Referer 校验）→ 在后台页面里引可能返回空白图；
    *    ② 前端拿不到图 → 商家只能截图，没有「下载二维码图片」可用。
    *    代理后前端用**同源**地址 <img>，一定能显示、也能直接下载。
@@ -1341,8 +1450,8 @@ export function createTraceAdminRouter(db) {
     const ownerBatch = findBatchBySegment(db, req.traceTenantId, parsed.batch, rule);
     if (!ownerBatch) return sendError(res, 404, '防伪码不存在');
     try {
-      const upstream = await fetch(`https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(ticket)}`);
-      if (!upstream.ok) return sendError(res, 502, `微信二维码接口返回 ${upstream.status}`);
+      const upstream = await fetch(showQrImageUrl(ticket));
+      if (!upstream.ok) return sendWxQrError(res, upstream.status);
       const buf = Buffer.from(await upstream.arrayBuffer());
       res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
       res.setHeader('Cache-Control', 'private, max-age=600');

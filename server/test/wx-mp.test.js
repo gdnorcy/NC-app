@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { WxMpService } from '../src/services/wx-mp.js';
+import { WxMpService, showQrImageUrl } from '../src/services/wx-mp.js';
 import { classifyAuthorizer } from '../src/services/wx-component.js';
 import { computeTraceCode, DEFAULT_CODESET } from '../src/services/traceCode.js';
 
@@ -386,4 +386,14 @@ test('checkParamQrCapability: 订阅号 → supported=false；手动对接模式
   const cap2 = await new WxMpService(makeDb(), makeComponent()).checkParamQrCapability({ appid: 'wxmp', auth_status: 'none' });
   assert.equal(cap2.supported, null, '手动对接模式不该假装知道结果');
   assert.match(String(cap2.reason), /48001/);
+});
+
+test('showQrImageUrl: 取图域名必须是 mp.weixin.qq.com（不是 api.weixin.qq.com，否则 404）', () => {
+  // 🔴 真机踩过的坑：api.weixin.qq.com 上没有 showqrcode 路由，打过去一律 404，
+  // 与微信表示「ticket 非法/过期」的 404 一模一样 → 极易误判。同一 ticket 实测
+  // api.* → 404；mp.* → 200 image/jpg。
+  const url = showQrImageUrl('gQHF8DwAAAAAAAAAAS5odHRwOi8vd2VpeGluLnFxLmNvbS9xLzAyOEJBa1I0QzRmYXIxVXlPejFHMXYAAgQaq_NqAwQIBwAA');
+  assert.ok(url.startsWith('https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket='), `取图地址用了错误域名/路由：${url}`);
+  assert.equal(url.includes('api.weixin.qq.com'), false, 'showqrcode 不能用 api.weixin.qq.com');
+  assert.ok(url.includes(encodeURIComponent('gQHF8DwAAAA')), 'ticket 必须被 encodeURIComponent');
 });

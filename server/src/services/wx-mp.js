@@ -22,6 +22,19 @@ function substitute(tpl, code, tenantId) {
     .replace(/\{TID\}/g, String(tenantId));
 }
 
+/**
+ * 「ticket 换二维码图片」的取图地址 —— 🔴 全项目唯一出处，别处不许再拼这个 URL。
+ *
+ * 坑（真机验证过，2026-10-30）：这个接口的域名是 **mp.weixin.qq.com**，不是 api.weixin.qq.com。
+ * api.weixin.qq.com 是拿 access_token / 调业务 CGI 的网关，它上面**没有 showqrcode 这条路由**，
+ * 打过去一律返回 **404**（而 404 又正好是微信表示"ticket 非法"的状态码 → 极易误判成 ticket 过期，
+ * 往"是不是 ticket 被截断了 / 是不是服务器出网失败"方向白查半天）。
+ * 同一张 ticket 实测：api.* → 404；mp.* → 200 image/jpg 430×430。
+ */
+export function showQrImageUrl(ticket) {
+  return `https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(String(ticket || ''))}`;
+}
+
 // 公众号 access_token（手动对接模式）内存缓存：微信 cgi-bin/token 每日限 2000 次且有效期 7200s，
 // 同进程内按 appid 复用，避免菜单「拉取/发布」连续调用时反复换 token。
 // 🔴 仅缓存手动对接模式（开放平台授权 token 由 WxComponentService 自己缓存，不走这里）。
@@ -284,7 +297,7 @@ export class WxMpService {
     return {
       ticket,
       url: data.url || '',
-      showUrl: `https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(ticket)}`,
+      showUrl: showQrImageUrl(ticket),
     };
   }
 
@@ -328,10 +341,70 @@ export class WxMpService {
       sceneId,
       code: trimmed,
       ticket: data.ticket,
-      showUrl: `https://api.weixin.qq.com/cgi-bin/showqrcode?ticket=${encodeURIComponent(data.ticket)}`,
+      showUrl: showQrImageUrl(data.ticket),
       expiresAt: this._utcAfterSeconds(ttl),
       ttl,
     };
+  }
+
+  /**
+   * 网页授权跳转地址（snsapi_base：静默授权，只拿 openid，不弹授权页）。
+   *
+   * 🔴 两个接入形态的**授权接口不是同一个**（踩过才知道）：
+   *    - 自运营（自己填的 AppSecret）：/connect/oauth2/authorize?appid=...
+   *      这里不传 component_appid —— 传了微信反而按第三方模式校验（容易 400/redirect_uri 不匹配）。
+   *    - 第三方平台代授权：授权页地址相同，但**换 code 的接口不同**（见 exchangeOauthOpenid）。
+   */
+  buildOauthUrl({ channel, redirectUri, state, scope = 'snsapi_base' }) {
+    const appid = encodeURIComponent(channel?.appid || '');
+    const uri = encodeURIComponent(String(redirectUri || ''));
+    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appid}&redirect_uri=${uri}&response_type=code&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}#wechat_redirect`;
+  }
+
+  /**
+   * 用授权 code 换 openid。
+   *
+   * 🔴 第三方平台代授权必须用 `/sns/oauth2/component/access_token`（带 component_appid +
+   *    component_access_token）—— 用普通 sns 接口会因为拿不到授权方的 AppSecret 而失败。
+   *    自运营形态才有 AppSecret，走普通 `/sns/oauth2/access_token`。
+   *
+   * 🔴 失败必须说人话：40029（code 无效/已用）与 40163 是这套流程最常见的两个码，
+   *    翻译成能排查的中文，别让商户只看到 "errcode 40029"。
+   */
+  async exchangeOauthOpenid(channel, code) {
+    const appid = String(channel?.appid || '').trim();
+    const c = String(code || '').trim();
+    if (!appid) throw new Error('公众号未配置');
+    if (!c) throw new Error('缺少授权 code');
+
+    let url;
+    if (channel.auth_status === 'authorized') {
+      const cfg = this.component?.getConfig ? this.component.getConfig() : {};
+      const componentAppid = String(cfg.component_appid || '').trim();
+      if (!componentAppid || !this.component) throw new Error('第三方平台未配置，无法完成网页授权');
+      const componentToken = await this.component.getComponentAccessToken();
+      url = `https://api.weixin.qq.com/sns/oauth2/component/access_token?appid=${encodeURIComponent(appid)}&code=${encodeURIComponent(c)}&grant_type=authorization_code&component_appid=${encodeURIComponent(componentAppid)}&component_access_token=${encodeURIComponent(componentToken)}`;
+    } else {
+      const secret = readSecret(channel.app_secret);
+      if (!secret) throw new Error('公众号未配置 AppSecret，无法完成网页授权');
+      url = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${encodeURIComponent(appid)}&secret=${encodeURIComponent(secret)}&code=${encodeURIComponent(c)}&grant_type=authorization_code`;
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.errcode) {
+      const known = {
+        40029: '授权 code 无效（通常是一次性 code 被重复使用，或已过期）',
+        40163: 'code 已被使用',
+        40125: 'AppSecret 无效',
+        41008: '缺少 code',
+      };
+      const err = new Error(known[data.errcode] || `网页授权失败(${data.errcode}): ${data.errmsg || ''}`);
+      err.wxErrcode = data.errcode;
+      throw err;
+    }
+    if (!data.openid) throw new Error('网页授权未返回 openid');
+    return String(data.openid);
   }
 
   /** 生成与库内 datetime('now') 同口径的时间串（UTC，'YYYY-MM-DD HH:MM:SS'），便于直接做字符串比较。 */

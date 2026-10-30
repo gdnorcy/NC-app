@@ -51,6 +51,25 @@ export function claimReward(data, tid) {
 }
 
 /**
+ * 网页授权跳转地址（服务端签发，前端只负责跳过去）。
+ * 🔴 openid 的取法只能由服务端决定 —— 前端直传 openid 等于谁都能冒充谁。
+ * @param {string} redirectPath **本站相对路径**（含 hash），服务端只放行这类地址
+ */
+export function wxAuthStartUrl(tid, redirectPath) {
+  return `${API_HOST}/api/trace/public/wx-auth/start?tid=${encodeURIComponent(tid || '')}&redirect=${encodeURIComponent(redirectPath || '')}`;
+}
+
+/**
+ * 当前商户的扫码查询方案（**必须在验真之前问**）。
+ * GET /public/scan-mode
+ * 🔴 顺序反了会重复计数：先验真再去网页授权 → 授权回来页面重载再验一次，
+ *    两次 openid 不同 → 21 秒去重窗口拦不住 → 查询次数被同一个人刷成 2 次。
+ */
+export function traceScanMode(tid) {
+  return request('/scan-mode' + qs({ tid }));
+}
+
+/**
  * 取一张「长按识别 → 公众号推送验真结果」用的临时引导二维码。
  * POST /public/mp-scene
  *
@@ -58,8 +77,8 @@ export function claimReward(data, tid) {
  *    烧一个公众号二维码额度，图也不会变（换了图用户手里那张就废了）。
  * @returns {Promise<{imageUrl:string, expiresAt:string, sceneId:number}>} imageUrl 是同源相对地址
  */
-export function traceSceneQr(code, tid) {
-  return request('/mp-scene' + qs({ tid }), 'POST', { code });
+export function traceSceneQr(code, tid, oc) {
+  return request('/mp-scene' + qs({ tid }), 'POST', { code, oc });
 }
 
 /**

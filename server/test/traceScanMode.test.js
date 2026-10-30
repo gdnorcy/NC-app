@@ -19,6 +19,7 @@ import { createDb, hashPassword } from '../src/db.js';
 import { createApp } from '../src/app.js';
 import request from 'supertest';
 import { normalizeScanMode, buildScanQueryView, SCAN_MODE_OPTIONS } from '../src/services/traceScanMode.js';
+import { issueOpenidTicket, readOpenidTicket } from '../src/services/traceOauth.js';
 import { computeTraceCode, DEFAULT_CODESET } from '../src/services/traceCode.js';
 
 const TID = 88;
@@ -210,6 +211,66 @@ describe('扫码查询方案', () => {
     await authed(request(app).put('/api/customer/trace/settings')).send({ settings: { scanMode: 'hacker' } });
     const saved = JSON.parse(db.prepare('SELECT settings_json FROM trace_settings WHERE tenant_id = ?').get(TID).settings_json);
     assert.equal(saved.scanMode, 'web', '非法档位必须回落默认档');
+  });
+
+  test('⑫ openid 凭据：不可伪造 / 过期失效 / 换租户失效', () => {
+    // 🔴 这三条是整条网页授权链路的信任根：只要有一条松了，
+    //    「首查奖励」和「本人扫码才出结果」就都能被冒领。
+    const t = issueOpenidTicket(TID, 'openidA');
+    assert.equal(readOpenidTicket(t, TID), 'openidA', '本人自己用应当读出');
+    assert.equal(readOpenidTicket(t, TID + 1), '', '换租户必须失效（否则一张凭据能串到别家）');
+    assert.equal(readOpenidTicket(`${t.slice(0, -2)}xx`, TID), '', '被改过必须失效');
+    assert.equal(readOpenidTicket('', TID), '');
+    const expired = issueOpenidTicket(TID, 'openidA', -10);
+    assert.equal(readOpenidTicket(expired, TID), '', '过期必须失效');
+  });
+
+  test('⑬ 网页授权起点：非法回跳地址一律拒绝（防开放重定向）', async () => {
+    for (const bad of ['https://evil.com/x', '//evil.com/x', 'evil.com', '']) {
+      const r = await request(app).get(`/api/trace/public/wx-auth/start?tid=${TID}`).query({ redirect: bad });
+      assert.equal(r.status, 400, `这种回跳地址竟然放行了：${bad}`);
+    }
+  });
+
+  test('⑭ 网页授权起点：合法回跳 → 跳微信授权页且带 state（CSRF 防护必须有）', async () => {
+    const r = await request(app).get(`/api/trace/public/wx-auth/start?tid=${TID}`)
+      .query({ redirect: '/card/#/pages/trace/index?co=ABC&tid=' + TID });
+    assert.equal(r.status, 302, JSON.stringify(r.body));
+    const loc = String(r.headers.location || '');
+    assert.ok(loc.startsWith('https://open.weixin.qq.com/connect/oauth2/authorize'), `应跳微信授权页：${loc}`);
+    assert.match(loc, /scope=snsapi_base/, '静默授权，不能弹确认页');
+    assert.match(loc, /state=[0-9a-f]{24}/, 'state 必须存在（回调要拿它防 CSRF）');
+    const setCookie = String(r.headers['set-cookie'] || '');
+    assert.ok(setCookie.includes('trace_oauth=') && setCookie.includes('HttpOnly'), 'state 必须存进 httpOnly cookie');
+  });
+
+  test('⑮ 回调 state 不匹配 → 拒绝（CSRF 串号防线）', async () => {
+    const r = await request(app).get(`/api/trace/public/wx-auth/callback?tid=${TID}`).query({ code: 'c', state: 'deadbeef' });
+    assert.equal(r.status, 400);
+    assert.match(String(r.body.error), /state|授权/, `应明确拒绝：${r.body.error}`);
+  });
+
+  test('⑯ 带授权凭据 → 场景码绑本人；换人 → 另开一张（本人绑定真的生效）', async () => {
+    qrCalls.length = 0;
+    const code = computeTraceCode(`FW${BATCH_NO}00008800000`, RULE);
+    const ticketA = issueOpenidTicket(TID, 'openidA');
+    const r1 = await request(app).post(`/api/trace/public/mp-scene?tid=${TID}`).send({ code, oc: ticketA });
+    assert.equal(r1.status, 200, JSON.stringify(r1.body));
+    assert.equal(Number(r1.body.bound), 1, '带凭据时必须标记已绑定本人');
+    const rowA = db.prepare('SELECT openid FROM trace_mp_scenes WHERE tenant_id = ? AND scene_id = ?').get(TID, r1.body.sceneId);
+    assert.equal(rowA.openid, 'openidA', '场景码必须记住是谁申请的');
+
+    // 换人：不能复用到上面那张（否则「本人绑定」形同虚设）
+    const ticketB = issueOpenidTicket(TID, 'openidB');
+    const r2 = await request(app).post(`/api/trace/public/mp-scene?tid=${TID}`).send({ code, oc: ticketB });
+    assert.equal(Number(r2.body.reused), 0, '换人必须另开一张');
+    assert.notEqual(r2.body.sceneId, r1.body.sceneId);
+    assert.equal(qrCalls.length, 2);
+
+    // 伪造凭据 = 当作没授权（不绑不报错，靠时效 + 一次有效兜底）
+    const r3 = await request(app).post(`/api/trace/public/mp-scene?tid=${TID}`)
+      .send({ code: computeTraceCode(`FW${BATCH_NO}00008900000`, RULE), oc: 'forged-ticket' });
+    assert.equal(Number(r3.body.bound), 0, '伪造凭据不能被当成身份');
   });
 
   test('⑧ 别人的码 / 乱码 → 404 且不让微信接口被调用', async () => {
