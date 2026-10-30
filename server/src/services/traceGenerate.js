@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { computeTraceCode, canonicalBatchSegment, DEFAULT_CODESET, demoSerialBase, DEMO_SERIAL_RESERVED, serializeTraceRule } from './traceCode.js';
+import { normalizeScanMode } from './traceScanMode.js';
 import { makeMultiZip } from './zip.js';
 
 // 🔴 H1：二维码码型（2/4/13）单批次超过此阈值时，强制走 ZIP 分文件导出，
@@ -383,8 +384,10 @@ export function generateTracePackage({ db, tenantId, batch, rule, settings, code
       db.prepare('UPDATE trace_batches SET demo_num = demo_num + ?, leint = \'\', updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?')
         .run(count, tenantId, batch.id);
     } else {
-      db.prepare('UPDATE trace_batches SET num = num + ?, leint = \'\', updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?')
-        .run(count, tenantId, batch.id);
+      // 🔴 P3：正式出码时把当前「扫码查询方案」记进批次，供「按批次冻结」开关取用
+      //    （scan_mode_follow=0 时，已印出去的码沿用出码时刻的方案，不受后续全局改动影响）。
+      db.prepare('UPDATE trace_batches SET num = num + ?, print_scan_mode = ?, leint = \'\', updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?')
+        .run(count, normalizeScanMode(settings.scanMode), tenantId, batch.id);
       // 🔴 P0：正式印刷成功即锁死码制（k1~k4 密钥与 m1~m5 结构都不可再改）。
       //    锁在**生成成功之后**写：生成失败（库存不足 / 码长不自洽）不该把租户锁死。
       markTraceRulePrinted(db, tenantId);
@@ -463,8 +466,8 @@ export function generateTracePackage({ db, tenantId, batch, rule, settings, code
     const code = codeFromSerial(row[row.length - 1].slice(batchSeg.length), batchSeg, rule);
     content += setLine(type, row, code, ctx, batch);
   }
-  db.prepare('UPDATE trace_batches SET num = num + ?, tnum = tnum + ?, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?')
-    .run(rows.length, sets, tenantId, batch.id);
+  db.prepare('UPDATE trace_batches SET num = num + ?, tnum = tnum + ?, print_scan_mode = ?, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?')
+    .run(rows.length, sets, normalizeScanMode(settings.scanMode), tenantId, batch.id);
   return {
     created: rows.length,
     sets,

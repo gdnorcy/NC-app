@@ -742,7 +742,11 @@ export class WxMpService {
     const isFirstQuery = Number(rec?.num || 0) <= 1;
     const isTopQueryer = Boolean(rec?.openid) && rec.openid === fromUser;
     const h5Fallback = `${String(baseUrl || '').replace(/\/+$/, '')}/card/#/pages/trace/index?co=${encodeURIComponent(code)}&tid=${tenantId}`;
-    const picked = slots.length ? pickDisplaySlots(slots, { isFirstQuery, isTopQueryer }) : [];
+    // 🔴 防御：封面解析不出合法 http(s) 地址的展示位直接丢弃（不弹卡片），
+    //    否则空 PicUrl 会让整条 news 被微信拒收 → 「服务出现故障」（#519 同类根因）。
+    const picked = slots.length
+      ? pickDisplaySlots(slots, { isFirstQuery, isTopQueryer }).filter((s) => /^https?:\/\//i.test(absUrl(baseUrl, s.cover || '')))
+      : [];
     // 🔴 展示位没配（或本次全被条件过滤掉）时**不能回 null**：
     //    消费者长按识别了却一句话没有 = 「公众号推送」这个方案当场变成哑开关，
     //    商户还会以为是微信没配好。兜底给一张「验真结果卡」，跳溯源页。
@@ -755,7 +759,8 @@ export class WxMpService {
       }))
       : [this._traceResultArticle({ code, batch, num: Number(rec?.num || 0) || 1, first: isFirstQuery, queriedAt: rec?.queried_at, baseUrl, tenantId, settings })];
     if (!baseUrl) return this.buildTextReply({ toUser: channel.appid, fromUser, content: articles[0].description });
-    return this.buildNewsReply({ toUser: channel.appid, fromUser, articles });
+    // 🔴 空 PicUrl → 微信拒收 news → 「服务出现故障」；缺图整体回落文字（#519）。
+    return this._safeTraceReply({ channel, fromUser, baseUrl, articles });
   }
 
   /**
@@ -783,6 +788,30 @@ export class WxMpService {
       picurl: absUrl(baseUrl, batch.banner || ''),
       url: `${String(baseUrl || '').replace(/\/+$/, '')}/card/#/pages/trace/index?co=${encodeURIComponent(code)}&tid=${tenantId}`,
     };
+  }
+
+  /**
+   * 溯源被动回复统一出口。
+   *
+   * 🔴 根因修复（#519 长按动态二维码进公众号报「服务出现故障」）：
+   *    微信被动 news 回复要求每篇 PicUrl 都是合法 http(s) 绝对地址，空 `PicUrl`
+   *    会被判为非法图文 → 5 秒内回给粉丝「该公众号提供的服务出现故障，请稍后再试」。
+   *    触发条件：① 批次未设 banner → `_traceResultArticle` 的 `picurl` 空；
+   *              ② 展示位未设封面 → `absUrl(baseUrl, s.cover)` 空。
+   *    两种情况下 `absUrl` 返回空串，生成 `<PicUrl><![CDATA[]]></PicUrl>`。
+   *
+   * 回落策略：articles 中**任一篇**缺合法 http(s) 图，整体改发文字
+   * （标题+描述+链接拼成可读文本），保证用户一定拿到验真信息而非报错。
+   */
+  _safeTraceReply({ channel, fromUser, baseUrl, articles, fallbackText }) {
+    const list = Array.isArray(articles) ? articles : [];
+    const allHavePic = list.length > 0
+      && list.every((a) => /^https?:\/\//i.test(String(a.picurl || a.thumb_url || '')));
+    if (allHavePic) return this.buildNewsReply({ toUser: channel.appid, fromUser, articles: list });
+    const text = (fallbackText && String(fallbackText).trim())
+      || list.map((a) => [a.title, a.description, a.url].filter(Boolean).join('\n')).filter((s) => s.trim()).join('\n\n')
+      || '防伪查询完成，请点击溯源页面查看详情。';
+    return this.buildTextReply({ toUser: channel.appid, fromUser, content: text });
   }
 
   /** 把库里的 UTC 时间串显示成北京时间（datetime('now') 落的是 UTC 裸串，直接印会把 UTC 当本地时间）。 */
@@ -901,7 +930,8 @@ export class WxMpService {
     // 🔴 没有可用绝对路径时不发图文：微信图文 Url 必须是绝对地址，
     //    相对路径发出去消费者点了打不开，还不如给纯文字（信息都在）。
     if (!baseUrl) return say(article.description);
-    return this.buildNewsReply({ toUser: channel.appid, fromUser, articles: [article] });
+    // 🔴 空 PicUrl（批次未设 banner）→ 微信拒收 news → 「服务出现故障」；缺图回落文字（#519）。
+    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article] });
   }
 
   /** 按消息匹配回复规则并构造被动回复 XML（toUser/fromUser 已按被动回复语义交换）。 */

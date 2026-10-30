@@ -31,11 +31,16 @@ const RULE = { m: { 1: 'FW', 2: 7, 3: 6, 4: 5, 5: 20 }, k: { ...DEFAULT_CODESET.
 const BATCH_NO = '0123456';
 const CHANNEL = { id: 1, appid: 'wxtrace', app_secret: '', customer_id: TID, auth_status: 'authorized' };
 
+function codeFor(batchNo, serial) {
+  return computeTraceCode(`FW${batchNo}${String(serial).padStart(6, '0')}00000`, RULE);
+}
 function codeOf(serial) {
-  return computeTraceCode(`FW${BATCH_NO}${String(serial).padStart(6, '0')}00000`, RULE);
+  return codeFor(BATCH_NO, serial);
 }
 const CODE_A = codeOf(1);
 const CODE_B = codeOf(2);
+const BATCH_NO2 = '0654321';
+const CODE_C = codeFor(BATCH_NO2, 1);
 
 describe('公众号会话发送防伪码 → 回复验真结果', () => {
   let tmpDir, db, prevConfig;
@@ -60,8 +65,11 @@ describe('公众号会话发送防伪码 → 回复验真结果', () => {
       .run(TID, '公众号验真测试租户', 'active', '["trace"]');
     db.prepare('INSERT INTO trace_code_rules (tenant_id, m1, rule_json) VALUES (?, ?, ?)')
       .run(TID, 'FW', JSON.stringify(RULE));
-    db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, is_active, rcon)
-      VALUES (?, 'FW', ?, '高原绿茶', '测试茶厂', '测试牌', 1, 0)`).run(TID, BATCH_NO);
+    db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, is_active, rcon, banner)
+      VALUES (?, 'FW', ?, '高原绿茶', '测试茶厂', '测试牌', 1, 0, 'https://demo.example.com/uploads/banner.png')`).run(TID, BATCH_NO);
+    // 第二批次：故意不设 banner，用于验证「空 PicUrl → 回落文字、不报『服务出现故障』」（#519）。
+    db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, is_active, rcon, banner)
+      VALUES (?, 'FW', ?, '无横幅茶', '测试茶厂', '测试牌', 1, 0, '')`).run(TID, BATCH_NO2);
     db.prepare('INSERT INTO trace_settings (tenant_id, settings_json, cocom) VALUES (?, ?, -888)')
       .run(TID, JSON.stringify({ wxReply: 1, ftel: '4000000000' }));
   });
@@ -76,6 +84,14 @@ describe('公众号会话发送防伪码 → 回复验真结果', () => {
   const send = (content, openid = 'openidA') => svc().resolveReply(CHANNEL, {
     msgType: 'text',
     content,
+    fromUser: openid,
+    toUser: 'wxtrace',
+  }, { baseUrl: 'https://demo.example.com' });
+  // SCAN 事件（旧路径：EventKey 本身就是码，不走场景码映射），用于验证带参二维码弹卡片。
+  const scan = (code, openid = 'openidScan') => svc().resolveReply(CHANNEL, {
+    msgType: 'event',
+    event: 'SCAN',
+    eventKey: code,
     fromUser: openid,
     toUser: 'wxtrace',
   }, { baseUrl: 'https://demo.example.com' });
@@ -178,5 +194,21 @@ describe('公众号会话发送防伪码 → 回复验真结果', () => {
       msgType: 'text', content: CODE_A, fromUser: 'openidA', toUser: 'wxtrace',
     }, { baseUrl: '' });
     assert.equal(xml, null);
+  });
+
+  it('⑩ (#519) SCAN 带参二维码、批次未设 banner → 回落文字而非空 PicUrl「服务出现故障」', () => {
+    const xml = scan(CODE_C);
+    assert.ok(xml, '必须有回复（不能静默无响应）');
+    assert.ok(xml.includes('<MsgType><![CDATA[text]]>'), `空 PicUrl 必须回落文字：${xml}`);
+    assert.ok(!xml.includes('<PicUrl>'), `绝不能再生成空 PicUrl（这就是『服务出现故障』的根因）：${xml}`);
+    assert.ok(xml.includes('无横幅茶'), `文字里应带商品名，保证用户拿到信息：${xml}`);
+    assert.ok(xml.includes('验真通过'), '文字里应给验真结论');
+  });
+
+  it('⑪ (#519) 会话发码、批次未设 banner → 回落文字而非空 PicUrl', () => {
+    const xml = send(CODE_C);
+    assert.ok(xml.includes('<MsgType><![CDATA[text]]>'), `空 PicUrl 必须回落文字：${xml}`);
+    assert.ok(!xml.includes('<PicUrl>'), `绝不能再生成空 PicUrl：${xml}`);
+    assert.ok(xml.includes('无横幅茶'), `文字里应带商品名：${xml}`);
   });
 });

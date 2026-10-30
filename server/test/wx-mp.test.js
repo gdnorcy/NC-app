@@ -167,7 +167,7 @@ function traceCodeOf(serial) {
   return computeTraceCode(`FW${TRACE_BATCH}${String(serial).padStart(6, '0')}00000`, TRACE_RULE);
 }
 const TRACE_CODE = traceCodeOf(1);
-const TRACE_BATCH_ROW = { tenant_id: 7, id: 1, batch: TRACE_BATCH, is_active: 1 };
+const TRACE_BATCH_ROW = { tenant_id: 7, id: 1, batch: TRACE_BATCH, is_active: 1, banner: 'https://h.com/uploads/banner.png' };
 
 // 支持 trace_codes / trace_settings / trace_code_rules / trace_batches / trace_activations 查询的内存 DB 桩
 function makeTraceDb({
@@ -257,13 +257,14 @@ test('resolveTraceScanReply: 已查询过（num>1）不挑 FIRST 位', () => {
   const traceCodes = [{ tenant_id: 7, code: TRACE_CODE, num: 3, openid: 'openidX' }];
   const settingsJson = JSON.stringify({
     displaySlots: [
-      { when: 1, title: '总是显示', cover: '', link: 'https://x.com' },
-      { when: 2, title: '仅首次', cover: '', link: 'https://y.com' },
+      { when: 1, title: '总是显示', cover: 'https://h.com/uploads/a.png', link: 'https://x.com' },
+      { when: 2, title: '仅首次', cover: 'https://h.com/uploads/b.png', link: 'https://y.com' },
     ],
   });
   const svc = new WxMpService(makeTraceDb({ traceCodes, settingsJson }), makeComponent());
   const xml = svc.resolveTraceScanReply(TRACE_CHANNEL, TRACE_CODE, 'openidX', 'https://h.com');
   assert.ok(xml, '应返回 news XML');
+  assert.ok(xml.includes('<MsgType><![CDATA[news]]>'), '已配置封面应回图文卡片');
   assert.ok(xml.includes('总是显示'), 'ALL 位应保留');
   assert.ok(!xml.includes('仅首次'), 'FIRST 位应被过滤（num>1）');
 });

@@ -104,6 +104,15 @@
           </scroll-view>
         </view>
 
+        <!-- 🔴 P3 全局活动广告位（独立区块，海报下方；服务端已替换 [FWM]/[KEY]） -->
+        <view class="tr-card tr-activity" v-if="activity.enabled" @click="openActivity">
+          <image v-if="activity.cover" class="tr-activity-cover" :src="absOriginUrl(activity.cover)" mode="aspectFill" />
+          <view class="tr-activity-body">
+            <text class="tr-activity-title">{{ activity.title || '查看活动详情' }}</text>
+            <text class="tr-activity-cta">查看详情 ›</text>
+          </view>
+        </view>
+
         <!-- 错误卡片 -->
         <view class="tr-card tr-card-err" v-if="errorMsg">
           <view class="tr-result-head">
@@ -240,7 +249,9 @@ function selfPath() {
  *    反过来会在授权回跳后重复验真，把同一个人的一次查询记成两次。
  */
 async function runScanFlow(rawCode) {
-  applyScanCode(rawCode);
+  // 🔴 #521：必须先等 applyScanCode 把清洗后的防伪码回填到 form.co，再 submit；
+  //    否则 submit 读到的是空值，等于「扫码后还要手动点一次立即查询」。
+  await applyScanCode(rawCode);
   if (isWeChatEnv && !oc.value && !oauthFailed.value && typeof window !== 'undefined') {
     try {
       const m = await traceScanMode(tid.value);
@@ -278,6 +289,17 @@ const slotList = computed(() => {
   const s = result.value && result.value.slots;
   return Array.isArray(s) ? s : [];
 });
+
+/** 🔴 P3 全局活动广告位（独立区块，不复用首页展示位；服务端已按 [FWM]/[KEY] 变量替换） */
+const activity = computed(() => {
+  const a = result.value && result.value.activity;
+  return a && a.enabled ? a : { enabled: false };
+});
+function openActivity() {
+  const a = activity.value;
+  if (!a || !a.link) return;
+  execCompLink(linkFromString(a.link));
+}
 
 /** 是否「网页 + 公众号推送」档位 */
 const pushMode = computed(() => result.value?.scanMode === 'push_dynamic');
@@ -329,11 +351,12 @@ const failTip = computed(() => {
   return s.ftel || '';
 });
 
-/** 扫码进入：URL 直接带防伪码（?co=xxx）时自动清洗并回填 */
+/** 扫码进入：URL 直接带防伪码（?co=xxx）时自动清洗并回填。
+ *  🔴 必须返回 Promise（runScanFlow 会 await），保证 form.co 回填后再 submit。 */
 function applyScanCode(co) {
   const raw = String(co || '').trim();
-  if (!raw) return;
-  scanEntry(raw, tid.value)
+  if (!raw) return Promise.resolve();
+  return scanEntry(raw, tid.value)
     .then((res) => {
       form.co = (res && res.code) || raw;
     })
@@ -535,6 +558,37 @@ onLoad((options) => {
   line-height: 1.4;
   color: var(--t1);
   white-space: normal;
+}
+/* 🔴 P3 全局活动广告位：结果海报下方的一张整图（独立区块，不复用首页展示位） */
+.tr-activity {
+  padding: 0;
+  overflow: hidden;
+}
+/* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端图片高度为 0 */
+.tr-activity-cover {
+  width: 100%;
+  height: 300rpx;
+  display: block;
+  background: var(--bg-page);
+}
+.tr-activity-body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 24rpx;
+}
+.tr-activity-title {
+  flex: 1;
+  font-size: var(--fs-4);
+  line-height: 1.4;
+  color: var(--t1);
+}
+.tr-activity-cta {
+  margin-left: 16rpx;
+  flex-shrink: 0;
+  font-size: var(--fs-3);
+  color: var(--t3);
 }
 .tr-bottom-space { height: 60rpx; }
 </style>

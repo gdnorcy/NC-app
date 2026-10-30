@@ -158,6 +158,40 @@ function saveSettings(db, tenantId, settings) {
     .run(tenantId, JSON.stringify(settings || {}));
 }
 
+/**
+ * 🔴 P3 独立活动广告位（全局活动设置），与首页展示位互不干扰。
+ *
+ * 为什么不复用 displaySlots：展示位有「最多 8 个」「按展示条件挑选」等约束，且语义是
+ *   「本租户通用推荐位」；活动广告位是「一次活动一张图 + 一个带参链接」，语义与展示位不同，
+ *   强行复用会让两边都变形。所以单独一个 settings.activity 字段，C 端在结果海报下方渲染一张。
+ *
+ * 变量替换（对标「全局活动设置」的 linkkey + [FWM]/[KEY]）：
+ *   [FWM] → 本次查询的防伪码（让活动落地页知道是哪个码点进来的）；
+ *   [KEY] → 后台配置的 linkKey（活动专属标识 / 渠道参数）。
+ * link / title 中的这两种占位符都会被替换，cover 是纯图片地址不替换。
+ *
+ * when：0=总是展示 / 1=仅首次查询展示 / 2=仅非首次查询展示（与展示位 SLOTWHEN 口径一致）。
+ *
+ * @returns {null|object} 未启用或按 when 不展示时返回 null；否则返回 { enabled, cover, title, link, when }
+ */
+function buildTraceActivity(activityCfg, code, isFirstQuery) {
+  const cfg = activityCfg && typeof activityCfg === 'object' ? activityCfg : null;
+  if (!cfg || !cfg.enabled) return null;
+  const when = Number(cfg.when || 0);
+  const show = when === 0 || (when === 1 && isFirstQuery) || (when === 2 && !isFirstQuery);
+  if (!show) return null;
+  const linkKey = String(cfg.linkKey || '');
+  // 🔴 占位符大小写不敏感；只替换 link / title（cover 是图片 URL，含 [FWM] 没有语义）。
+  const sub = (s) => String(s || '').replace(/\[FWM\]/gi, code).replace(/\[KEY\]/gi, linkKey);
+  return {
+    enabled: true,
+    cover: String(cfg.cover || ''),
+    title: sub(cfg.title || ''),
+    link: sub(cfg.link || ''),
+    when,
+  };
+}
+
 function getRule(db, tenantId) {
   const row = db.prepare('SELECT * FROM trace_code_rules WHERE tenant_id = ?').get(tenantId);
   const rule = parseTraceRule(row?.rule_json);
@@ -620,7 +654,11 @@ export function createTracePublicRouter(db) {
       num: Number(record.num || 0),
       // 🔴 当前「扫码查询方案」：C 端据此决定是否渲染「长按识别、由公众号推送结果」引导。
       //    取值已在服务端白名单归一（traceScanMode），前端只做相等判断，不认魔法字符串以外的东西。
-      scanMode: normalizeScanMode(settings.scanMode),
+      // 🔴 P3 按批次冻结：scan_mode_follow=1（默认跟随）→ 用当前全局设置；
+      //    =0（冻结）→ 用本批次出码时记录的模式 print_scan_mode（空则回落当前，保留今天行为）。
+      scanMode: Number(batch.scan_mode_follow ?? 1) === 1
+        ? normalizeScanMode(settings.scanMode)
+        : normalizeScanMode(batch.print_scan_mode || settings.scanMode),
       batch: {
         id: batch.id,
         batch: batch.batch,
@@ -648,6 +686,8 @@ export function createTracePublicRouter(db) {
         dtel: settings.dtel || '',
         script: settings.script || '',
       },
+      // 🔴 P3 独立活动广告位（不复用首页展示位）：服务端按 [FWM]→防伪码 / [KEY]→linkKey 替换后下发。
+      activity: buildTraceActivity(settings.activity, code, Number(record.num || 0) <= 1),
     });
   });
 
@@ -1062,9 +1102,9 @@ export function createTraceAdminRouter(db) {
     const exists = db.prepare('SELECT id FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
     if (!exists) return sendError(res, 404, '批次不存在');
     const b = req.body || {};
-    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, is_active = ?, updated_at = datetime('now')
+    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
       WHERE tenant_id = ? AND id = ?`)
-      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), Number(b.isActive ?? 1), req.traceTenantId, id);
+      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
     addHistory(db, req.traceTenantId, 1, String(id), req, '编辑防伪批次');
     return res.json({ ok: true });
   });
