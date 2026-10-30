@@ -187,3 +187,39 @@ describe('#527 扫码直接出结果（不再停在表单页）', () => {
     expect(src).toMatch(/class="tr-result-head" v-if="!result\.demo"/);
   });
 });
+
+// #531 验真提示按「查询次数」分档（用户反馈：35 次却显示「二次查询提示」）
+describe('#531 验真提示分档（首次 / 二次 / 三次及以后 / 超限）', () => {
+  test('successTip 按累计次数 num 分档，不再只看 result.first 二选一', () => {
+    const body = fnBody('successTip');
+    // 必须读累计次数与上限阈值
+    expect(body).toMatch(/result\.value\.num/);
+    expect(body).toMatch(/s\.upperlimit/);
+    // 四档都要出现：超限 → 首次 → 二次 → 三次及以后
+    expect(body).toMatch(/s\.conMsg/);
+    expect(body).toMatch(/s\.sucOne/);
+    expect(body).toMatch(/s\.sucTwo/);
+    expect(body).toMatch(/s\.sucThree/);
+    expect(body).toMatch(/num <= 1/);
+    expect(body).toMatch(/num === 2/);
+    // 🔴 不能再退化成「首查布尔二选一」——那正是 35 次显示二次提示的根因
+    expect(body).not.toMatch(/const isFirst = /);
+    expect(body).not.toMatch(/isFirst \? /);
+  });
+
+  test('分档顺序：超限优先，其次首次 / 二次 / 三次及以后', () => {
+    const body = fnBody('successTip');
+    const overIdx = body.indexOf('limit > 0 && num >= limit');
+    const oneIdx = body.indexOf('num <= 1');
+    const twoIdx = body.indexOf('num === 2');
+    expect(overIdx, '超限档必须先判').toBeGreaterThan(-1);
+    expect(overIdx, '超限优先于首次').toBeLessThan(oneIdx);
+    expect(oneIdx, '首次先于二次').toBeLessThan(twoIdx);
+  });
+
+  test('档位为空时回退到相邻档位（不留白）', () => {
+    const body = fnBody('successTip');
+    // 三次为空时回退二次：s.sucThree || s.sucTwo || s.sucOne
+    expect(body).toMatch(/s\.sucThree \|\| s\.sucTwo \|\| s\.sucOne/);
+  });
+});

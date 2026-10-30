@@ -689,6 +689,12 @@ export function createTracePublicRouter(db) {
         welcome: settings.welcome || '',
         sucOne: settings.suc_one || '',
         sucTwo: settings.suc_two || '',
+        // 🔴 C 端提示是**按查询次数分档**的（首次/二次/三次及以后/超限），不是首查二选一。
+        //    之前只下发 sucOne/sucTwo → 第 35 次查询也只能落到「二次查询提示」（用户反馈的真 bug）。
+        //    这里补齐三次及以后(sucThree)、超限(conMsg) 与上限阈值(upperlimit，0=不限制)。
+        sucThree: settings.suc_three || '',
+        conMsg: settings.con_msg || '',
+        upperlimit: Number(settings.upperlimit || 0),
         ftel: settings.ftel || '',
         dtel: settings.dtel || '',
         script: settings.script || '',

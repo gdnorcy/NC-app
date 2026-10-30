@@ -386,14 +386,28 @@ const welcomeText = computed(() => {
   return s.welcome || '输入包装上的防伪码，查询产品真伪与溯源信息';
 });
 
+/**
+ * 验真提示：按「本码累计查询次数」**分档**取后台文案，不是「首查 / 非首查」二选一。
+ * 🔴 后台其实配了四个档位字段：首次(sucOne) / 二次(sucTwo) / 三次及以后(sucThree) / 超限(conMsg)，
+ *    外加「查询次数上限」(upperlimit，0=不限制)。
+ *    之前服务端只下发前两档、前端也只二选一 → 第 35 次查询仍显示「二次查询提示」（用户反馈的真 bug）。
+ * 分档（num = 本码累计查询次数，含本次）：
+ *   ① upperlimit > 0 且 num >= upperlimit → conMsg（超限）
+ *   ② num <= 1  → sucOne（首次）
+ *   ③ num === 2 → sucTwo（二次）
+ *   ④ num >= 3  → sucThree（三次及以后）
+ * 任一档位为空时回退到有内容的相邻档位，避免留白（例如只配了二次、没配三次，则第 3 次起仍显示二次文案）。
+ */
 const successTip = computed(() => {
   const s = (result.value && result.value.settings) || {};
   const reward = (result.value && result.value.reward) || {};
   if (reward.message) return reward.message;
-  // 🔴 首查提示(sucOne)与复访提示(sucTwo)按是否首查分流；任一为空时回退到另一个，避免空白。
-  //    此前无条件优先 sucOne，导致「该码已被查询过」（result.first=false）时仍显示"首次查询提示"。
-  const isFirst = !!(result.value && result.value.first);
-  return isFirst ? (s.sucOne || s.sucTwo || '') : (s.sucTwo || s.sucOne || '');
+  const num = Number((result.value && result.value.num) || 0);
+  const limit = Number(s.upperlimit || 0);
+  if (limit > 0 && num >= limit) return s.conMsg || s.sucThree || s.sucTwo || s.sucOne || '';
+  if (num <= 1) return s.sucOne || s.sucTwo || s.sucThree || '';
+  if (num === 2) return s.sucTwo || s.sucThree || s.sucOne || '';
+  return s.sucThree || s.sucTwo || s.sucOne || '';
 });
 
 const failTip = computed(() => {
