@@ -77,7 +77,7 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
   test('结果区存在海报区，且与结果卡同门闸（showWebResult）', () => {
     // 🔴 push_dynamic 档位下网页结果整体不展示（只信公众号推来的结果），
     //    海报带着商品名与验真徽标 —— 不能绕过这道闸单独露出来。
-    expect(src).toMatch(/class="tr-poster"/);
+    expect(src).toMatch(/class="tr-poster-card"/);
     expect(src).toMatch(/v-if="result && showWebResult"/);
   });
 
@@ -93,14 +93,14 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(body).toMatch(/已被查询/);
   });
 
-  test('DOM 顺序：海报 → 结果卡 → 推荐位 → 活动位（广告位在海报下面）', () => {
-    const posterIdx = src.indexOf('class="tr-poster"');
-    const okIdx = src.indexOf('class="tr-card tr-card-ok"');
+  test('DOM 顺序：海报块 → 公众号推送引导 → 推荐位 → 活动位（广告位在海报下面）', () => {
+    const posterIdx = src.indexOf('class="tr-poster-card"');
+    const pushIdx = src.indexOf('class="tr-card tr-card-push"');
     const slotsIdx = src.indexOf('class="tr-card tr-slots"');
     const actIdx = src.indexOf('class="tr-card tr-activity"');
-    expect(posterIdx).toBeGreaterThan(-1);
-    expect(okIdx).toBeGreaterThan(posterIdx, '结果卡必须在海报之后');
-    expect(slotsIdx).toBeGreaterThan(okIdx, '推荐位必须在结果之后');
+    expect(posterIdx).toBeGreaterThan(-1, '海报块必须存在');
+    expect(pushIdx).toBeGreaterThan(posterIdx, '公众号推送引导必须在海报之后');
+    expect(slotsIdx).toBeGreaterThan(pushIdx, '推荐位必须在推送引导之后');
     expect(actIdx).toBeGreaterThan(slotsIdx, '活动位必须在推荐位之后');
   });
 
@@ -116,14 +116,27 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(src).toMatch(/min-height: 240rpx/);
     expect(src).toMatch(/linear-gradient\(135deg, var\(--primary\), var\(--primary-deep\)\)/);
     // 遮罩只服务于图片（没图时盖在渐变上会发灰）
-    expect(src).toMatch(/class="tr-poster-mask" v-if="posterImage"/);
+    expect(src).toMatch(/class="tr-poster-hero-mask" v-if="posterImage"/);
+  });
+
+  test('演示/试印提示位于海报最顶端（抢在结论主视觉之前，试印品一眼可辨）', () => {
+    const demoIdx = src.indexOf('class="tr-poster-demo"');
+    const heroIdx = src.indexOf('class="tr-poster-hero"');
+    expect(demoIdx, '演示试印提示块必须存在').toBeGreaterThan(-1);
+    expect(heroIdx, '主视觉块必须存在').toBeGreaterThan(-1);
+    expect(demoIdx, '试印提示必须排在主视觉之前（在海报顶端）').toBeLessThan(heroIdx);
+  });
+
+  test('海报内嵌公众号引导二维码（pushImg），并附操作引导文案', () => {
+    expect(src).toMatch(/class="tr-poster-qr-img" :src="pushImg"/);
+    expect(src).toMatch(/长按识别二维码，进入认证公众号查看验真结果/);
   });
 });
 
 // #527 扫码直接出结果（用户 2026-10-30 反馈：扫二维码还是「防伪查询 + 立即查询」那个界面）
 describe('#527 扫码直接出结果（不再停在表单页）', () => {
   test('网页结果任何档位都展示（push_dynamic 不再把结果藏起来）', () => {
-    // 🔴 之前 showWebResult = !pushMode || pushErr → 「网页 + 公众号推送」档位下
+    // 🔴 之前 showWebResult = !pushMode || pushErr → 「公众号推送」档位下
     //    扫码进来只有「请在公众号内查看验真结果」，看不到海报版式，等于这一档没有结果。
     expect(src).toMatch(/const showWebResult = computed\(\(\) => true\);/);
   });
@@ -140,10 +153,12 @@ describe('#527 扫码直接出结果（不再停在表单页）', () => {
     expect(src).not.toContain('class="tr-card-title">请在公众号内查看验真结果');
   });
 
-  test('海报仍排在结果卡之前（版式顺序没被这次改动打乱）', () => {
-    const posterIdx = src.indexOf('class="tr-poster"');
-    const okIdx = src.indexOf('class="tr-card tr-card-ok"');
+  test('海报块仍排在推荐位/活动位之前（版式顺序没被改动打乱）', () => {
+    const posterIdx = src.indexOf('class="tr-poster-card"');
+    const slotsIdx = src.indexOf('class="tr-card tr-slots"');
+    const actIdx = src.indexOf('class="tr-card tr-activity"');
     expect(posterIdx).toBeGreaterThan(-1);
-    expect(okIdx).toBeGreaterThan(posterIdx);
+    expect(slotsIdx).toBeGreaterThan(posterIdx);
+    expect(actIdx).toBeGreaterThan(posterIdx);
   });
 });
