@@ -211,4 +211,42 @@ describe('公众号会话发送防伪码 → 回复验真结果', () => {
     assert.ok(!xml.includes('<PicUrl>'), `绝不能再生成空 PicUrl：${xml}`);
     assert.ok(xml.includes('无横幅茶'), `文字里应带商品名：${xml}`);
   });
+
+  it('⑫ (#523) 配了 2 个展示位 → 被动回复仍只发 1 条图文（微信图文上限=1，2026-10-30 线上事故根因）', () => {
+    // 🔴 真事故复现：生产配了 2 个展示位 → 每次扫码发 2 条图文
+    //    → 微信整条判非法（客服接口同款数据实测 45008 article size out of limit）
+    //    → 粉丝端显示「该公众号提供的服务出现故障，请稍后再试」。
+    setSettings({
+      displaySlots: [
+        { when: 1, title: '广告位一', cover: 'https://cdn.example.com/a.jpg', link: 'https://x.example.com/1' },
+        { when: 1, title: '广告位二', cover: 'https://cdn.example.com/b.jpg', link: 'https://x.example.com/2' },
+      ],
+    });
+    try {
+      // 用 CODE_B：它此前未被查询过（num=0）→ 文案是「验真通过」，断言更贴近首次扫码的真实场景
+      const xml = scan(CODE_B);
+      assert.ok(xml, '必须有回复');
+      assert.ok(xml.includes('<ArticleCount>1</ArticleCount>'), `图文必须只有 1 条：${xml}`);
+      assert.equal((xml.match(/<item>/g) || []).length, 1, 'XML 里只能有一个 item');
+      assert.ok(xml.includes('验真'), '主体必须是验真结论（不能让位给广告）');
+      assert.ok(xml.includes('广告位一') && xml.includes('广告位二'), '展示位标题作为推广露出保留');
+    } finally {
+      setSettings({ displaySlots: [] });
+    }
+  });
+
+  it('⑬ (#522) 展示位总开关关掉 → 微信卡片不再带推广露出', () => {
+    setSettings({
+      slotsEnabled: 0,
+      displaySlots: [{ when: 1, title: '不该出现的位', cover: 'https://cdn.example.com/a.jpg', link: '' }],
+    });
+    try {
+      const xml = scan(CODE_B);
+      assert.ok(xml, '必须有回复');
+      assert.ok(xml.includes('<MsgType><![CDATA[news]]>'), '总开关关掉只关广告位，不影响验真卡片');
+      assert.ok(!xml.includes('不该出现的位'), `总开关关了就不该露出推广：${xml}`);
+    } finally {
+      setSettings({ slotsEnabled: 1, displaySlots: [] });
+    }
+  });
 });

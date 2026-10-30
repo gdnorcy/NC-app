@@ -30,6 +30,22 @@
           </view>
         </view>
 
+        <!-- 🔴 #521 海报区：对齐对标站结果页版式 —— **大图在上，广告位在下**。
+             海报图 = 批次主图 banner，缺省回落批次 logo；都没有就不出图、只留信息条（不白屏）。
+             🔴 与结果卡同门闸（showWebResult）：「网页 + 公众号推送」档位下网页结果整体不展示
+                （该方案的意义就是「只信认证公众号推来的结果」），海报同样不能露。 -->
+        <view class="tr-poster" v-if="result && showWebResult">
+          <image v-if="posterImage" class="tr-poster-img" :src="posterImage" mode="aspectFill" />
+          <view class="tr-poster-mask"></view>
+          <view class="tr-poster-badge" :class="result.first ? 'tr-badge-ok' : 'tr-badge-warn'">
+            <text>{{ posterBadge }}</text>
+          </view>
+          <view class="tr-poster-foot">
+            <text class="tr-poster-name">{{ posterName }}</text>
+            <text class="tr-poster-sub" v-if="posterSub">{{ posterSub }}</text>
+          </view>
+        </view>
+
         <!-- 查询结果（网页验真结果块：push_dynamic 且推送成功时隐藏，避免与公众号推送重复/被仿冒页利用） -->
         <view class="tr-card tr-card-ok" v-if="result && showWebResult">
           <view class="tr-result-head">
@@ -86,22 +102,22 @@
           <text class="tr-push-err" v-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
         </view>
 
-        <!-- 首页展示位（后台配置的推广位，按展示条件由服务端挑好下发） -->
+        <!-- 首页展示位（后台配置的推广位，按展示条件由服务端挑好下发）
+             🔴 #521 版式对齐对标站：海报与结论在**上**，广告位在**下**；
+                位区从横滑改为三列图文网格（一眼看全，不必左右滑，也不再依赖 MP 端横向 scroll-view）。 -->
         <view class="tr-card tr-slots" v-if="slotList.length">
           <text class="tr-slots-title">推荐</text>
-          <scroll-view class="tr-slots-scroll" scroll-x :show-scrollbar="false">
-            <view class="tr-slots-row">
-              <view
-                class="tr-slot"
-                v-for="(s, i) in slotList"
-                :key="i"
-                @click="openSlot(s)"
-              >
-                <image class="tr-slot-cover" :src="slotCover(s.cover)" mode="aspectFill" />
-                <text class="tr-slot-name">{{ s.title }}</text>
-              </view>
+          <view class="tr-slots-row">
+            <view
+              class="tr-slot"
+              v-for="(s, i) in slotList"
+              :key="i"
+              @click="openSlot(s)"
+            >
+              <image class="tr-slot-cover" :src="slotCover(s.cover)" mode="aspectFill" />
+              <text class="tr-slot-name">{{ s.title }}</text>
             </view>
-          </scroll-view>
+          </view>
         </view>
 
         <!-- 🔴 P3 全局活动广告位（独立区块，海报下方；服务端已替换 [FWM]/[KEY]） -->
@@ -277,6 +293,31 @@ const resultTitle = computed(() => {
   if (!r) return '';
   if (r.demo) return '演示码验证通过';
   return r.first ? '正品验证通过' : '该码已被查询过';
+});
+
+/* ============================================================
+ * #521 海报区（大图在上 → 结论 → 广告位在下，对齐对标站结果页版式）
+ * 数据全部来自服务端已下发的 result.batch，**不新增任何接口字段**。
+ * ============================================================ */
+
+/** 海报图：批次主图 banner 优先，缺省回落批次 logo（都没有 → 空，海报区只留信息条）。 */
+const posterImage = computed(() => {
+  const b = batchInfo.value || {};
+  return absOriginUrl(b.banner || b.logo || '');
+});
+
+/** 海报上的商品名（取不到就显示通用词，别留空白）。 */
+const posterName = computed(() => batchInfo.value.product || batchInfo.value.brand || '产品');
+
+/** 海报副标题：工厂优先、其次品牌；都取不到就不渲染这一行（空行比不显示更难看）。 */
+const posterSub = computed(() => batchInfo.value.factory || batchInfo.value.brand || '');
+
+/** 海报右上角徽标文案：试印码不能说「验证通过」。 */
+const posterBadge = computed(() => {
+  const r = result.value;
+  if (!r) return '';
+  if (r.demo) return '演示码';
+  return r.first ? '验证通过' : '已被查询';
 });
 
 /**
@@ -478,6 +519,62 @@ onLoad((options) => {
   border: 1px solid var(--border);
 }
 
+/* 🔴 #521 海报区：大图 + 底部信息条 + 右上角验真徽标（版式对齐对标站结果页） */
+.tr-poster {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 20rpx;
+  background: var(--bg-page);
+  box-shadow: var(--shadow-sm);
+}
+/* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端海报高度为 0 */
+.tr-poster-img { width: 100%; height: 420rpx; display: block; background: var(--bg-page); }
+/* 底部渐变遮罩：白字压在任何主图上都读得清。
+   🔴 不新增裸色：既有 --bg-mask 令牌 + transparent 关键字（rgba 字面量会被 tokenAudit 基线拦） */
+.tr-poster-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 260rpx;
+  background: linear-gradient(to bottom, transparent 0%, var(--bg-mask) 100%);
+}
+.tr-poster-badge {
+  position: absolute;
+  top: 20rpx;
+  right: 20rpx;
+  padding: 8rpx 20rpx;
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font-size: var(--fs-2);
+  font-weight: 600;
+}
+.tr-badge-ok { color: var(--success); }
+.tr-badge-warn { color: var(--danger); }
+.tr-poster-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 24rpx 24rpx;
+}
+.tr-poster-name {
+  display: block;
+  font-size: var(--fs-6);
+  font-weight: 600;
+  color: var(--white);
+  line-height: 1.3;
+}
+.tr-poster-sub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: var(--fs-3);
+  color: var(--white);
+  opacity: 0.86;
+  line-height: 1.3;
+}
+
 .tr-result-head {
   display: flex;
   align-items: center;
@@ -527,7 +624,8 @@ onLoad((options) => {
   color: var(--t3);
   line-height: 1.6;
 }
-/* 首页展示位：横滑卡片（对映公众号图文消息的 1~8 条图文） */
+/* 首页展示位：三列图文网格（对标站结果页底部「相关商品」的版式）
+   🔴 用 flex 不用 grid —— 小程序端 grid 支持不稳；也不用百分比宽度（卡片 padding 一变就串行） */
 .tr-slots-title {
   display: block;
   font-size: var(--fs-5);
@@ -535,15 +633,13 @@ onLoad((options) => {
   color: var(--t1);
   margin-bottom: 20rpx;
 }
-/* MP 端横向 scroll-view：父级需 nowrap/定宽，子项 flex-shrink:0 才不会被压扁 */
-.tr-slots-scroll { width: 100%; white-space: nowrap; }
-.tr-slots-row { display: inline-flex; flex-direction: row; }
-.tr-slot { width: 240rpx; flex-shrink: 0; margin-right: 20rpx; }
-.tr-slot:last-child { margin-right: 0; }
+/* 位宽 204rpx × 3 + 间距 = 容器内宽 ≈ 646rpx（750 − 页面内边距 48 − 卡片内边距 56） */
+.tr-slots-row { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+.tr-slot { width: 204rpx; margin-bottom: 20rpx; }
 /* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端封面图高度为 0 */
 .tr-slot-cover {
-  width: 240rpx;
-  height: 180rpx;
+  width: 204rpx;
+  height: 152rpx;
   display: block;
   border-radius: var(--radius-sm);
   background: var(--bg-page);

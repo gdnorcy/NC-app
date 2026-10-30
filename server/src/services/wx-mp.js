@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { readSecret } from '../crypto.js';
 import { WxCrypto } from './wx-component.js';
-import { pickDisplaySlots } from './traceSlots.js';
+import { pickDisplaySlots, slotsEnabled, substituteSlotPlaceholders } from './traceSlots.js';
 import { canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, parseTraceCode, parseTraceRule, verifyTraceCode } from './traceCode.js';
 import { checkQueryQuota, registerTraceQuery } from './traceQuery.js';
 
@@ -15,11 +15,6 @@ function absUrl(base, url) {
   if (/^https?:\/\//i.test(u)) return u; // 已是绝对地址（含 http/https）
   if (!base) return u;
   return `${base.replace(/\/+$/, '')}/${u.replace(/^\/+/, '')}`;
-}
-function substitute(tpl, code, tenantId) {
-  return String(tpl || '')
-    .replace(/\{CODE\}/g, code)
-    .replace(/\{TID\}/g, String(tenantId));
 }
 
 /**
@@ -648,10 +643,31 @@ export class WxMpService {
     return `<xml><ToUserName><![CDATA[${this.escapeCdata(fromUser)}]]></ToUserName><FromUserName><![CDATA[${this.escapeCdata(toUser)}]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[${this.escapeCdata(content)}]]></Content></xml>`;
   }
 
+  /**
+   * 被动回复图文（news）。
+   *
+   * 🔴🔴 微信被动回复与客服消息接口的图文消息**只能 1 条**（微信 2018-10-12 规则调整后）。
+   *    超限时：客服接口返回 `45008 article size out of limit`；被动回复则整条被判非法
+   *    → 粉丝端显示「该公众号提供的服务出现故障，请稍后再试」（2026-10-30 线上事故根因）。
+   *    实测（生产同构数据 + 生产凭据调 cgi-bin/message/custom/send）：
+   *      2 条图文 → {"errcode":45008,"errmsg":"article size out of limit"}
+   *      1 条图文 → {"errcode":0}
+   *    → 这里做**出口硬截断**：不管调用方传几条，一律只发第 1 条，
+   *      保证「最多 1 条」这条平台规则只有一个实现点，不靠各处调用方自觉。
+   */
   buildNewsReply({ toUser, fromUser, articles }) {
-    const items = (articles || []).map((a) => `<item><Title><![CDATA[${this.escapeCdata(a.title)}]]></Title><Description><![CDATA[${this.escapeCdata(a.description || a.digest || '')}]]></Description><PicUrl><![CDATA[${this.escapeCdata(a.picurl || a.thumb_url || '')}]]></PicUrl><Url><![CDATA[${this.escapeCdata(a.url || '')}]]></Url></item>`).join('');
+    const all = Array.isArray(articles) ? articles : [];
+    if (all.length > 1) {
+      // 截断不是"丢内容"而是"保命"：多发一条整条作废，消费者连验真结论都拿不到。
+      console.warn('[wx-mp] 被动回复图文超过 1 条，已截断为第 1 条（微信图文消息接口上限=1）', {
+        count: all.length,
+        titles: all.map((a) => a?.title).filter(Boolean).slice(0, 5),
+      });
+    }
+    const list = all.slice(0, 1);
+    const items = list.map((a) => `<item><Title><![CDATA[${this.escapeCdata(a.title)}]]></Title><Description><![CDATA[${this.escapeCdata(a.description || a.digest || '')}]]></Description><PicUrl><![CDATA[${this.escapeCdata(a.picurl || a.thumb_url || '')}]]></PicUrl><Url><![CDATA[${this.escapeCdata(a.url || '')}]]></Url></item>`).join('');
     const t = Math.floor(Date.now() / 1000);
-    return `<xml><ToUserName><![CDATA[${this.escapeCdata(fromUser)}]]></ToUserName><FromUserName><![CDATA[${this.escapeCdata(toUser)}]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[news]]></MsgType><ArticleCount>${articles.length}</ArticleCount><Articles>${items}</Articles></xml>`;
+    return `<xml><ToUserName><![CDATA[${this.escapeCdata(fromUser)}]]></ToUserName><FromUserName><![CDATA[${this.escapeCdata(toUser)}]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[news]]></MsgType><ArticleCount>${list.length}</ArticleCount><Articles>${items}</Articles></xml>`;
   }
 
   buildMediaReply({ toUser, fromUser, type, mediaId }) {
@@ -741,26 +757,33 @@ export class WxMpService {
     const slots = Array.isArray(settings.displaySlots) ? settings.displaySlots : [];
     const isFirstQuery = Number(rec?.num || 0) <= 1;
     const isTopQueryer = Boolean(rec?.openid) && rec.openid === fromUser;
-    const h5Fallback = `${String(baseUrl || '').replace(/\/+$/, '')}/card/#/pages/trace/index?co=${encodeURIComponent(code)}&tid=${tenantId}`;
     // 🔴 防御：封面解析不出合法 http(s) 地址的展示位直接丢弃（不弹卡片），
     //    否则空 PicUrl 会让整条 news 被微信拒收 → 「服务出现故障」（#519 同类根因）。
-    const picked = slots.length
+    //    展示位总开关关掉时（slotsEnabled=0）整个区块不下发。
+    const picked = (slots.length && slotsEnabled(settings))
       ? pickDisplaySlots(slots, { isFirstQuery, isTopQueryer }).filter((s) => /^https?:\/\//i.test(absUrl(baseUrl, s.cover || '')))
       : [];
-    // 🔴 展示位没配（或本次全被条件过滤掉）时**不能回 null**：
-    //    消费者长按识别了却一句话没有 = 「公众号推送」这个方案当场变成哑开关，
-    //    商户还会以为是微信没配好。兜底给一张「验真结果卡」，跳溯源页。
-    const articles = picked.length
-      ? picked.map((s) => ({
-        title: substitute(s.title || '溯源信息', code, tenantId),
-        description: '',
-        picurl: absUrl(baseUrl, s.cover),
-        url: substitute(s.link || h5Fallback, code, tenantId),
-      }))
-      : [this._traceResultArticle({ code, batch, num: Number(rec?.num || 0) || 1, first: isFirstQuery, queriedAt: rec?.queried_at, baseUrl, tenantId, settings })];
-    if (!baseUrl) return this.buildTextReply({ toUser: channel.appid, fromUser, content: articles[0].description });
+    // 🔴🔴 微信被动回复的图文消息**只能 1 条**（微信 2018-10-12 规则调整后）。
+    //    原实现是「一个展示位一条图文」：租户配 2 个位 → 每次扫码发 2 条图文
+    //    → 微信整条判非法（客服接口同款数据实测返回 45008 article size out of limit）
+    //    → 粉丝端显示「该公众号提供的服务出现故障，请稍后再试」（2026-10-30 线上事故）。
+    //    现在统一发**一张验真结果卡**：
+    //      · 主体 = 验真结论（消费者扫码就是为了这个，不能让位给广告）；
+    //      · 配图 = 批次主图 banner 优先，缺失时回落第一条展示位封面，都没有则回落文字（#519）；
+    //      · 展示位不再占图文位，改由 H5 溯源页以「海报下方的广告位」承载（#521/#522）；
+    //        微信里保留一行推广露出，保证「配了就有反应」，不至于变成哑配置。
+    const article = this._traceResultArticle({ code, batch, num: Number(rec?.num || 0) || 1, first: isFirstQuery, queriedAt: rec?.queried_at, baseUrl, tenantId, settings });
+    const slotCover = picked.length ? absUrl(baseUrl, picked[0].cover) : '';
+    article.picurl = absUrl(baseUrl, batch.banner || '') || slotCover;
+    const promoTitles = picked
+      .map((s) => substituteSlotPlaceholders(s.title, { code, tenantId }).trim())
+      .filter(Boolean);
+    if (promoTitles.length) {
+      article.description = `${article.description}\n\n—— 推荐：${promoTitles.join(' / ')}`;
+    }
+    if (!baseUrl) return this.buildTextReply({ toUser: channel.appid, fromUser, content: article.description });
     // 🔴 空 PicUrl → 微信拒收 news → 「服务出现故障」；缺图整体回落文字（#519）。
-    return this._safeTraceReply({ channel, fromUser, baseUrl, articles });
+    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article] });
   }
 
   /**

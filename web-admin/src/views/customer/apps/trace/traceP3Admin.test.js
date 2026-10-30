@@ -93,3 +93,33 @@ describe('#522 独立活动广告位（后台）', () => {
     expect(routeSrc).toContain('\\[KEY\\]');
   });
 });
+
+describe('#522 展示位双开关（区块总开关 + 每位隐藏）', () => {
+  test('区块头部有「展示位开关」总开关，绑到 s.slotsEnabled', () => {
+    expect(pageSrc).toContain('v-model="s.slotsEnabled"');
+    expect(pageSrc).toContain('slotsEnabled: 1');
+  });
+
+  test('每个位有隐藏/显示开关，绑到 it.hidden（1=隐藏）', () => {
+    expect(pageSrc).toContain('v-model="it.hidden"');
+    expect(pageSrc).toContain('active-text="已隐藏"');
+  });
+
+  test('表单回填把 hidden 归一化成 0/1（undefined 进 el-switch 会被误判成已隐藏）', () => {
+    expect(pageSrc).toContain('hidden: Number(it.hidden) === 1 ? 1 : 0,');
+  });
+
+  test('保存时把 hidden 一起提交给服务端（不提交 = 开关存了但没生效）', () => {
+    expect(pageSrc).toContain('when: it.when,\n        hidden: Number(it.hidden) === 1 ? 1 : 0,');
+  });
+
+  test('服务端归一化总开关，且总开关关掉时不下发展示位', () => {
+    expect(routeSrc).toContain("if ('slotsEnabled' in patch) patch.slotsEnabled = normalizeTraceSwitch(patch.slotsEnabled)");
+    expect(routeSrc).toContain('slotsEnabled(settings) ? pickDisplaySlots');
+  });
+
+  test('过时注释必须改掉：不能再把 8 说成「公众号图文消息单条 1~8 图文的接口上限」', () => {
+    // 🔴 微信被动回复图文只能 1 条；8 是我们自定的产品上限。注释说错会导致下次照着它去配展示位。
+    expect(pageSrc).not.toContain('与公众号图文消息单条 1~8 图文的接口上限一致');
+  });
+});

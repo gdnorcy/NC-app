@@ -213,4 +213,63 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
     const num = db.prepare('SELECT num FROM trace_codes WHERE tenant_id = ? AND code = ?').get(T, code)?.num;
     assert.equal(Number(num), 3, `三次查询后 num 应为 3，实际 ${num}`);
   });
+
+  // ── 9) 展示位总开关（slotsEnabled）：关掉 → C 端一个位都不下发 ─────────
+  it('总开关关掉 → C 端不下发任何展示位（后台关掉即彻底不出现）', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches')).send({ batch: 'SW01', product: '开关产品' });
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    const off = await putSettings({ slotsEnabled: 0, displaySlots: [{ ...SLOTS[0], hidden: 0 }] });
+    assert.equal(off.status, 200, JSON.stringify(off.body));
+    assert.equal(Number(JSON.parse(storedJson()).slotsEnabled), 0, '总开关没落库');
+
+    const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'sw1').send({ co: code });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.deepEqual(res.body.slots, [], '总开关关掉后 C 端仍下发了展示位');
+  });
+
+  // ── 10) 位级隐藏开关（hidden）：该位不下发，其它位照常 ────────────────
+  it('单个位 hidden=1 → 该位不下发，其它位不受影响', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches')).send({ batch: 'HD01', product: '隐藏产品' });
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    await putSettings({
+      slotsEnabled: 1,
+      displaySlots: [
+        { ...SLOTS[0], title: '保留位', hidden: 0 },
+        { ...SLOTS[1], title: '隐藏位', hidden: 1 },
+      ],
+    });
+    const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'hd1').send({ co: code });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.deepEqual(res.body.slots.map((s) => s.title), ['保留位'], 'hidden 位不该下发');
+  });
+
+  // ── 11) GET 回显双开关（后台开关不回显 = 用户以为没保存） ─────────────
+  it('GET 回显带 slotsEnabled 与每个位的 hidden', async () => {
+    await putSettings({ slotsEnabled: 1, displaySlots: [{ ...SLOTS[0], hidden: 1 }] });
+    const res = await auth(request(app).get('/api/customer/trace/settings'));
+    assert.equal(res.status, 200);
+    assert.equal(Number(res.body.settings.slotsEnabled), 1);
+    assert.equal(Number(res.body.settings.displaySlots[0].hidden), 1);
+  });
+
+  // ── 12) 占位符服务端替换（{CODE}/{TID}）──────────────────────────────
+  // 🔴 以前这个替换只在微信图文侧做过，C 端拿到的还是字面量 {CODE} → 点进去必然坏。
+  it('展示位标题/链接里的 {CODE}/{TID} 由服务端替换成真实值', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches')).send({ batch: 'PH01', product: '占位产品' });
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    await putSettings({
+      slotsEnabled: 1,
+      displaySlots: [{ when: 1, title: '码 {CODE}', cover: '/a.png', link: '/pages/x?co={CODE}&tid={TID}' }],
+    });
+    const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'ph1').send({ co: code });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.slots[0].link, `/pages/x?co=${code}&tid=${T}`, '链接占位符没被替换');
+    assert.equal(res.body.slots[0].title, `码 ${code}`, '标题占位符没被替换');
+  });
 });
