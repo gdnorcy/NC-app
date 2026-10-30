@@ -119,3 +119,31 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(src).toMatch(/class="tr-poster-mask" v-if="posterImage"/);
   });
 });
+
+// #527 扫码直接出结果（用户 2026-10-30 反馈：扫二维码还是「防伪查询 + 立即查询」那个界面）
+describe('#527 扫码直接出结果（不再停在表单页）', () => {
+  test('网页结果任何档位都展示（push_dynamic 不再把结果藏起来）', () => {
+    // 🔴 之前 showWebResult = !pushMode || pushErr → 「网页 + 公众号推送」档位下
+    //    扫码进来只有「请在公众号内查看验真结果」，看不到海报版式，等于这一档没有结果。
+    expect(src).toMatch(/const showWebResult = computed\(\(\) => true\);/);
+  });
+
+  test('查完把输入表单收起来，只留「换个码再查」', () => {
+    expect(src).toContain('class="tr-recheck"');
+    expect(src).toMatch(/reQuery\.value = false;/);
+    expect(src).toMatch(/const reQuery = ref\(false\);/);
+  });
+
+  test('公众号推送降级为并行补充（文案不再说「只有公众号才有结果」）', () => {
+    expect(src).toContain('公众号也会推一份验真结果');
+    // 模板里不能再有旧的标题（注释里复述用户反馈可以保留）
+    expect(src).not.toContain('class="tr-card-title">请在公众号内查看验真结果');
+  });
+
+  test('海报仍排在结果卡之前（版式顺序没被这次改动打乱）', () => {
+    const posterIdx = src.indexOf('class="tr-poster"');
+    const okIdx = src.indexOf('class="tr-card tr-card-ok"');
+    expect(posterIdx).toBeGreaterThan(-1);
+    expect(okIdx).toBeGreaterThan(posterIdx);
+  });
+});

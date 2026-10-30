@@ -212,10 +212,11 @@ describe('公众号会话发送防伪码 → 回复验真结果', () => {
     assert.ok(xml.includes('无横幅茶'), `文字里应带商品名：${xml}`);
   });
 
-  it('⑫ (#523) 配了 2 个展示位 → 被动回复仍只发 1 条图文（微信图文上限=1，2026-10-30 线上事故根因）', () => {
-    // 🔴 真事故复现：生产配了 2 个展示位 → 每次扫码发 2 条图文
-    //    → 微信整条判非法（客服接口同款数据实测 45008 article size out of limit）
-    //    → 粉丝端显示「该公众号提供的服务出现故障，请稍后再试」。
+  it('⑫ (#523) 配了 2 个展示位 → 扫码（事件消息）回一组卡片：1 张验真卡 + 2 张推广卡', () => {
+    // 🔴 扫码是**事件消息**，微信官方规则：「其余场景最多可回复 8 条图文消息」
+    //    → 一次给一组卡片（观感接近群发），第 1 张必须是验真结论。
+    //    ⚠️ 早期把"客服接口 1 条"当成"被动回复 1 条"，砍掉了扫码场景合法的多卡片能力；
+    //       文本消息那条路才是 1 条（见 ⑭）。
     setSettings({
       displaySlots: [
         { when: 1, title: '广告位一', cover: 'https://cdn.example.com/a.jpg', link: 'https://x.example.com/1' },
@@ -226,10 +227,30 @@ describe('公众号会话发送防伪码 → 回复验真结果', () => {
       // 用 CODE_B：它此前未被查询过（num=0）→ 文案是「验真通过」，断言更贴近首次扫码的真实场景
       const xml = scan(CODE_B);
       assert.ok(xml, '必须有回复');
-      assert.ok(xml.includes('<ArticleCount>1</ArticleCount>'), `图文必须只有 1 条：${xml}`);
-      assert.equal((xml.match(/<item>/g) || []).length, 1, 'XML 里只能有一个 item');
+      assert.ok(xml.includes('<ArticleCount>3</ArticleCount>'), `扫码应回 3 条图文：${xml}`);
+      assert.equal((xml.match(/<item>/g) || []).length, 3, 'XML 里应有三个 item');
       assert.ok(xml.includes('验真'), '主体必须是验真结论（不能让位给广告）');
-      assert.ok(xml.includes('广告位一') && xml.includes('广告位二'), '展示位标题作为推广露出保留');
+      assert.ok(xml.includes('广告位一') && xml.includes('广告位二'), '两个展示位各出一张推广卡');
+      const firstItem = (xml.match(/<item>[\s\S]*?<\/item>/) || [''])[0];
+      assert.ok(firstItem.includes('验真'), '第一张必须是验真结果卡');
+    } finally {
+      setSettings({ displaySlots: [] });
+    }
+  });
+
+  it('⑭ (#523) 会话里发防伪码（文本消息）→ 仍只回 1 条图文', () => {
+    // 🔴 文本消息通道微信只给 1 条图文额度（「只能回复 1 条图文消息」），不能照抄扫码那套。
+    setSettings({
+      displaySlots: [
+        { when: 1, title: '广告位一', cover: 'https://cdn.example.com/a.jpg', link: 'https://x.example.com/1' },
+      ],
+    });
+    try {
+      const xml = send(CODE_B);
+      assert.ok(xml, '必须有回复');
+      assert.ok(xml.includes('<ArticleCount>1</ArticleCount>'), `文本发码只能 1 条图文：${xml}`);
+      assert.equal((xml.match(/<item>/g) || []).length, 1, 'XML 里只能有一个 item');
+      assert.ok(xml.includes('验真'), '主体必须是验真结论');
     } finally {
       setSettings({ displaySlots: [] });
     }

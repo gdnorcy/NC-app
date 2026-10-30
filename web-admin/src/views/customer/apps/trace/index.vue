@@ -382,8 +382,18 @@
                   <el-col :span="12"><el-form-item label="企业简介"><el-input v-model.trim="s.profile" type="textarea" :rows="2" /></el-form-item></el-col>
                   <el-col :span="12"><el-form-item label="名片链接"><el-input v-model.trim="s.cardlink" placeholder="企业名片 URL" /></el-form-item></el-col>
                   <el-col :span="12"><el-form-item label="录入链接"><el-input v-model.trim="s.lurulink" placeholder="内部录入页 URL" /></el-form-item></el-col>
-                  <el-col :span="12"><el-form-item label="Logo"><el-input v-model.trim="s.logo" placeholder="图片 URL" /></el-form-item></el-col>
-                  <el-col :span="12"><el-form-item label="主图"><el-input v-model.trim="s.banner" placeholder="图片 URL" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="Logo">
+                    <div class="media-pick">
+                      <img v-if="s.logo" :src="s.logo" class="media-thumb" />
+                      <el-button link type="primary" @click="openImgPicker('settings', 'logo')">{{ s.logo ? '更换图片' : '选择素材' }}</el-button>
+                    </div>
+                  </el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="主图">
+                    <div class="media-pick">
+                      <img v-if="s.banner" :src="s.banner" class="media-thumb" />
+                      <el-button link type="primary" @click="openImgPicker('settings', 'banner')">{{ s.banner ? '更换图片' : '选择素材' }}</el-button>
+                    </div>
+                  </el-form-item></el-col>
                 </el-row>
               </el-form>
             </el-card>
@@ -411,14 +421,19 @@
                 <div class="slot-head">
                   <span class="card-title">首页展示位</span>
                   <!-- 🔴 总开关（用户 2026-10-30 拍板）：整块「推荐」区块的开关。
-                       关掉后 C 端结果页与公众号卡片都不再出现这个区块（服务端不下发 slots）。 -->
+                       关掉后 C 端结果页与公众号卡片都不再出现这个区块（服务端不下发 slots）。
+                       🔴 inline-prompt：文字画在开关**内部**，只显示当前状态那一个词 ——
+                          用 active-text/inactive-text 时 Element Plus 会把两侧文字都渲染出来，
+                          「开启 | 关闭」并排显示，反而看不出当前状态（用户 2026-10-30 反馈）。 -->
                   <el-switch
                     v-model="s.slotsEnabled"
                     :active-value="1"
                     :inactive-value="0"
                     size="small"
+                    inline-prompt
                     active-text="开启"
                     inactive-text="关闭"
+                    class="sw-prompt sw-prompt-2"
                   />
                   <span class="form-hint">最多 {{ SLOT_MAX }} 个；关闭后 C 端结果页与公众号卡片都不再出现「推荐」区块</span>
                 </div>
@@ -434,14 +449,20 @@
                   <div class="slot-ops">
                     <!-- 🔴 位级隐藏开关（用户 2026-10-30 拍板）：与「展示条件」是**两道独立闸门**。
                          展示条件 = 按本次查询态挑（关闭/全部/首次/首位每次/非首位）；
-                         隐藏 = 这个位整个关掉（与查询态无关，配置层就藏起来，随时可恢复）。 -->
+                         隐藏 = 这个位整个关掉（与查询态无关，配置层就藏起来，随时可恢复）。
+                         🔴 语义改成「显示」向：开关打开 = 这个位显示，关闭 = 隐藏（与用户口语一致）。
+                         底层字段仍是 hidden（1=隐藏），这里做一层取反映射，别去动服务端契约。
+                         inline-prompt：文字只画在开关内部，只显示当前状态那一个词。 -->
                     <el-switch
-                      v-model="it.hidden"
+                      :model-value="Number(it.hidden) === 1 ? 0 : 1"
                       :active-value="1"
                       :inactive-value="0"
                       size="small"
-                      active-text="已隐藏"
-                      inactive-text="显示"
+                      inline-prompt
+                      active-text="显示"
+                      inactive-text="隐藏"
+                      class="sw-prompt sw-prompt-2"
+                      @change="(v) => { it.hidden = Number(v) === 1 ? 0 : 1; }"
                     />
                     <el-button link size="small" :disabled="i === 0" @click="moveSlot(i, -1)">上移</el-button>
                     <el-button link size="small" :disabled="i === s.displaySlots.length - 1" @click="moveSlot(i, 1)">下移</el-button>
@@ -536,8 +557,10 @@
                   </el-select>
                 </el-form-item>
                 <el-form-item label="广告图">
-                  <el-input v-model.trim="s.activity.cover" placeholder="图片 URL（建议 750×300）" />
-                  <el-button link type="primary" class="ml8" @click="openActivityCover">选择素材</el-button>
+                  <div class="media-pick">
+                    <img v-if="s.activity.cover" :src="s.activity.cover" class="media-thumb" />
+                    <el-button link type="primary" @click="openImgPicker('activity', 'cover')">{{ s.activity.cover ? '更换图片' : '选择素材' }}</el-button>
+                  </div>
                 </el-form-item>
                 <el-form-item label="标题文案">
                   <el-input v-model.trim="s.activity.title" placeholder="如：扫码领周年庆福利，可含 [FWM] / [KEY]" />
@@ -552,7 +575,9 @@
                 </el-form-item>
               </el-form>
             </el-card>
-            <MaterialPicker v-model="activityCoverPicker.show" @confirm="onPickActivityCover" />
+            <!-- 🔴 通用图片/视频字段选择器（企业 Logo / 主图、批次 Logo / 主图 / 视频、广告图） -->
+            <MaterialPicker v-model="imgPicker.show" file-type="image" @confirm="onPickImg" />
+            <MaterialPicker v-model="vidPicker.show" file-type="video" @confirm="onPickVideo" />
           </section>
         </main>
 
@@ -797,9 +822,24 @@
         </el-card>
 
         <template v-if="batchDlg.isEdit">
-          <el-form-item label="Logo"><el-input v-model.trim="batchDlg.form.logo" placeholder="图片 URL" /></el-form-item>
-          <el-form-item label="主图"><el-input v-model.trim="batchDlg.form.banner" placeholder="图片 URL" /></el-form-item>
-          <el-form-item label="视频"><el-input v-model.trim="batchDlg.form.video" placeholder="视频 URL" /></el-form-item>
+          <el-form-item label="Logo">
+            <div class="media-pick">
+              <img v-if="batchDlg.form.logo" :src="batchDlg.form.logo" class="media-thumb" />
+              <el-button link type="primary" @click="openImgPicker('batch', 'logo')">{{ batchDlg.form.logo ? '更换图片' : '选择素材' }}</el-button>
+            </div>
+          </el-form-item>
+          <el-form-item label="主图">
+            <div class="media-pick">
+              <img v-if="batchDlg.form.banner" :src="batchDlg.form.banner" class="media-thumb" />
+              <el-button link type="primary" @click="openImgPicker('batch', 'banner')">{{ batchDlg.form.banner ? '更换图片' : '选择素材' }}</el-button>
+            </div>
+          </el-form-item>
+          <el-form-item label="视频">
+            <div class="media-pick">
+              <span class="media-url" v-if="batchDlg.form.video">{{ batchDlg.form.video }}</span>
+              <el-button link type="primary" @click="openVidPicker('batch', 'video')">{{ batchDlg.form.video ? '更换视频' : '选择素材' }}</el-button>
+            </div>
+          </el-form-item>
           <el-form-item label="购买链接"><el-input v-model.trim="batchDlg.form.buyLink" /></el-form-item>
           <el-form-item label="批次状态">
             <el-switch v-model="batchDlg.form.isActive" active-text="启用" inactive-text="停用" />
@@ -1671,13 +1711,43 @@ function onPickCover(url) {
   s.displaySlots[i].cover = url;
   coverPicker.show = false;
 }
-// 🔴 P3 活动广告位封面：复用系统素材选择器
-const activityCoverPicker = reactive({ show: false });
-function openActivityCover() { activityCoverPicker.show = true; }
-function onPickActivityCover(url) {
-  if (url) s.activity.cover = url;
-  activityCoverPicker.show = false;
+
+/**
+ * 🔴 通用图片/视频字段的选择器入口（用户 2026-10-30 拍板）：
+ *    应用里凡是"图片类型 / 视频类型"的字段，一律走系统素材选择器上传，
+ *    不再让运营手填 URL —— 手填出来的相对路径 / 外链在 C 端与公众号卡片里全是坑。
+ *    target = 写回哪块对象（settings / batch / activity），field = 字段名。
+ *    🔴 图片与视频**分两个 picker 实例**：MaterialPicker 的 accept 属性在 setup 时就定死了，
+ *    同一个实例改 fileType 不会更新 accept。
+ */
+const imgPicker = reactive({ show: false, target: '', field: '' });
+const vidPicker = reactive({ show: false, target: '', field: '' });
+function openImgPicker(target, field) {
+  imgPicker.target = target;
+  imgPicker.field = field;
+  imgPicker.show = true;
 }
+function openVidPicker(target, field) {
+  vidPicker.target = target;
+  vidPicker.field = field;
+  vidPicker.show = true;
+}
+function writePicked(picker, url) {
+  if (!url) return;
+  if (picker.target === 'settings') s[picker.field] = url;
+  else if (picker.target === 'batch') batchDlg.form[picker.field] = url;
+  else if (picker.target === 'activity') s.activity.cover = url;
+}
+function onPickImg(url) {
+  writePicked(imgPicker, url);
+  imgPicker.show = false;
+}
+function onPickVideo(url) {
+  writePicked(vidPicker, url);
+  vidPicker.show = false;
+}
+// 🔴 P3 活动广告位封面：现在统一走通用图片选择器（imgPicker，target='activity'），
+//    不再单独开一个 picker 实例（少一个入口 = 少一处口径不一致）。
 
 const rawJson = ref('');
 const rawError = ref('');
@@ -1950,6 +2020,15 @@ onMounted(() => {
 .slot-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 12px 16px 0; margin-bottom: 12px; background: #fafbfc; }
 /* 🔴 位级隐藏的视觉降权：配置还在（随时可恢复），但一眼能看出「这个位没上线」。 */
 .slot-item-off { opacity: 0.55; background: #f2f3f5; }
+/* 🔴 开关内嵌文字（inline-prompt）：文字画在开关内部，只显示当前状态那一个词。
+   Element Plus 的 .el-switch__core 默认 min-width:40px，装不下两个汉字 → 这里放宽轨道。
+   文字区宽度 = 轨道宽 − 18px(让位给滑块) − 4px，所以 52px 轨道刚好放下「显示 / 隐藏」。 */
+.sw-prompt-2 :deep(.el-switch__core) { width: 52px; min-width: 52px; }
+.sw-prompt-2 :deep(.el-switch__inner) { font-size: 12px; }
+/* 🔴 图片/视频字段统一形态：缩略图 + 「选择素材」按钮（走系统素材选择器，不再手填 URL） */
+.media-pick { display: flex; align-items: center; gap: 10px; }
+.media-thumb { width: 90px; height: 68px; object-fit: cover; border-radius: 6px; display: block; border: 1px solid #e5e6eb; }
+.media-url { font-size: 12px; color: #86909c; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .slot-item-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .slot-idx { font-size: 13px; font-weight: 600; color: #1d2129; }
 .slot-ops { margin-left: auto; display: flex; gap: 4px; }

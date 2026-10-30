@@ -646,25 +646,31 @@ export class WxMpService {
   /**
    * 被动回复图文（news）。
    *
-   * 🔴🔴 微信被动回复与客服消息接口的图文消息**只能 1 条**（微信 2018-10-12 规则调整后）。
-   *    超限时：客服接口返回 `45008 article size out of limit`；被动回复则整条被判非法
-   *    → 粉丝端显示「该公众号提供的服务出现故障，请稍后再试」（2026-10-30 线上事故根因）。
-   *    实测（生产同构数据 + 生产凭据调 cgi-bin/message/custom/send）：
-   *      2 条图文 → {"errcode":45008,"errmsg":"article size out of limit"}
-   *      1 条图文 → {"errcode":0}
-   *    → 这里做**出口硬截断**：不管调用方传几条，一律只发第 1 条，
-   *      保证「最多 1 条」这条平台规则只有一个实现点，不靠各处调用方自觉。
+   * 🔴🔴 图文条数上限**按触发场景分层**，不是全局一个数（2026-10-30 复查微信官方文档原文）：
+   *   · 事件消息（扫码推事件 / 关注事件）→「其余场景最多可回复 8 条图文消息」→ 可给一组卡片；
+   *   · 文本消息（粉丝发一句话/一个防伪码）→「只能回复 1 条图文消息」；
+   *   · 客服接口 cgi-bin/message/custom/send → 限 1 条，超出返回 45008 article size out of limit
+   *     （实测：2 条 → 45008；1 条 → errcode 0）。
+   *   ⚠️ 早期把"客服接口 1 条"当成"被动回复 1 条"，把扫码场景合法的多卡片能力砍掉了，
+   *      也导致一次误判事故根因（2026-10-30）。现在上限由调用方按场景传，默认仍是 1。
    */
-  buildNewsReply({ toUser, fromUser, articles }) {
+  buildNewsReply({ toUser, fromUser, articles, max = 1 }) {
     const all = Array.isArray(articles) ? articles : [];
-    if (all.length > 1) {
-      // 截断不是"丢内容"而是"保命"：多发一条整条作废，消费者连验真结论都拿不到。
-      console.warn('[wx-mp] 被动回复图文超过 1 条，已截断为第 1 条（微信图文消息接口上限=1）', {
+    // 🔴🔴🔴 条数上限**按触发场景分层**（2026-10-30 复查微信官方规则原文，别再当成"全局 1 条"）：
+    //   · 事件消息（扫码推事件 / 关注事件）：官方文档「其余场景最多可回复 8 条图文消息」
+    //     → 扫码场景可以一次给消费者**一组卡片**（验真卡 + 推广卡），观感接近群发。
+    //   · 文本消息（粉丝发一句话或一个防伪码）：「只能回复 1 条图文消息」。
+    //   · 客服接口 cgi-bin/message/custom/send：图文条数限制 1 条以内，超过返回 45008。
+    //   所以这里不是"无脑砍到 1 条"，而是"砍到调用方给的场景上限"；默认取最保守的 1。
+    const cap = Math.max(1, Math.min(8, Number(max) || 1));
+    if (all.length > cap) {
+      console.warn(`[wx-mp] 被动回复图文超过 ${cap} 条，已截断`, {
         count: all.length,
+        cap,
         titles: all.map((a) => a?.title).filter(Boolean).slice(0, 5),
       });
     }
-    const list = all.slice(0, 1);
+    const list = all.slice(0, cap);
     const items = list.map((a) => `<item><Title><![CDATA[${this.escapeCdata(a.title)}]]></Title><Description><![CDATA[${this.escapeCdata(a.description || a.digest || '')}]]></Description><PicUrl><![CDATA[${this.escapeCdata(a.picurl || a.thumb_url || '')}]]></PicUrl><Url><![CDATA[${this.escapeCdata(a.url || '')}]]></Url></item>`).join('');
     const t = Math.floor(Date.now() / 1000);
     return `<xml><ToUserName><![CDATA[${this.escapeCdata(fromUser)}]]></ToUserName><FromUserName><![CDATA[${this.escapeCdata(toUser)}]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[news]]></MsgType><ArticleCount>${list.length}</ArticleCount><Articles>${items}</Articles></xml>`;
@@ -775,15 +781,26 @@ export class WxMpService {
     const article = this._traceResultArticle({ code, batch, num: Number(rec?.num || 0) || 1, first: isFirstQuery, queriedAt: rec?.queried_at, baseUrl, tenantId, settings });
     const slotCover = picked.length ? absUrl(baseUrl, picked[0].cover) : '';
     article.picurl = absUrl(baseUrl, batch.banner || '') || slotCover;
-    const promoTitles = picked
-      .map((s) => substituteSlotPlaceholders(s.title, { code, tenantId }).trim())
-      .filter(Boolean);
-    if (promoTitles.length) {
-      article.description = `${article.description}\n\n—— 推荐：${promoTitles.join(' / ')}`;
-    }
+    // 🔴 扫码是**事件消息**（扫码推事件 / 关注事件），官方规则允许一次回最多 8 条图文
+    //    → 这里给消费者一组卡片：第 1 张是验真结论（主体），后面跟展示位推广卡，
+    //      观感接近群发的一组图文。文本发码那条路只有 1 条额度，仍走描述里的推广行。
+    const h5Url = article.url;
+    const slotCards = picked.map((s, i) => {
+      const title = substituteSlotPlaceholders(s.title, { code, tenantId }).trim() || `推荐 ${i + 1}`;
+      const link = substituteSlotPlaceholders(s.link || '', { code, tenantId }).trim();
+      return {
+        title,
+        description: `${title}\n点击查看详情`,
+        // PicUrl 必须是合法 http(s) 绝对地址（微信对空/非法图会整条拒收）→ 上面已过滤
+        picurl: absUrl(baseUrl, s.cover || ''),
+        // 跳转链接只认 http(s)；填了内部/相对链接就回落到 H5 溯源页，保证卡片点了有反应
+        url: /^https?:\/\//i.test(link) ? link : h5Url,
+      };
+    });
     if (!baseUrl) return this.buildTextReply({ toUser: channel.appid, fromUser, content: article.description });
     // 🔴 空 PicUrl → 微信拒收 news → 「服务出现故障」；缺图整体回落文字（#519）。
-    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article] });
+    //    max=8：事件消息场景的官方额度；文本发码那条路走默认值 1。
+    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article, ...slotCards], max: 8 });
   }
 
   /**
@@ -826,11 +843,11 @@ export class WxMpService {
    * 回落策略：articles 中**任一篇**缺合法 http(s) 图，整体改发文字
    * （标题+描述+链接拼成可读文本），保证用户一定拿到验真信息而非报错。
    */
-  _safeTraceReply({ channel, fromUser, baseUrl, articles, fallbackText }) {
+  _safeTraceReply({ channel, fromUser, baseUrl, articles, fallbackText, max = 1 }) {
     const list = Array.isArray(articles) ? articles : [];
     const allHavePic = list.length > 0
       && list.every((a) => /^https?:\/\//i.test(String(a.picurl || a.thumb_url || '')));
-    if (allHavePic) return this.buildNewsReply({ toUser: channel.appid, fromUser, articles: list });
+    if (allHavePic) return this.buildNewsReply({ toUser: channel.appid, fromUser, articles: list, max });
     const text = (fallbackText && String(fallbackText).trim())
       || list.map((a) => [a.title, a.description, a.url].filter(Boolean).join('\n')).filter((s) => s.trim()).join('\n\n')
       || '防伪查询完成，请点击溯源页面查看详情。';
@@ -966,7 +983,20 @@ export class WxMpService {
       if (rule.reply_type === 'news') {
         let articles = [];
         try { articles = JSON.parse(rule.media_json || '[]'); } catch { /* 解析失败视为空 */ }
-        return this.buildNewsReply({ toUser, fromUser, articles });
+        // 🔴 关键词图文回复走的是**文本消息**通道（额度 1 条），且微信对空/非法 PicUrl 会整条拒收
+        //    → 粉丝端「服务出现故障」。这里补齐绝对地址并剔除没图的条目；
+        //      一条都不剩就整体回落文字（信息不丢，至少能看见）。
+        const base = String(ctx.baseUrl || '').replace(/\/+$/, '');
+        const usable = (Array.isArray(articles) ? articles : [])
+          .map((a) => ({ ...a, picurl: absUrl(base, a?.picurl || a?.thumb_url || '') }))
+          .filter((a) => /^https?:\/\//i.test(String(a.picurl || '')));
+        if (!usable.length) {
+          const text = (Array.isArray(articles) ? articles : [])
+            .map((a) => [a?.title, a?.description, a?.url].filter(Boolean).join('\n'))
+            .filter((s) => s.trim()).join('\n\n');
+          return this.buildTextReply({ toUser, fromUser, content: text || '暂无可展示的内容' });
+        }
+        return this.buildNewsReply({ toUser, fromUser, articles: usable });
       }
       if (rule.reply_type === 'transfer') {
         const t = Math.floor(Date.now() / 1000);
@@ -1110,7 +1140,29 @@ export class WxMpService {
 
     const msg = this.parseMessageXml(xml);
     const reply = this.resolveReply(channel, msg, { baseUrl });
-    if (!reply) return { reply: null };
+    // 🔴 被动回复诊断日志（2026-10-30 事故后加）：
+    //    微信只在粉丝端显示一句「服务出现故障」，**不告诉开发者到底哪不对**，
+    //    此前只能靠猜（PicUrl？条数？图片大小？），每次复现都要重新推理一遍。
+    //    这里把「收到什么 + 回什么」都落日志，下次复现直接看这一行就能定位。
+    console.info('[wx-message] 收到', {
+      appid,
+      encrypted,
+      msgType: msg.msgType,
+      event: msg.event || '',
+      eventKey: String(msg.eventKey || '').slice(0, 60),
+      content: String(msg.content || '').slice(0, 60),
+      fromUser: msg.fromUser || '',
+    });
+    if (!reply) {
+      console.info('[wx-message] 无回复（按微信规则可应答 success）', { appid, msgType: msg.msgType, event: msg.event || '' });
+      return { reply: null };
+    }
+    console.info('[wx-message] 回复', {
+      appid,
+      msgType: (reply.match(/<MsgType><!\[CDATA\[(.*?)\]\]>/) || [])[1] || '',
+      articleCount: (reply.match(/<ArticleCount>(\d+)<\/ArticleCount>/) || [])[1] || 0,
+      bytes: Buffer.byteLength(reply),
+    });
 
     if (encrypted) {
       const wxc = new WxCrypto(cfg.msg_token, cfg.encoding_aes_key, appid);
