@@ -1,1 +1,1 @@
-"use strict";exports._imports_0="/static/superform/id-front.png",exports._imports_1="/static/superform/license.png",exports._imports_2="/static/superform/id-beck.png";
+"use strict";exports._imports_0="/static/trace/poster-bg.jpg",exports._imports_0$1="/static/superform/id-front.png",exports._imports_1="/static/superform/license.png",exports._imports_2="/static/superform/id-beck.png";
