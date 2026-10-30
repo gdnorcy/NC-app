@@ -414,13 +414,20 @@ export class WxCrypto {
     return sha1 === signature;
   }
 
-  /** 加密被动回复 XML（安全/兼容模式）：标准微信 AES-256-CBC + PKCS7(32) 填充。 */
-  encrypt(replyMsg, nonce, timestamp) {
+  /**
+   * 加密被动回复 XML（安全/兼容模式）：标准微信 AES-256-CBC + PKCS7(32) 填充。
+   *
+   * 🔴🔴🔴 密文尾部标识必须是**公众号原始ID**（gh_ 开头），不是 appid：
+   *    微信解密后会拿尾部跟本公众号的原始ID比对，不一致就整条丢弃
+   *    → 粉丝端「该公众号提供的服务出现故障」。originalId 由调用方从入站报文的
+   *    ToUserName 取（那本来就是原始ID）；取不到才退回 this.appid。
+   */
+  encrypt(replyMsg, nonce, timestamp, originalId = '') {
     const random16 = crypto.randomBytes(16);
     const msgBuf = Buffer.from(replyMsg, 'utf8');
     const lenBuf = Buffer.alloc(4);
     lenBuf.writeUInt32BE(msgBuf.length, 0);
-    const appidBuf = Buffer.from(this.appid, 'utf8');
+    const appidBuf = Buffer.from(String(originalId || this.appid || ''), 'utf8');
     let raw = Buffer.concat([random16, lenBuf, msgBuf, appidBuf]);
     const blockSize = 32;
     const padLen = blockSize - (raw.length % blockSize);
