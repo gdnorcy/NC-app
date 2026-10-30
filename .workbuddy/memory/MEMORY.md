@@ -8,6 +8,7 @@
 - **整批约束校验必须整批传入**：`list.map(x => normalize([x]))` 逐个调 → 每次只看 1 个 → 上限永不触发（真事故：展示位「最多 8 个」形同虚设）。纯函数单测全绿也照漏，路由层测试才拦得住。
 - `node --test $FILES` 多文件被当单路径 → `$(cat list.txt | tr '\n' ' ')` 展开。node:sqlite run() 返回 **lastInsertRowid（小写 d）**。
 - SIcon 图标名必须命中 `web-admin/src/assets/icons/svg/{name}.svg`，**缺失=静默渲染空白**（不报错）→ 守卫测试 `web-admin/src/components/SIcon.test.js`。
+- 后台设置里的**对象字段**回填必须「默认值 ⊕ 已存字段」合并，不能整体覆盖：库里存了 null/残缺对象时模板读 `s.x.y` 直接抛错 → 整个设置页白屏（generic `s[key]=src[key]` 循环是这类 bug 的温床）。
 
 ## 1 测试
 - node:test 三坑：① before() 已跑种子打 mark → 测"未迁移"须 beforeEach 重置；② beforeEach 传 const 函数引用 TDZ → 包箭头；③ ESM after() 写 require → hookFailed 但 test 全过（看 suite 行）。
@@ -21,7 +22,7 @@
 - main 跟踪陈旧产物：mv 新产物到 /tmp → checkout -f deploy → merge → 旧版 cp -a 铺回（防 card/card 嵌套）→ add -f；回 main 后 `git checkout --` 恢复。往返吞未提交修改（含 memory）。
 - safe-delete 拦 >50 文件删除：uni build / build:admin 清目录会被拦 → 先 mv 目标目录到 /tmp 再构建。H5 要 mv `assets` + `static` 两处（只 mv assets 不够）。
 - 只验 MP 编译不产跟踪产物：`npx uni build -p mp-weixin`（不带 strip/gen-sicons/stamp/sync）→ 产物留 gitignore 的 web-app/dist，main 零污染。
-- build:h5 不含同步：从仓库根跑 `node scripts/sync-mobile-dist.mjs` 才进 server/public/{card,mall}。MP 是第四产物面：新分包须跑 `build:mp-weixin -w web-app`（stamp @提交）才进小程序；只跑 build:h5 只覆盖 card/mall。提交前 grep 特征串验证；push 后 `git ls-remote origin <branch>` 校验。
+- build:h5 不含同步：从仓库根跑 `node scripts/sync-mobile-dist.mjs` 才进 server/public/{card,mall}。MP 是第四产物面：新分包须跑 `build:mp-weixin -w web-app`（stamp @提交）才进小程序；只跑 build:h5 只覆盖 card/mall。提交前 grep 特征串验证；push 后 `git ls-remote origin <branch>` 校验。验产物 grep 时注意：**MP 产物 JS 已压缩，函数名被 mangle 掉 → 要 grep 文案/类名（如 tr-activity），grep 函数名恒 0**。
 
 ## 3 真机与跨端
 - MP 滚动必须 scroll-view。定高：①显式 height ②max-height 封顶且父级 auto 非 flex ③父级确定 height 时 flex:1。
@@ -87,7 +88,7 @@
 - 规范唯一权威：`docs/规范/09-行业应用开发接入标准.md`，§10 是常见交付缺陷速查表。整合前先按速查表扫交付物一次性列全问题再改。
 - 对标基准要核实是不是真源：开发文档/*deliverable* 常是上一份 AI 整合交付物（里面是我们自己栈路径）不是原系统 → 不能当基准；真源要么一手源码、要么对标站截图（后台页多登录墙拿不到 → 向用户要源码/账号/截图）。配置项归属层级必须跟对标站对齐（同名"奖品"在对标站是租户级、我们做成批次级 → 层级就不同，补出来也不像）。
 - import.meta.env 只能直接访问，禁 `typeof import.meta !== 'undefined' &&` 防御写法 —— vite 在 MP(CJS) 下把裸 import.meta 垫成 require("url") → app.js 启动即崩。
-- 本项目口径：ESM（禁 require）；SQLite 禁 MySQL COMMENT 等专有语法；租户标识唯一来源 = JWT 载荷 req.user.customerId（不存在 req.user.tenant_id/tenantId → 恒 0）；后台 API 走 customerApiCall（baseURL /api/customer，禁裸 fetch）；C 端基址单一来源 utils/apiBase.js + createApiClient（禁硬编码 /api/xxx）。app_menus.app_id 用 `SELECT id FROM apps WHERE code=?` 子查询禁硬编码 id；solution_apps 必须给可执行 INSERT（只给注释示例 = 看得见开不通）。
+- 本项目口径：ESM（禁 require）；SQLite 禁 MySQL COMMENT 等专有语法；租户标识唯一来源 = JWT 载荷 req.user.customerId（不存在 req.user.tenant_id/tenantId → 恒 0）；后台 API 走 customerApiCall（baseURL /api/customer，禁裸 fetch）；C 端基址单一来源 utils/apiBase.js + createApiClient（禁硬编码 /api/xxx）。app_menus.app_id 用 `SELECT id FROM apps WHERE code=?` 子查询禁硬编码 id；solution_apps 必须给可执行 INSERT（只给注释示例 = 看得见开不通）。**同一文件两个 router：公开段挂 /api/trace、后台段挂 /api/customer/trace**（测试与 curl 里的 URL 前缀不同，写错直接 404）。
 - 🔴 复刻对标系统两条硬规则（用户明令，不可违背）：① 只复刻行为与字段语义，不搬一行它的代码；② 代码与文档不得出现对标系统的名称/缩写/简称（含模块名、框架名）——范围含注释、变量/函数名、测试用例名、db.js 的 SQL 注释、方案文档。交付前全项目 Grep 扫禁用词确认 0 命中（外部交付物目录属参考材料不扫不改不入库）。
 - 🔴 数量上限类参数别照抄对标系统固定值：先查当前平台/接口实际口径（展示位上限 8 = 公众号当前「上传图文消息素材」一个消息 1~8 条图文；对标系统固定 10 位对应早期接口 → 不跟）。
 - 🔴 公开接口下发含密钥配置前必须剥 keyCipher：`.map(({keyCipher, ...rest}) => rest)`。回显只给 maskSecretValue（前 4 + **** + 后 4）。后台保存顺序：先轮密文再归一化（反了=明文落库）；保存后回读一次，否则输入框留明文与库里脱敏态不一致。
