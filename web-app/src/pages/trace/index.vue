@@ -36,7 +36,7 @@
                 （该方案的意义就是「只信认证公众号推来的结果」），海报同样不能露。 -->
         <view class="tr-poster" v-if="result && showWebResult">
           <image v-if="posterImage" class="tr-poster-img" :src="posterImage" mode="aspectFill" />
-          <view class="tr-poster-mask"></view>
+          <view class="tr-poster-mask" v-if="posterImage"></view>
           <view class="tr-poster-badge" :class="result.first ? 'tr-badge-ok' : 'tr-badge-warn'">
             <text>{{ posterBadge }}</text>
           </view>
@@ -525,7 +525,11 @@ onLoad((options) => {
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 20rpx;
-  background: var(--bg-page);
+  /* 🔴 没有主图时（批次未设 banner/logo —— 生产批次就是这种）用品牌色渐变当"文字海报"底，
+     否则容器高度=0 → 徽标与商品名溢出到卡外，看着像破版。
+     有主图时图片铺在上面盖住渐变；图片加载失败时渐变兜底，白字依然可读。 */
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  min-height: 240rpx;
   box-shadow: var(--shadow-sm);
 }
 /* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端海报高度为 0 */
