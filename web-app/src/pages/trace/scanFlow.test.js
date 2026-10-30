@@ -93,14 +93,14 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(body).toMatch(/已被查询/);
   });
 
-  test('DOM 顺序：海报块 → 公众号推送引导 → 推荐位 → 活动位（广告位在海报下面）', () => {
+  test('DOM 顺序：海报块 → 验真明细卡 → 推荐位 → 活动位（广告位在海报下面）', () => {
     const posterIdx = src.indexOf('class="tr-poster-card"');
-    const pushIdx = src.indexOf('class="tr-card tr-card-push"');
+    const detailIdx = src.indexOf('class="tr-card tr-detail"');
     const slotsIdx = src.indexOf('class="tr-card tr-slots"');
     const actIdx = src.indexOf('class="tr-card tr-activity"');
     expect(posterIdx).toBeGreaterThan(-1, '海报块必须存在');
-    expect(pushIdx).toBeGreaterThan(posterIdx, '公众号推送引导必须在海报之后');
-    expect(slotsIdx).toBeGreaterThan(pushIdx, '推荐位必须在推送引导之后');
+    expect(detailIdx).toBeGreaterThan(posterIdx, '验真明细卡必须在海报之后');
+    expect(slotsIdx).toBeGreaterThan(detailIdx, '推荐位必须在明细卡之后');
     expect(actIdx).toBeGreaterThan(slotsIdx, '活动位必须在推荐位之后');
   });
 
@@ -110,26 +110,27 @@ describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', (
     expect(src).toMatch(/justify-content: space-between/);
   });
 
-  test('批次没设主图时海报区不塌陷（品牌色渐变底 + min-height 兜底）', () => {
-    // 🔴 生产批次 banner 与 logo 都是空的 —— 海报容器若没有底色和最小高度，
-    //    高度=0 → 徽标与商品名溢出到卡外，看着像破版。
-    expect(src).toMatch(/min-height: 240rpx/);
-    expect(src).toMatch(/linear-gradient\(135deg, var\(--primary\), var\(--primary-deep\)\)/);
-    // 遮罩只服务于图片（没图时盖在渐变上会发灰）
-    expect(src).toMatch(/class="tr-poster-hero-mask" v-if="posterImage"/);
+  test('海报用指定红金底图做背景，且整页只有一个 pushImg 二维码（杜绝两个码）', () => {
+    // 🔴 用户明确：用 poster-bg.jpg 作底图 + 叠加文字 + 一个二维码；
+    //    之前 tr-card-push 又放了一遍 pushImg → 出现两个码，本版必须只有海报里的那一个。
+    expect(src).toMatch(/src="\/static\/trace\/poster-bg\.jpg"/);
+    const qrCount = (src.match(/tr-poster-qr-img" :src="pushImg"/g) || []).length;
+    expect(qrCount, '海报里应恰好有一个 pushImg 二维码').toBe(1);
+    expect(src, '不得再出现第二个推送引导卡里的 pushImg 图').not.toMatch(/class="tr-push-img" :src="pushImg"/);
+    expect(src, '推送引导卡整体已移除').not.toMatch(/tr-card-push/);
   });
 
-  test('演示/试印提示位于海报最顶端（抢在结论主视觉之前，试印品一眼可辨）', () => {
+  test('演示/试印提示位于海报最顶端（抢在底图之前，试印品一眼可辨）', () => {
     const demoIdx = src.indexOf('class="tr-poster-demo"');
-    const heroIdx = src.indexOf('class="tr-poster-hero"');
+    const frameIdx = src.indexOf('class="tr-poster-frame"');
     expect(demoIdx, '演示试印提示块必须存在').toBeGreaterThan(-1);
-    expect(heroIdx, '主视觉块必须存在').toBeGreaterThan(-1);
-    expect(demoIdx, '试印提示必须排在主视觉之前（在海报顶端）').toBeLessThan(heroIdx);
+    expect(frameIdx, '底图容器必须存在').toBeGreaterThan(-1);
+    expect(demoIdx, '试印提示必须排在底图之前（在海报顶端）').toBeLessThan(frameIdx);
   });
 
-  test('海报内嵌公众号引导二维码（pushImg），并附操作引导文案', () => {
+  test('海报内嵌公众号引导二维码（pushImg，整页唯一）+ 操作引导文案', () => {
     expect(src).toMatch(/class="tr-poster-qr-img" :src="pushImg"/);
-    expect(src).toMatch(/长按识别二维码，进入认证公众号查看验真结果/);
+    expect(src).toMatch(/进入认证公众号查看验真结果/);
   });
 });
 
@@ -148,8 +149,9 @@ describe('#527 扫码直接出结果（不再停在表单页）', () => {
   });
 
   test('公众号推送降级为并行补充（文案不再说「只有公众号才有结果」）', () => {
-    expect(src).toContain('公众号也会推一份验真结果');
-    // 模板里不能再有旧的标题（注释里复述用户反馈可以保留）
+    // 推送语义现在落到海报叠加文案里（POSTER_NOTE），不再另起一张「请在公众号内查看」的卡
+    expect(src).toContain('为防止假冒查询页面，本产品的验真结果由商家认证公众号推送。');
+    // 模板里不能再有旧的「只有公众号才有结果」标题（注释里复述用户反馈可以保留）
     expect(src).not.toContain('class="tr-card-title">请在公众号内查看验真结果');
   });
 
