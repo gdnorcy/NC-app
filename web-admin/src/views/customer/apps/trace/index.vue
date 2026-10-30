@@ -485,9 +485,30 @@
                       <el-option v-for="w in SLOT_WHEN_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
                     </el-select>
                   </el-form-item>
+                  <el-form-item label="有效时段">
+                    <el-select v-model="it.timeMode" class="slot-when" @change="onSlotTimeChange(it)">
+                      <el-option v-for="w in SLOT_TIME_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
+                    </el-select>
+                    <span class="form-hint">相对三档（一周/二周/一月）选中后立即填入下方日期，可再手动微调；不选时间 = 长期有效</span>
+                  </el-form-item>
+                  <el-form-item v-if="Number(it.timeMode) === 4 || it.startAt || it.endAt" label="起止日期">
+                    <el-date-picker v-model="it.startAt" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" class="slot-date" :clearable="false" />
+                    <span class="slot-date-sep">至</span>
+                    <el-date-picker v-model="it.endAt" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" class="slot-date" :clearable="false" />
+                  </el-form-item>
                   <el-form-item label="跳转链接">
                     <el-input v-model.trim="it.link" placeholder="/pages/xxx 或 https://..." class="slot-in" />
-                    <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转</span>
+                    <!-- 🔴 连接可用变量（对标站「连接变量」）：[FWM]=当前防伪码、[KEY]=本展位鉴权码。
+                         两套写法都认（老的 {CODE}/{TID} 也照旧生效），大小写不敏感，服务端替换后下发。 -->
+                    <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转。可用变量：[FWM] = 当前防伪码，[KEY] = 本展位鉴权码（例：...?c=[FWM]&amp;m=[KEY]）</span>
+                  </el-form-item>
+                  <el-form-item label="鉴权码">
+                    <el-input v-model.trim="it.authKey" placeholder="留空则由系统自动生成" class="slot-in">
+                      <template #append>
+                        <el-button @click="refreshAuthKey(it)">刷新</el-button>
+                      </template>
+                    </el-input>
+                    <span class="form-hint">随链接一起发给对方用于接口验签（明文可见，不是密码）。建议接口侧按 md5([FWM] + 本鉴权码) 校验；刷新后旧链接会失效，已印刷的码请谨慎</span>
                   </el-form-item>
                   <el-form-item label="接口密钥">
                     <el-input v-model.trim="it.accessKey" show-password placeholder="用于代理外部接口调用" class="slot-in" />
@@ -1672,13 +1693,72 @@ const SLOT_WHEN_OPTIONS = [
   { value: 4, label: '非首位查询人显示' },
 ];
 // 🔴 hidden = 位级隐藏开关（1 隐藏 / 0 显示）。与 when（展示条件）是两道独立闸门。
-const EMPTY_SLOT = () => ({ when: 1, hidden: 0, title: '', cover: '', link: '', accessKey: '' });
+const EMPTY_SLOT = () => ({
+  when: 1, hidden: 0, title: '', cover: '', link: '', accessKey: '',
+  timeMode: 0, startAt: '', endAt: '', authKey: '',
+});
+
+/**
+ * 展位「有效时段」（对标站时间设置）。
+ * 0 不限时间 / 1 一周内 / 2 二周内 / 3 一月内 / 4 日期范围。
+ * 🔴 相对三档的定位是「**相对今天**快速选一段时间」：选中即把窗口落成具体日期填进
+ *    下面的从/至（可再手动微调），不是每次渲染都往后滚 —— 后者会让租户看不到自己配的是哪一段。
+ *    判断只看 startAt/endAt（服务端同口径），timeMode 仅用于回显与快速选。
+ */
+const SLOT_TIME_OPTIONS = [
+  { value: 0, label: '不限时间' },
+  { value: 1, label: '一周内' },
+  { value: 2, label: '二周内' },
+  { value: 3, label: '一月内' },
+  { value: 4, label: '日期范围' },
+];
+const SLOT_TIME_DAYS = { 1: 7, 2: 14, 3: 30 };
+
+function fmtDate(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * 切换时段模式时同步填日期。
+ * 🔴 0 不限 → 清空两端（留着旧日期会让「不限时间」实际仍被旧窗口挡住，是个静默陷阱）。
+ *    1/2/3 → 今天 ~ 今天+N 天。4 日期范围 → 不动，交给用户自己选（已有值则保留）。
+ */
+function onSlotTimeChange(it) {
+  const mode = Number(it.timeMode) || 0;
+  if (mode === 4) {
+    if (!it.startAt) it.startAt = fmtDate(new Date());
+    if (!it.endAt) it.endAt = fmtDate(new Date());
+    return;
+  }
+  if (mode === 0) {
+    it.startAt = '';
+    it.endAt = '';
+    return;
+  }
+  const today = new Date();
+  const end = new Date(today.getTime() + (SLOT_TIME_DAYS[mode] || 0) * 86400000);
+  it.startAt = fmtDate(today);
+  it.endAt = fmtDate(end);
+}
+
+/** 32 位十六进制随机鉴权码（对标站同款形状，带「刷新」可重生成） */
+function refreshAuthKey(it) {
+  const buf = new Uint8Array(16);
+  if (globalThis.crypto && globalThis.crypto.getRandomValues) {
+    globalThis.crypto.getRandomValues(buf);
+  } else {
+    for (let i = 0; i < buf.length; i += 1) buf[i] = Math.floor(Math.random() * 256);
+  }
+  it.authKey = Array.from(buf).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 /**
  * 服务端下发的展示位 → 表单形状。
  * 🔴 服务端剥掉了 keyCipher 只给脱敏的 accessKey，这里补成空串避免 undefined 进输入框。
  * 🔴 hidden 必须归一化成 0/1：库里存 null/缺字段时，undefined 进 el-switch 会显示成「已隐藏」
  *    （el-switch 只有值等于 active-value 才算开），于是老配置一加载就被误判成隐藏。
+ * 🔴 timeMode 缺省 0（不限）：老配置没有这个字段，若按 undefined 处理会显示成空选择框。
  */
 function slotsForForm(list) {
   return (Array.isArray(list) ? list : []).slice(0, SLOT_MAX).map((it) => ({
@@ -1688,6 +1768,10 @@ function slotsForForm(list) {
     cover: String(it.cover || ''),
     link: String(it.link || ''),
     accessKey: String(it.accessKey || ''),
+    timeMode: Number(it.timeMode) || 0,
+    startAt: String(it.startAt || '').slice(0, 10),
+    endAt: String(it.endAt || '').slice(0, 10),
+    authKey: String(it.authKey || ''),
   }));
 }
 function addSlot() {
@@ -1831,6 +1915,12 @@ async function saveSettings() {
         cover: it.cover,
         link: it.link,
         accessKey: it.accessKey,
+        // 🔴 有效时段与鉴权码：不带上就等于每次保存把它们清空（新增字段被旧 map 吞掉）。
+        //    鉴权码留空时服务端会生成一串并固化，之后不再变。
+        timeMode: Number(it.timeMode) || 0,
+        startAt: it.startAt || '',
+        endAt: it.endAt || '',
+        authKey: it.authKey || '',
       })),
     };
     await customerApiCall.put('/trace/settings', { settings: payload });
@@ -2045,6 +2135,8 @@ onMounted(() => {
 .slot-add:hover { border-color: #165dff; color: #165dff; }
 .slot-in { width: 420px; max-width: 100%; }
 .slot-when { width: 260px; }
+.slot-date { width: 168px; }
+.slot-date-sep { margin: 0 8px; color: var(--el-text-color-secondary); }
 .slot-foot { display: flex; align-items: center; gap: 12px; }
 
 /* 数据统计 */

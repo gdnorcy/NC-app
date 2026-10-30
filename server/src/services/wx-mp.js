@@ -855,8 +855,8 @@ export class WxMpService {
     //      观感接近群发的一组图文。文本发码那条路只有 1 条额度，仍走描述里的推广行。
     const h5Url = article.url;
     const slotCards = picked.map((s, i) => {
-      const title = substituteSlotPlaceholders(s.title, { code, tenantId }).trim() || `推荐 ${i + 1}`;
-      const link = substituteSlotPlaceholders(s.link || '', { code, tenantId }).trim();
+      const title = substituteSlotPlaceholders(s.title, { code, tenantId, authKey: s.authKey }).trim() || `推荐 ${i + 1}`;
+      const link = substituteSlotPlaceholders(s.link || '', { code, tenantId, authKey: s.authKey }).trim();
       return {
         title,
         description: `${title}\n点击查看详情`,

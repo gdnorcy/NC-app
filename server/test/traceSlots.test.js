@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
-  SLOTMAX, SLOTWHEN, normalizeDisplaySlots, pickDisplaySlots, slotsEnabled, substituteSlotPlaceholders,
+  SLOTMAX, SLOTWHEN, SLOTTIME, normalizeDisplaySlots, pickDisplaySlots, slotsEnabled,
+  substituteSlotPlaceholders, slotStamp, inSlotWindow,
 } from '../src/services/traceSlots.js';
 
 // ============================================================
@@ -10,12 +11,15 @@ import {
 //    **不是**微信被动回复的上限 —— 被动回复图文只能 1 条（wx-mp.js 里硬截断）。
 // ============================================================
 
+/** 固定「当前时间」，让相对模式的窗口可断言（北京时间 2026-10-30 08:00） */
+const NOW = new Date('2026-10-30T00:00:00Z');
+
 function slot(when, extra = {}) {
   return { when, title: 't', cover: '', link: '', ...extra };
 }
 
 function normalizeOne(extra) {
-  return normalizeDisplaySlots([slot(1, extra)])[0];
+  return normalizeDisplaySlots([slot(1, extra)], { now: NOW })[0];
 }
 
 const VALIDWHENS = [0, 1, 2, 4, 5];
@@ -133,4 +137,113 @@ test('占位符替换：{CODE}/{TID} 换成真实值（标题与链接同一口�
 test('占位符替换：没有占位符时原样返回（不吞字符）', () => {
   assert.equal(substituteSlotPlaceholders('https://x.com/p', { code: 'A', tenantId: 1 }), 'https://x.com/p');
   assert.equal(substituteSlotPlaceholders('', { code: 'A', tenantId: 1 }), '');
+});
+
+// ============================================================
+// #532 展位「有效时段」（对标站时间设置：不限 / 一周内 / 二周内 / 一月内 / 日期范围）
+// 🔴 口径（用户 2026-10-30 拍板）：相对选项是「相对**当前**时间快速选一段时间」，
+//    选中即在**保存时**落成具体日期窗口；渲染层只比 startAt/endAt，不再看 timeMode。
+// ============================================================
+
+test('#532 时间模式非法一律抛（0/1/2/3/4 之外）', () => {
+  for (const bad of [5, 6, -1, 99, 'abc']) {
+    assert.throws(() => normalizeDisplaySlots([slot(1, { timeMode: bad })], { now: NOW }),
+      /时间设置非法/, `timeMode=${bad} 应抛`);
+  }
+});
+
+test('#532 缺省 timeMode = 0 不限时间（老配置没有这个字段，不能一上线就被时间挡掉）', () => {
+  const out = normalizeOne({});
+  assert.equal(out.timeMode, SLOTTIME.OFF);
+  assert.equal(out.startAt, '');
+  assert.equal(out.endAt, '');
+  // 闸门：窗口为空 = 不限 → 任何时刻都渲染
+  assert.equal(inSlotWindow(out, '2026-10-30 08:00:00'), true);
+  assert.equal(inSlotWindow(out, '2030-01-01 00:00:00'), true);
+});
+
+test('#532 相对模式在保存时落成具体窗口（一周/二周/一月 = 7/14/30 天）', () => {
+  const cases = [[SLOTTIME.WEEK1, '2026-10-30 00:00:00', '2026-11-06 23:59:59'],
+    [SLOTTIME.WEEK2, '2026-10-30 00:00:00', '2026-11-13 23:59:59'],
+    [SLOTTIME.MONTH1, '2026-10-30 00:00:00', '2026-11-29 23:59:59']];
+  for (const [mode, s, e] of cases) {
+    const out = normalizeOne({ timeMode: mode });
+    assert.equal(out.startAt, s, `mode=${mode} startAt`);
+    assert.equal(out.endAt, e, `mode=${mode} endAt`);
+  }
+});
+
+test('#532 日期范围用填的值：纯日期自动补 00:00:00 / 23:59:59', () => {
+  const out = normalizeOne({ timeMode: SLOTTIME.RANGE, startAt: '2026-11-01', endAt: '2026-11-10' });
+  assert.equal(out.startAt, '2026-11-01 00:00:00');
+  assert.equal(out.endAt, '2026-11-10 23:59:59');
+});
+
+test('#532 时间格式非法抛（不做静默丢弃）', () => {
+  assert.throws(() => normalizeOne({ timeMode: SLOTTIME.RANGE, startAt: '2026/11/01' }), /时间格式非法/);
+});
+
+test('#532 开始晚于结束一律抛', () => {
+  assert.throws(() => normalizeOne({ timeMode: SLOTTIME.RANGE, startAt: '2026-11-10', endAt: '2026-11-01' }),
+    /开始时间晚于结束时间/);
+});
+
+test('#532 渲染闸门：只在窗口内渲染（窗口外一律不渲染）', () => {
+  const inRange = { when: SLOTWHEN.ALL, startAt: '2026-10-30 00:00:00', endAt: '2026-11-06 23:59:59' };
+  // 窗口内
+  assert.equal(pickDisplaySlots([inRange], { now: NOW }).length, 1);
+  // 窗口末尾（23:59:59 当秒仍算内）
+  assert.equal(pickDisplaySlots([inRange], { now: new Date('2026-11-06T15:59:59Z') }).length, 1);
+  // 早于开始
+  assert.equal(pickDisplaySlots([inRange], { now: new Date('2026-10-29T12:00:00Z') }).length, 0);
+  // 晚于结束
+  assert.equal(pickDisplaySlots([inRange], { now: new Date('2026-11-07T00:00:00Z') }).length, 0);
+});
+
+test('#532 时段闸门与隐藏/展示条件是**三道独立闸门**（都过才渲染）', () => {
+  const expired = { when: SLOTWHEN.ALL, startAt: '2026-01-01 00:00:00', endAt: '2026-01-31 23:59:59' };
+  assert.equal(pickDisplaySlots([expired], { isFirstQuery: true, isTopQueryer: true, now: NOW }).length, 0);
+  // 时段过关但 when=OFF 仍不渲染
+  const off = { when: SLOTWHEN.OFF, startAt: '2026-10-01 00:00:00', endAt: '2026-12-31 23:59:59' };
+  assert.equal(pickDisplaySlots([off], { isFirstQuery: true, now: NOW }).length, 0);
+  // 时段过关但 hidden=1 仍不渲染
+  assert.equal(pickDisplaySlots([{ ...off, when: SLOTWHEN.ALL, hidden: 1 }], { now: NOW }).length, 0);
+});
+
+test('#532 时间口径 = 中国本地（UTC+8）：服务器跑 UTC 也不差 8 小时', () => {
+  // 服务器环境 UTC：2026-10-30T00:00:00Z 对应北京 10-30 08:00
+  assert.equal(slotStamp(new Date('2026-10-30T00:00:00Z')), '2026-10-30 08:00:00');
+  // 若误用 toISOString 会得 '2026-10-30T00:00:00.000Z' → 差 8 小时的经典事故
+  assert.equal(slotStamp(new Date('2026-10-30T00:00:00Z')).slice(0, 10), '2026-10-30');
+});
+
+// ============================================================
+// #532 展位鉴权码（对标站「鉴权码」：明文下发、拼进跳转链接给外部接口验签）
+// ============================================================
+
+test('#532 鉴权码：空则服务端生成 32 位十六进制串', () => {
+  const out = normalizeOne({});
+  assert.match(out.authKey, /^[0-9a-f]{32}$/);
+});
+
+test('#532 鉴权码：已填则原样保留（幂等 —— 保存一次换一次码会把已印出的链接全废掉）', () => {
+  const mine = 'ip15xdm4oglys0ei12luwm4o4lukswog';
+  assert.equal(normalizeOne({ authKey: mine }).authKey, mine);
+  // 再归一化一次仍是同一个（不是每次保存都变）
+  const once = normalizeOne({ authKey: mine });
+  assert.equal(normalizeDisplaySlots([once], { now: NOW })[0].authKey, mine);
+});
+
+test('#532 链接变量：[FWM] → 防伪码、[KEY] → 鉴权码（大小写不敏感，与活动位同语法）', () => {
+  const out = substituteSlotPlaceholders('https://x.com/a?c=[FWM]&m=[key]', {
+    code: 'FW123', tenantId: 7, authKey: 'KEY-abc',
+  });
+  assert.equal(out, 'https://x.com/a?c=FW123&m=KEY-abc');
+});
+
+test('#532 两套占位符语法并存：老配置 {CODE}/{TID} 不受影响', () => {
+  const out = substituteSlotPlaceholders('{CODE}/{TID}|[FWM]/[KEY]', {
+    code: 'FW123', tenantId: 7, authKey: 'K1',
+  });
+  assert.equal(out, 'FW123/7|FW123/K1');
 });
