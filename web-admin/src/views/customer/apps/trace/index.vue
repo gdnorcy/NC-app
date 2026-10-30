@@ -410,17 +410,39 @@
               <template #header>
                 <div class="slot-head">
                   <span class="card-title">首页展示位</span>
-                  <span class="form-hint">最多 {{ SLOT_MAX }} 个（与公众号图文消息单条 1~8 图文的接口上限一致）</span>
+                  <!-- 🔴 总开关（用户 2026-10-30 拍板）：整块「推荐」区块的开关。
+                       关掉后 C 端结果页与公众号卡片都不再出现这个区块（服务端不下发 slots）。 -->
+                  <el-switch
+                    v-model="s.slotsEnabled"
+                    :active-value="1"
+                    :inactive-value="0"
+                    size="small"
+                    active-text="开启"
+                    inactive-text="关闭"
+                  />
+                  <span class="form-hint">最多 {{ SLOT_MAX }} 个；关闭后 C 端结果页与公众号卡片都不再出现「推荐」区块</span>
                 </div>
               </template>
 
               <el-empty v-if="!s.displaySlots.length" description="还没有展示位，点下方「新增展示位」开始配置" :image-size="60" />
 
-              <div v-for="(it, i) in s.displaySlots" :key="i" class="slot-item">
+              <div v-for="(it, i) in s.displaySlots" :key="i" class="slot-item" :class="{ 'slot-item-off': Number(it.hidden) === 1 }">
                 <div class="slot-item-hd">
                   <span class="slot-idx">第 {{ i + 1 }} 位</span>
-                  <el-tag v-if="it.when === 0" type="info" size="small" effect="plain">已关闭</el-tag>
+                  <el-tag v-if="Number(it.hidden) === 1" type="info" size="small" effect="plain">已隐藏</el-tag>
+                  <el-tag v-else-if="it.when === 0" type="info" size="small" effect="plain">已关闭</el-tag>
                   <div class="slot-ops">
+                    <!-- 🔴 位级隐藏开关（用户 2026-10-30 拍板）：与「展示条件」是**两道独立闸门**。
+                         展示条件 = 按本次查询态挑（关闭/全部/首次/首位每次/非首位）；
+                         隐藏 = 这个位整个关掉（与查询态无关，配置层就藏起来，随时可恢复）。 -->
+                    <el-switch
+                      v-model="it.hidden"
+                      :active-value="1"
+                      :inactive-value="0"
+                      size="small"
+                      active-text="已隐藏"
+                      inactive-text="显示"
+                    />
                     <el-button link size="small" :disabled="i === 0" @click="moveSlot(i, -1)">上移</el-button>
                     <el-button link size="small" :disabled="i === s.displaySlots.length - 1" @click="moveSlot(i, 1)">下移</el-button>
                     <el-button link size="small" type="danger" @click="removeSlot(i)">删除</el-button>
@@ -1569,6 +1591,9 @@ const s = reactive({
   // 红包（配置占位，待接入租户微信支付凭据）
   isred: 0, redtype: 0, redwishing: '', rednotx: '', redremark: '', redlink: '', redbufa: 0,
   // 首页展示位
+  // 🔴 slotsEnabled = 整块「推荐」区块的总开关（1 开 / 0 关）。
+  //    缺省 1：老租户库里没有这个字段，若按 0 回填，上线即所有租户的推荐位全部消失。
+  slotsEnabled: 1,
   displaySlots: [],
   // 扫码查询方案（服务端白名单归一化后的档位）+ 公众号内回复验真
   scanMode: 'web', wxReply: 1,
@@ -1587,9 +1612,12 @@ const advancedMode = ref(false);
 /* ----------------- 首页展示位 ----------------- */
 /**
  * 展示位数量上限。
- * 🔴 依据：当前公众号「上传图文消息素材」接口限制一个图文消息支持 1 到 8 条图文，
- *   每条自带缩略图 + 标题 + 原文链接 —— 与展示位逐项对映。
- *   （对标系统的固定 10 位对应的是较早的接口口径，已超出当前上限，不跟。）
+ * 🔴 依据：这是**我们自定的产品上限**（防止把结果页撑成几十个位的杂货铺），
+ *   参照公众号「上传图文消息素材」一个消息 1~8 条图文的素材口径。
+ *   ⚠️ 它**不是**微信被动回复的上限 —— 微信被动回复 / 客服消息接口的图文消息
+ *   **只能 1 条**（微信 2018-10-12 规则调整后）。两者曾被混为一谈，
+ *   代价是线上「该公众号提供的服务出现故障」一整个下午（2026-10-30 事故）。
+ *   展示位只作用于 C 端结果页下方的「推荐」区块，微信通道最多取第 1 条。
  */
 const SLOT_MAX = 8;
 const SLOT_WHEN_OPTIONS = [
@@ -1599,15 +1627,19 @@ const SLOT_WHEN_OPTIONS = [
   { value: 5, label: '首位查询人每次显示' },
   { value: 4, label: '非首位查询人显示' },
 ];
-const EMPTY_SLOT = () => ({ when: 1, title: '', cover: '', link: '', accessKey: '' });
+// 🔴 hidden = 位级隐藏开关（1 隐藏 / 0 显示）。与 when（展示条件）是两道独立闸门。
+const EMPTY_SLOT = () => ({ when: 1, hidden: 0, title: '', cover: '', link: '', accessKey: '' });
 
 /**
  * 服务端下发的展示位 → 表单形状。
  * 🔴 服务端剥掉了 keyCipher 只给脱敏的 accessKey，这里补成空串避免 undefined 进输入框。
+ * 🔴 hidden 必须归一化成 0/1：库里存 null/缺字段时，undefined 进 el-switch 会显示成「已隐藏」
+ *    （el-switch 只有值等于 active-value 才算开），于是老配置一加载就被误判成隐藏。
  */
 function slotsForForm(list) {
   return (Array.isArray(list) ? list : []).slice(0, SLOT_MAX).map((it) => ({
     when: Number(it.when) || 0,
+    hidden: Number(it.hidden) === 1 ? 1 : 0,
     title: String(it.title || ''),
     cover: String(it.cover || ''),
     link: String(it.link || ''),
@@ -1720,6 +1752,7 @@ async function saveSettings() {
       ...s,
       displaySlots: (s.displaySlots || []).map((it) => ({
         when: it.when,
+        hidden: Number(it.hidden) === 1 ? 1 : 0,
         title: it.title,
         cover: it.cover,
         link: it.link,
@@ -1915,6 +1948,8 @@ onMounted(() => {
 /* 首页展示位编辑器 */
 .slot-head { display: flex; align-items: center; gap: 10px; }
 .slot-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 12px 16px 0; margin-bottom: 12px; background: #fafbfc; }
+/* 🔴 位级隐藏的视觉降权：配置还在（随时可恢复），但一眼能看出「这个位没上线」。 */
+.slot-item-off { opacity: 0.55; background: #f2f3f5; }
 .slot-item-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .slot-idx { font-size: 13px; font-weight: 600; color: #1d2129; }
 .slot-ops { margin-left: auto; display: flex; gap: 4px; }

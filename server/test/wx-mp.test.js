@@ -220,7 +220,7 @@ test('resolveTraceScanReply: 非溯源 scene（码有效但批次不属于本租
   assert.equal(xml, null, '别人的批次 / 不存在的批次不能弹溯源卡片');
 });
 
-test('resolveTraceScanReply: 命中展示位 → 构造 news 且 {CODE}/{TID} 被替换、PicUrl 转绝对地址', () => {
+test('resolveTraceScanReply: 命中展示位 → 发单条图文卡（验真结论为主），{CODE}/{TID} 被替换、PicUrl 转绝对地址', () => {
   const traceCodes = [{ tenant_id: 7, code: TRACE_CODE, num: 1, openid: '' }];
   const settingsJson = JSON.stringify({
     displaySlots: [
@@ -232,15 +232,35 @@ test('resolveTraceScanReply: 命中展示位 → 构造 news 且 {CODE}/{TID} �
   const xml = svc.resolveTraceScanReply(TRACE_CHANNEL, TRACE_CODE, 'openidX', 'https://h.com');
   assert.ok(xml, '应返回 news XML');
   assert.ok(xml.includes('<MsgType><![CDATA[news]]>'), '应为 news 类型');
-  assert.ok(xml.includes('ArticleCount>2'), '应挑出 2 个展示位（ALL + FIRST）');
+  // 🔴 微信被动回复图文只能 1 条：这里锁死"配了 2 个展示位也只发 1 条"。
+  //    2026-10-30 线上事故根因（配 2 个位 → 发 2 条图文 → 微信整条拒收 → 粉丝端
+  //    「该公众号提供的服务出现故障」；客服接口同款数据实测 45008 article size out of limit）。
+  assert.ok(xml.includes('<ArticleCount>1</ArticleCount>'), `图文条数必须恒为 1：${xml}`);
+  assert.equal((xml.match(/<item>/g) || []).length, 1, 'XML 里只能有一个 item');
+  // 主体是验真结论（不是广告），配图取批次主图
+  assert.ok(xml.includes('https://h.com/uploads/banner.png'), '配图应取批次主图 banner');
   assert.ok(xml.includes(`溯源页 ${TRACE_CODE}`), '标题占位符应被替换');
-  assert.ok(xml.includes(`https://shop.com/p?co=${TRACE_CODE}&t=7`), 'link 占位符应被替换');
-  assert.ok(xml.includes('https://h.com/uploads/cover.png'), '相对封面应补齐 baseUrl');
-  assert.ok(xml.includes('https://cdn.com/a.png'), '绝对封面应原样保留');
-  assert.ok(xml.includes(`https://h.com/card/#/pages/trace/index?co=${TRACE_CODE}&tid=7`), 'link 为空应回落 H5 溯源页');
+  assert.ok(xml.includes('仅首次'), '展示位标题作为推广露出保留');
+  assert.ok(xml.includes(`https://h.com/card/#/pages/trace/index?co=${TRACE_CODE}&tid=7`), '应跳 H5 溯源页');
   // ToUserName 必须是粉丝 openid，FromUserName 是公众号 appid
   assert.ok(xml.includes('<ToUserName><![CDATA[openidX]]>'), 'ToUserName 应为粉丝 openid');
   assert.ok(xml.includes('<FromUserName><![CDATA[wxtrace]]>'), 'FromUserName 应为公众号 appid');
+});
+
+test('resolveTraceScanReply: 🔴 无论配多少个展示位，被动回复图文恒为 1 条（微信接口硬上限）', () => {
+  const traceCodes = [{ tenant_id: 7, code: TRACE_CODE, num: 1, openid: '' }];
+  const settingsJson = JSON.stringify({
+    displaySlots: Array.from({ length: 8 }, (_, i) => ({
+      when: 1, title: `位${i + 1}`, cover: `https://cdn.com/${i}.png`, link: 'https://x.com',
+    })),
+  });
+  const svc = new WxMpService(makeTraceDb({ traceCodes, settingsJson }), makeComponent());
+  const xml = svc.resolveTraceScanReply(TRACE_CHANNEL, TRACE_CODE, 'openidX', 'https://h.com');
+  assert.ok(xml, '应返回 news XML');
+  assert.ok(xml.includes('<ArticleCount>1</ArticleCount>'), `8 个展示位也必须只发 1 条：${xml}`);
+  assert.equal((xml.match(/<item>/g) || []).length, 1, '只能有一个 item');
+  // 展示位不能顶掉验真结论
+  assert.ok(xml.includes('验真通过'), `主体必须是验真结论：${xml}`);
 });
 
 test('resolveTraceScanReply: 首扫（trace_codes 无行）也必须弹卡片（本轮修的 bug）', () => {

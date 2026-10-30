@@ -12,7 +12,7 @@ import { hasSolution } from '../tenant.js';
 import { buildTraceCodeFromSerial, canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, isDemoSerial, parseTraceCode, randomTraceKeys, serializeTraceRule, parseTraceRule, verifyTraceCode } from '../services/traceCode.js';
 import { generateTracePackage } from '../services/traceGenerate.js';
 import { makeZip } from '../services/zip.js';
-import { normalizeDisplaySlots, pickDisplaySlots } from '../services/traceSlots.js';
+import { normalizeDisplaySlots, pickDisplaySlots, slotsEnabled, substituteSlotPlaceholders } from '../services/traceSlots.js';
 import { checkQueryQuota, registerTraceQuery } from '../services/traceQuery.js';
 import { buildScanQueryView, normalizeScanMode, normalizeTraceSwitch } from '../services/traceScanMode.js';
 import { issueOpenidTicket, readOpenidTicket } from '../services/traceOauth.js';
@@ -642,15 +642,22 @@ export function createTracePublicRouter(db) {
       // 🔴 P1 试印码识别：流水号落在「顶部预留段」→ 明确告诉 C 端这是演示码，
       //    不让试印品冒充正品（试印包流入市场时，消费者一眼能分清）。
       demo: isDemoSerial(parsed.serial, rule),
-      // 🔴 首页展示位：按「展示条件」+ 本次查询态挑出本次该渲染的位。
-      //    数量上限 8（公众号当前图文消息接口口径），条件语义见 traceSlots.js。
+      // 🔴 首页展示位：按「展示条件 + 本次查询态」挑出本次该渲染的位。
+      //    数量上限 8 是**我们自定的产品上限**（≠ 微信被动回复的 1 条上限，见 traceSlots.js）。
       //    isTopQueryer = 本次访问人是该码的首位查询人；游客（无 openid）恒判非首位。
       // 🔴 必须在这里剥掉 keyCipher：展示位是公开接口下发的，密文一旦出网
       //    等于把租户的接口凭据交给任何人（拿到密文 + 我们服务的解密能力即可还原）。
-      slots: pickDisplaySlots(settings.displaySlots || [], {
+      // 🔴 展示位总开关（slotsEnabled=0）→ 整个区块不下发（后台关掉即彻底不出现）。
+      // 🔴 链接里的 {CODE}/{TID} 在这里替换成真实值 —— 服务端替换是唯一出处，
+      //    前端不再做（前端也不知道该码值；以前 C 端拿到的还是字面量 {CODE}，点必坏）。
+      slots: (slotsEnabled(settings) ? pickDisplaySlots(settings.displaySlots || [], {
         isFirstQuery: Number(record.num || 0) <= 1,
         isTopQueryer: Boolean(record.openid) && record.openid === openid,
-      }).map(({ keyCipher, ...rest }) => rest),
+      }) : []).map(({ keyCipher, ...rest }) => ({
+        ...rest,
+        title: substituteSlotPlaceholders(rest.title, { code, tenantId }),
+        link: substituteSlotPlaceholders(rest.link, { code, tenantId }),
+      })),
       num: Number(record.num || 0),
       // 🔴 当前「扫码查询方案」：C 端据此决定是否渲染「长按识别、由公众号推送结果」引导。
       //    取值已在服务端白名单归一（traceScanMode），前端只做相等判断，不认魔法字符串以外的东西。
@@ -1014,6 +1021,9 @@ export function createTraceAdminRouter(db) {
       //    落到库里的只能是 traceScanMode 里那几档之一（非法值一律回落默认档）。
       if ('scanMode' in patch) patch.scanMode = normalizeScanMode(patch.scanMode);
       if ('wxReply' in patch) patch.wxReply = normalizeTraceSwitch(patch.wxReply);
+      // 🔴 展示位总开关：必须服务端归一（0/1），不能把客户端原值直接落库。
+      //    缺省不写这个字段 = 保持原值（老租户库里没有该字段时读侧按「开」处理）。
+      if ('slotsEnabled' in patch) patch.slotsEnabled = normalizeTraceSwitch(patch.slotsEnabled);
       // 🔴 scanQuery 是**算出来的视图**（可用性依赖当前公众号配置），不是配置本身 ——
       //    一旦被写回 settings_json，下一次读到的就是过期快照（公众号后来配好了也仍显示不可用）。
       delete patch.scanQuery;

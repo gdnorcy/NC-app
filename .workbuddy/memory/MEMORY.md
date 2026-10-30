@@ -67,9 +67,16 @@
 - 模板 ref 不带 .value。getCurrentInstance() 只能在 setup 顶层调（await 后一律 null → 真机 MP 炸）。整页空数据常是 computed 用了未 import 函数。
 
 ## 9 微信开放接口
+- 🔴🔴 **被动回复与客服消息接口的图文消息只能 1 条**（微信 2018-10-12 规则调整后）。超限：客服接口返 `45008 article size out of limit`；被动回复整条被判非法 → 粉丝端「该公众号提供的服务出现故障，请稍后再试」。**官方文档正文仍写"其余场景最多 8 条"是过时表述**，别照它配。唯一实现点在 `wx-mp.js#buildNewsReply` 出口硬截断 1 条（不是各处调用方自觉）。
 - 真小程序码前提：小程序上传过代码，否则一律 41030（release/trial/develop 全拒）→ 回落网页码。排查：①先拿 token ②再对候选 page 发码。wxa/get_page 只限第三方平台 → 候选 page 逐个发码试探。
 - 三级通道：第三方平台已授权→WxComponentService；自运营→standalone；都没有→H5 兜底。渠道查询不得过滤 auth_status。访客码必须 release。
 - getwxacodeunlimit 的 check_path 对已发布账号整体失灵：首轮照常；全 41030 后用"真实 scene + 无 page + 校验"探测是否真已发布，通过才 check_path:false 补一枪。getwxacode 不校验 path。
+
+## 9b 防伪溯源 · 展示位（displaySlots）
+- 🔴 **数量上限 8 是我们自定的产品上限，不是平台上限**。别再把它注释成「公众号图文消息 1~8 条图文」——那两条规则分属不同接口：素材接口 1~8 条（存素材用），**被动回复/客服接口只有 1 条**（发消息用）。混淆过一次 → 线上「服务出现故障」一整个下午（配 2 个位 → 发 2 条图文 → 被拒）。展示位只作用于 C 端结果页「推荐」区，微信通道最多取第 1 条。
+- 三道闸门分层，别混：**总开关 `settings.slotsEnabled`**（缺省=开，老租户库无此字段，按 0 判会把所有租户的位全关掉）→ **位级 `slot.hidden`**（1=隐藏，与查询态无关）→ **`slot.when` 展示条件**（0关闭/1全部/2首次/5首位每次/4非首位，按查询态挑）。都过才渲染。
+- 占位符 `{CODE}/{TID}` **必须服务端替换**（`traceSlots.substituteSlotPlaceholders`），标题与链接同一口径。以前只在微信图文侧替换过 → C 端拿到的还是字面量 `{CODE}`，点必坏。
+- 微信侧语义：**展示位不占图文位**。SCAN 通道只发 1 张「验真结果卡」（配图=批次 banner→回落第一条展示位封面→回落文字），展示位标题作为一行推广露出，落地页 H5 才承载完整广告位。
 
 ## 10 密钥与支付
 - 密钥落库分界线是归属非类型：租户自己的（AppSecret/upload_key/商户号）→ 后台填 + encryptSecret + maskSecretValue 回显；平台自己的 → 只走 env/服务器文件。

@@ -72,3 +72,41 @@ describe('#522 独立活动广告位（不复用首页展示位）', () => {
     expect(body).toMatch(/execCompLink\(linkFromString\(a\.link\)\)/);
   });
 });
+
+describe('#521 海报版式（大图在上 → 结论 → 广告位在下）', () => {
+  test('结果区存在海报区，且与结果卡同门闸（showWebResult）', () => {
+    // 🔴 push_dynamic 档位下网页结果整体不展示（只信公众号推来的结果），
+    //    海报带着商品名与验真徽标 —— 不能绕过这道闸单独露出来。
+    expect(src).toMatch(/class="tr-poster"/);
+    expect(src).toMatch(/v-if="result && showWebResult"/);
+  });
+
+  test('海报图取批次主图 banner，缺省回落批次 logo', () => {
+    const body = fnBody('posterImage');
+    expect(body).toMatch(/b\.banner \|\| b\.logo/);
+    expect(body).toMatch(/absOriginUrl/);
+  });
+
+  test('徽标文案区分试印码与已被查询（试印码不能说「验证通过」）', () => {
+    const body = fnBody('posterBadge');
+    expect(body).toMatch(/demo/);
+    expect(body).toMatch(/已被查询/);
+  });
+
+  test('DOM 顺序：海报 → 结果卡 → 推荐位 → 活动位（广告位在海报下面）', () => {
+    const posterIdx = src.indexOf('class="tr-poster"');
+    const okIdx = src.indexOf('class="tr-card tr-card-ok"');
+    const slotsIdx = src.indexOf('class="tr-card tr-slots"');
+    const actIdx = src.indexOf('class="tr-card tr-activity"');
+    expect(posterIdx).toBeGreaterThan(-1);
+    expect(okIdx).toBeGreaterThan(posterIdx, '结果卡必须在海报之后');
+    expect(slotsIdx).toBeGreaterThan(okIdx, '推荐位必须在结果之后');
+    expect(actIdx).toBeGreaterThan(slotsIdx, '活动位必须在推荐位之后');
+  });
+
+  test('推荐位改成三列图文网格（对标站版式，不再依赖横向 scroll-view）', () => {
+    expect(src).not.toMatch(/tr-slots-scroll/);
+    expect(src).toMatch(/\.tr-slot \{ width: 204rpx;/);
+    expect(src).toMatch(/justify-content: space-between/);
+  });
+});
