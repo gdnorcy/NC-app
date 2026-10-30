@@ -411,13 +411,15 @@ export class WxMpService {
    * SCAN 事件里按数字 scene_id 反查动态场景码（**只校验，不落用量**）。
    * @returns { row } 命中可用；{ reject } 明确不可用（含引导语）；{} 不是本表管辖，交回上层走旧路径。
    */
-  peekTraceScene(channel, sceneRaw, fromUser) {
+  peekTraceScene(channel, sceneRaw, fromUser, originalId = '') {
     const sceneId = Number(String(sceneRaw || '').trim());
     if (!Number.isInteger(sceneId) || sceneId <= 0) return {};
     const tenantId = Number(channel?.customer_id || 0);
     const row = this.db.prepare('SELECT * FROM trace_mp_scenes WHERE scene_id = ? AND tenant_id = ?').get(sceneId, tenantId);
     if (!row) return {};
-    const toUser = channel?.appid || '';
+    // 🔴🔴🔴 回包的 FromUserName 必须是**公众号原始ID**（入站消息的 ToUserName，gh_ 开头），
+    //    **不是 appid**。用 appid 会被微信判成「异常数据」→ 粉丝端「该公众号提供的服务出现故障」。
+    const toUser = originalId || channel?.appid || '';
     const reject = (content) => ({ reject: this.buildTextReply({ toUser, fromUser, content }) });
     if (row.used_at) return reject('该二维码已被使用，请重新扫码查询。');
     const nowStr = this._utcAfterSeconds(0);
@@ -638,6 +640,64 @@ export class WxMpService {
     return String(s == null ? '' : s).replace(/\]\]>/g, ']]]]><![CDATA[>');
   }
 
+  /**
+   * 🔴🔴🔴 学并记住**公众号原始ID**（gh_ 开头）。
+   *
+   * 微信推过来的报文里 `<ToUserName>` 就是原始ID；被动回包必须原样写回 `<FromUserName>`
+   *   （密文回包的尾部标识同理），写 appid 会被微信判「异常数据」→ 粉丝端「服务出现故障」。
+   * 原始ID 没有开放接口可查（`account/getaccountbasicinfo` 对订阅号返 48001），
+   *   所以**从入站报文学一次、存进 mp_message_config.original_id**，之后一直用；
+   *   万一哪天入站报文缺 ToUserName，还有个兜底值可用（而不是退化成 appid）。
+   *
+   * @returns {string} 本次回包该用的 FromUserName（入站值 > 已存值 > appid）
+   */
+  _learnOriginalId(channel, cfg, inboundToUser) {
+    const inbound = String(inboundToUser || '').trim();
+    const stored = String(cfg?.original_id || '').trim();
+    const appid = String(channel?.appid || '');
+    // 只有 gh_ 形态才认定为原始ID：别把 appid 误当成原始ID 存下来（那等于没修）
+    if (/^gh_/i.test(inbound)) {
+      if (inbound !== stored) {
+        try {
+          this.db.prepare("UPDATE mp_message_config SET original_id = ?, updated_at = datetime('now') WHERE channel_apps_id = ?")
+            .run(inbound, channel.id);
+          console.info('[wx-mp] 已记住公众号原始ID', { appid, originalId: inbound });
+        } catch (e) {
+          console.warn('[wx-mp] 公众号原始ID落库失败（不影响本次回包）:', e.message, { appid });
+        }
+      }
+      return inbound;
+    }
+    return stored || appid;
+  }
+
+  /**
+   * 🔴🔴🔴 回包身份（FromUserName）：必须是**公众号原始ID**，不能是 appid。
+   *
+   * 微信推过来的报文里 `<ToUserName>` 就是本公众号的原始ID（gh_ 开头）；
+   * 被动回复时必须把它原样写回 `<FromUserName>`。
+   * 官方口径（被动回复用户消息文档 + 开放社区技术运营答复）：
+   *   「FromUserName 不应该是 appid，而是公众号原始 id，你服务器接收到微信推给你的
+   *     原 ToUserName，一般是 gh_ 开头的」
+   *
+   * 写错的后果：微信判「回复了异常数据」→ 粉丝端一律显示
+   *   「该公众号提供的服务出现故障，请稍后再试」；
+   * 而服务端视角一切正常（HTTP 200、XML 合法、字段不超限、图片可访问、条数合规），
+   *   所以此前几轮一直在怀疑「条数 / 图片格式」全是烟雾弹 —— 2026-10-30 才定位到这里。
+   *
+   * @param {string} originalId 入站消息的 ToUserName（公众号原始ID）
+   * @param {object} channel   渠道行（仅在入站报文缺 ToUserName 时兜底用 appid）
+   */
+  _replyName(originalId, channel) {
+    const id = String(originalId || '').trim();
+    if (id) return id;
+    return String(channel?.appid || '');
+  }
+
+  /**
+   * 被动回复文本。
+   * 🔴 toUser 会写进 `<FromUserName>` —— 传公众号原始ID（gh_ 开头），不是 appid，见 _replyName。
+   */
   buildTextReply({ toUser, fromUser, content }) {
     const t = Math.floor(Date.now() / 1000);
     return `<xml><ToUserName><![CDATA[${this.escapeCdata(fromUser)}]]></ToUserName><FromUserName><![CDATA[${this.escapeCdata(toUser)}]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[${this.escapeCdata(content)}]]></Content></xml>`;
@@ -738,9 +798,14 @@ export class WxMpService {
    *    `https://域名/card/#/pages/trace/index?co={CODE}&tid={TID}` 即可让每张码扫出的卡片跳到「自己的」溯源页；
    *    link 留空则回落到 H5 溯源页绝对地址。
    * 🔴 PicUrl 必须是绝对地址（微信要求），封面若是 /uploads/... 相对路径在此补齐 baseUrl。
+   *
+   * 🔴🔴🔴 回包身份（FromUserName）必须是**公众号原始ID**，不是 appid：
+   *    originalId = 入站消息里的 ToUserName（微信推过来时就是 gh_ 开头的原始ID）。
+   *    详见 _replyName 的说明。
    */
-  resolveTraceScanReply(channel, scene, fromUser, baseUrl = '') {
+  resolveTraceScanReply(channel, scene, fromUser, baseUrl = '', originalId = '') {
     const tenantId = Number(channel.customer_id || 0);
+    const replyName = this._replyName(originalId, channel);
     if (!tenantId) return null;
     const code = String(scene || '').trim();
     if (!code) return null;
@@ -757,7 +822,7 @@ export class WxMpService {
     if (Number(settings.isjihuo || 0) === 1) {
       const act = this.db.prepare('SELECT id FROM trace_activations WHERE tenant_id = ? AND batch_id = ?').get(tenantId, Number(batch.id));
       if (!act) {
-        return this.buildTextReply({ toUser: channel.appid, fromUser, content: '该批次尚未激活，请联系经销商扫码激活后再查询溯源信息。' });
+        return this.buildTextReply({ toUser: replyName, fromUser, content: '该批次尚未激活，请联系经销商扫码激活后再查询溯源信息。' });
       }
     }
     const slots = Array.isArray(settings.displaySlots) ? settings.displaySlots : [];
@@ -769,15 +834,19 @@ export class WxMpService {
     const picked = (slots.length && slotsEnabled(settings))
       ? pickDisplaySlots(slots, { isFirstQuery, isTopQueryer }).filter((s) => /^https?:\/\//i.test(absUrl(baseUrl, s.cover || '')))
       : [];
-    // 🔴🔴 微信被动回复的图文消息**只能 1 条**（微信 2018-10-12 规则调整后）。
-    //    原实现是「一个展示位一条图文」：租户配 2 个位 → 每次扫码发 2 条图文
-    //    → 微信整条判非法（客服接口同款数据实测返回 45008 article size out of limit）
-    //    → 粉丝端显示「该公众号提供的服务出现故障，请稍后再试」（2026-10-30 线上事故）。
-    //    现在统一发**一张验真结果卡**：
-    //      · 主体 = 验真结论（消费者扫码就是为了这个，不能让位给广告）；
-    //      · 配图 = 批次主图 banner 优先，缺失时回落第一条展示位封面，都没有则回落文字（#519）；
-    //      · 展示位不再占图文位，改由 H5 溯源页以「海报下方的广告位」承载（#521/#522）；
-    //        微信里保留一行推广露出，保证「配了就有反应」，不至于变成哑配置。
+    // 🔴🔴 图文条数按**触发场景**分层，不是全局一个数（2026-10-30 复查官方规则原文）：
+    //   · 事件消息（扫码推事件 / 关注事件）→ 官方文档「其余场景最多可回复 8 条图文消息」
+    //     → 扫码可以一次给一组卡片（验真卡 + 推广卡），观感接近群发；
+    //   · 文本消息（粉丝发一句话/一个防伪码）→「只能回复 1 条图文消息」；
+    //   · 客服接口 cgi-bin/message/custom/send → 图文限 1 条，超出返回 45008
+    //     （实测：2 条 → 45008；1 条 → errcode 0）。
+    //   ⚠️ 早期把「客服接口 1 条」当成「被动回复 1 条」，砍掉了扫码场景合法的多卡片能力；
+    //      也让「条数」背了一次不属于自己的锅 —— 真正让整条被动回复作废的是
+    //      回包 FromUserName 用了 appid 而不是公众号原始ID（见 _replyName）。
+    //   现在这里给消费者一组卡片：
+    //      · 第 1 张主体 = 验真结论（消费者扫码就是为了这个，不能让位给广告）；
+    //      · 后面跟展示位推广卡（配图 = 批次主图 banner 优先，缺失回落展示位封面，都缺则回落文字）；
+    //      · 展示位在 H5 溯源页另有「海报下方的广告位」承载（#521/#522），微信里再露一次。
     const article = this._traceResultArticle({ code, batch, num: Number(rec?.num || 0) || 1, first: isFirstQuery, queriedAt: rec?.queried_at, baseUrl, tenantId, settings });
     const slotCover = picked.length ? absUrl(baseUrl, picked[0].cover) : '';
     article.picurl = absUrl(baseUrl, batch.banner || '') || slotCover;
@@ -797,10 +866,10 @@ export class WxMpService {
         url: /^https?:\/\//i.test(link) ? link : h5Url,
       };
     });
-    if (!baseUrl) return this.buildTextReply({ toUser: channel.appid, fromUser, content: article.description });
+    if (!baseUrl) return this.buildTextReply({ toUser: replyName, fromUser, content: article.description });
     // 🔴 空 PicUrl → 微信拒收 news → 「服务出现故障」；缺图整体回落文字（#519）。
     //    max=8：事件消息场景的官方额度；文本发码那条路走默认值 1。
-    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article, ...slotCards], max: 8 });
+    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article, ...slotCards], max: 8, originalId: replyName });
   }
 
   /**
@@ -843,15 +912,17 @@ export class WxMpService {
    * 回落策略：articles 中**任一篇**缺合法 http(s) 图，整体改发文字
    * （标题+描述+链接拼成可读文本），保证用户一定拿到验真信息而非报错。
    */
-  _safeTraceReply({ channel, fromUser, baseUrl, articles, fallbackText, max = 1 }) {
+  _safeTraceReply({ channel, fromUser, baseUrl, articles, fallbackText, max = 1, originalId = '' }) {
     const list = Array.isArray(articles) ? articles : [];
+    // 🔴 FromUserName 用公众号原始ID（入站 ToUserName），不是 appid —— 见 _replyName。
+    const replyName = this._replyName(originalId, channel);
     const allHavePic = list.length > 0
       && list.every((a) => /^https?:\/\//i.test(String(a.picurl || a.thumb_url || '')));
-    if (allHavePic) return this.buildNewsReply({ toUser: channel.appid, fromUser, articles: list, max });
+    if (allHavePic) return this.buildNewsReply({ toUser: replyName, fromUser, articles: list, max });
     const text = (fallbackText && String(fallbackText).trim())
       || list.map((a) => [a.title, a.description, a.url].filter(Boolean).join('\n')).filter((s) => s.trim()).join('\n\n')
       || '防伪查询完成，请点击溯源页面查看详情。';
-    return this.buildTextReply({ toUser: channel.appid, fromUser, content: text });
+    return this.buildTextReply({ toUser: replyName, fromUser, content: text });
   }
 
   /** 把库里的 UTC 时间串显示成北京时间（datetime('now') 落的是 UTC 裸串，直接印会把 UTC 当本地时间）。 */
@@ -887,8 +958,9 @@ export class WxMpService {
    *
    * @returns {string|null} null = 这条输入不是防伪码，交给关键词/默认回复继续处理。
    */
-  resolveTraceTextReply(channel, text, fromUser, baseUrl = '') {
+  resolveTraceTextReply(channel, text, fromUser, baseUrl = '', originalId = '') {
     const tenantId = Number(channel.customer_id || 0);
+    const replyName = this._replyName(originalId, channel);
     if (!tenantId) return null;
     // 🔴 没初始化过防伪码制的租户不该被这条路打扰：它的 getTraceRule 会退回默认值，
     //    默认前缀 + 默认长度可能命中别人格式相近的串。
@@ -907,7 +979,7 @@ export class WxMpService {
     // 🔴 商户可关（默认开）。关掉时整条路退化为「这不是防伪码」→ 原对话逻辑不受任何影响。
     if (Number(settings.wxReply ?? 1) !== 1) return null;
 
-    const say = (content) => this.buildTextReply({ toUser: channel.appid, fromUser, content });
+    const say = (content) => this.buildTextReply({ toUser: replyName, fromUser, content });
     const ip = ''; // 微信推送报文里没有客户端 IP
 
     if (!verifyTraceCode(code, rule)) {
@@ -971,13 +1043,15 @@ export class WxMpService {
     //    相对路径发出去消费者点了打不开，还不如给纯文字（信息都在）。
     if (!baseUrl) return say(article.description);
     // 🔴 空 PicUrl（批次未设 banner）→ 微信拒收 news → 「服务出现故障」；缺图回落文字（#519）。
-    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article] });
+    return this._safeTraceReply({ channel, fromUser, baseUrl, articles: [article], originalId: replyName });
   }
 
   /** 按消息匹配回复规则并构造被动回复 XML（toUser/fromUser 已按被动回复语义交换）。 */
   resolveReply(channel, msg, ctx = {}) {
     const fromUser = msg.fromUser; // 粉丝 openid
-    const toUser = msg.toUser; // 公众号 appid
+    // 🔴🔴🔴 入站消息的 ToUserName = **公众号原始ID**（gh_ 开头），回包的 FromUserName 必须原样写回它。
+    //    之前这里填的是 appid → 微信判「异常数据」→ 粉丝端「服务出现故障」（2026-10-30 根因）。
+    const toUser = this._replyName(msg.toUser || ctx.originalId, channel);
     const make = (rule) => {
       if (rule.reply_type === 'text') return this.buildTextReply({ toUser, fromUser, content: rule.content });
       if (rule.reply_type === 'news') {
@@ -1017,16 +1091,16 @@ export class WxMpService {
       const scene = (eventKey || '').replace(/^qrscene_/, '');
       if (!scene) return null;
       if (/^\d+$/.test(scene)) {
-        const hit = this.peekTraceScene(channel, scene, fromUser);
+        const hit = this.peekTraceScene(channel, scene, fromUser, toUser);
         if (hit.reject) return hit.reject; // 过期/已用/换人 → 明确告知，而不是静默无响应
         if (hit.row) {
-          const card = this.resolveTraceScanReply(channel, hit.row.code, fromUser, ctx.baseUrl);
+          const card = this.resolveTraceScanReply(channel, hit.row.code, fromUser, ctx.baseUrl, toUser);
           // 🔴 只在真的要发卡片时才落用量：微信超时会重投 SCAN，提前标记会把合法重试挡掉。
           if (card) this.markTraceSceneUsed(hit.row.id);
           return card || null;
         }
       }
-      return this.resolveTraceScanReply(channel, scene, fromUser, ctx.baseUrl);
+      return this.resolveTraceScanReply(channel, scene, fromUser, ctx.baseUrl, toUser);
     };
     if (msg.msgType === 'event') {
       const ev = (msg.event || '').toLowerCase();
@@ -1048,7 +1122,7 @@ export class WxMpService {
     }
     if (msg.msgType === 'text') {
       // ① 先看是不是防伪码（发码即查）：形状不符返回 null，不会打扰关键词/默认回复。
-      const trace = this.resolveTraceTextReply(channel, msg.content, fromUser, ctx.baseUrl);
+      const trace = this.resolveTraceTextReply(channel, msg.content, fromUser, ctx.baseUrl, toUser);
       if (trace) return trace;
       const hits = this.matchReplyRules(channel.id, msg.content || '');
       if (hits.length) return make(hits[0]);
@@ -1127,7 +1201,11 @@ export class WxMpService {
         return { reply: null };
       }
       try {
-        xml = wxc.decrypt(encrypt).message;
+        const dec = wxc.decrypt(encrypt);
+        xml = dec.message;
+        // 🔴 密文尾部标识 = 微信侧的公众号原始ID（gh_ 开头）。它同时也是回包 FromUserName
+        //    与回包密文尾部该用的值 —— 记下来，出问题时能一眼看出是不是拿 appid 顶了。
+        console.info('[wx-mp] 密文解密完成', { appid, tail: String(dec.fromAppid || '').slice(0, 40) });
       } catch (e) {
         console.error('[wx-mp] 消息解密失败（EncodingAESKey 与公众号后台不一致？）:', e.message, { appid });
         return { reply: null };
@@ -1139,14 +1217,21 @@ export class WxMpService {
     }
 
     const msg = this.parseMessageXml(xml);
-    const reply = this.resolveReply(channel, msg, { baseUrl });
+    // 🔴🔴🔴 入站报文里的 ToUserName = **公众号原始ID**（gh_ 开头），回包 FromUserName 必须用它。
+    //    第一次收到时顺手存进 mp_message_config（没有开放接口可查原始ID，见 _learnOriginalId）。
+    const originalId = this._learnOriginalId(channel, cfg, msg.toUser);
+    if (!originalId) {
+      console.warn('[wx-mp] 入站报文缺 ToUserName，回包将退回 appid（微信可能判异常数据）', { appid });
+    }
+    const reply = this.resolveReply(channel, msg, { baseUrl, originalId });
     // 🔴 被动回复诊断日志（2026-10-30 事故后加）：
     //    微信只在粉丝端显示一句「服务出现故障」，**不告诉开发者到底哪不对**，
     //    此前只能靠猜（PicUrl？条数？图片大小？），每次复现都要重新推理一遍。
-    //    这里把「收到什么 + 回什么」都落日志，下次复现直接看这一行就能定位。
+    //    这里把「收到什么 + 回什么 + 回包用的 FromUserName」都落日志，下次复现直接看这一行就能定位。
     console.info('[wx-message] 收到', {
       appid,
       encrypted,
+      originalId: originalId.slice(0, 40),
       msgType: msg.msgType,
       event: msg.event || '',
       eventKey: String(msg.eventKey || '').slice(0, 60),
@@ -1161,6 +1246,7 @@ export class WxMpService {
       appid,
       msgType: (reply.match(/<MsgType><!\[CDATA\[(.*?)\]\]>/) || [])[1] || '',
       articleCount: (reply.match(/<ArticleCount>(\d+)<\/ArticleCount>/) || [])[1] || 0,
+      fromUserName: (reply.match(/<FromUserName><!\[CDATA\[(.*?)\]\]>/) || [])[1] || '',
       bytes: Buffer.byteLength(reply),
     });
 
@@ -1168,7 +1254,8 @@ export class WxMpService {
       const wxc = new WxCrypto(cfg.msg_token, cfg.encoding_aes_key, appid);
       const ts = String(Math.floor(Date.now() / 1000));
       const nonce = String(Math.floor(Math.random() * 1e9));
-      return { reply: wxc.encrypt(reply, nonce, ts), encrypted: true };
+      // 🔴 回包密文的尾部标识也必须是公众号原始ID，不是 appid（微信解密后会校验尾部）。
+      return { reply: wxc.encrypt(reply, nonce, ts, originalId), encrypted: true };
     }
     return { reply, encrypted: false };
   }

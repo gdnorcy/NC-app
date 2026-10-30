@@ -1027,11 +1027,17 @@ function migrate(db) {
       customer_id INTEGER NOT NULL,
       msg_token TEXT NOT NULL DEFAULT '',
       encoding_aes_key TEXT NOT NULL DEFAULT '',
+      original_id TEXT NOT NULL DEFAULT '',
       url_enabled INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(channel_apps_id)
     );
   `);
+  // 🔴 公众号原始ID（gh_ 开头）：被动回包的 FromUserName + 密文尾部标识都要用它
+  //    （见 services/wx-mp.js#_replyName）。首次收到公众号报文时自动学并存下来。
+  if (!colExists(db, 'mp_message_config', 'original_id')) {
+    db.exec("ALTER TABLE mp_message_config ADD COLUMN original_id TEXT NOT NULL DEFAULT ''");
+  }
   db.exec('CREATE INDEX IF NOT EXISTS idx_mp_msg_cfg_customer ON mp_message_config(customer_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_mp_msg_cfg_channel ON mp_message_config(channel_apps_id)');
 
