@@ -963,7 +963,7 @@
         <div class="mp-qr-links">
           <div>图片地址（微信图床，仅供排查）：<a :href="mpQrDlg.result.showUrl" target="_blank" rel="noopener">{{ mpQrDlg.result.showUrl }}</a></div>
           <div>场景值（即该防伪码）：<code>{{ mpQrDlg.result.code }}</code></div>
-          <div class="form-hint">这张图对应上面这一个码，适合「公众号直推（小批量）」方案；大批量请改用网页 + 公众号推送方案。</div>
+          <div class="form-hint">这张图对应上面这一个码，适合「公众号直推（小批量）」方案；大批量请改用公众号推送方案。</div>
         </div>
         <el-button size="small" @click="downloadMpQr">下载二维码图片</el-button>
       </div>
@@ -1644,9 +1644,13 @@ const s = reactive({
 //    否则「界面显示能用、服务端根本不支持」的空开关又会重演。
 const scanQuery = ref({ current: 'web', options: [] });
 const currentMode = computed(() => (scanQuery.value.options || []).find((o) => o.value === s.scanMode) || null);
-// 🔴 批次编辑弹窗里的「已冻结模式」展示：把批次记录的 print_scan_mode 翻成中文。
-const BATCH_MODE_LABELS = { web: '网页验真', push_dynamic: '网页 + 公众号推送', push_permanent: '公众号直推（小批量）' };
-const batchFrozenLabel = computed(() => BATCH_MODE_LABELS[String(batchDlg.form.printScanMode || '')] || '');
+// 🔴 批次编辑弹窗里的「已冻结模式」展示：标签直接取服务端下发的方案视图（scanQuery.options），
+//    不另写一份副本 —— 否则又会跟服务端 label 漂移（例如档位改名后两处对不上）。
+const batchFrozenLabel = computed(() => {
+  const v = String(batchDlg.form.printScanMode || '');
+  const opt = (scanQuery.value.options || []).find((o) => o.value === v);
+  return opt ? opt.label : '';
+});
 const advancedMode = ref(false);
 
 /* ----------------- 首页展示位 ----------------- */

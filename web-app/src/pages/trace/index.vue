@@ -40,35 +40,36 @@
           </view>
         </view>
 
-        <!-- 🔴 #521 海报区：对齐对标站结果页版式 —— **大图在上，广告位在下**。
-             海报图 = 批次主图 banner，缺省回落批次 logo；都没有就不出图、只留信息条（不白屏）。
-             🔴 2026-10-30 起不再随「网页 + 公众号推送」档位一起隐藏：
-                扫码进来直接给海报 + 结论，公众号推送降为下方的并行补充通道。 -->
-        <view class="tr-poster" v-if="result && showWebResult">
-          <image v-if="posterImage" class="tr-poster-img" :src="posterImage" mode="aspectFill" />
-          <view class="tr-poster-mask" v-if="posterImage"></view>
-          <view class="tr-poster-badge" :class="result.first ? 'tr-badge-ok' : 'tr-badge-warn'">
-            <text>{{ posterBadge }}</text>
+        <!-- 🔴 溯源结果海报：把「banner + 结论卡」合并成一张带二维码的海报（对齐用户示意图）。
+             结论做主视觉、内嵌公众号引导二维码、文字说明 + 操作引导。
+             🔴 demo 码顶部提示迁到海报最上方（试印品一眼可辨，不能像正品）。
+             🔴 功能不变：二维码复用既有公众号临时引导码 pushImg（push_dynamic 才生成，仅微信内展示）。 -->
+        <view class="tr-poster-card" v-if="result && showWebResult">
+          <!-- 演示/试印提示：海报顶端，抢在一切结论之前 -->
+          <view class="tr-poster-demo" v-if="result.demo">
+            <text>【演示·试印】本码为印刷前试印码，不是正式防伪码，请勿作为正品凭证</text>
           </view>
-          <view class="tr-poster-foot">
-            <text class="tr-poster-name">{{ posterName }}</text>
-            <text class="tr-poster-sub" v-if="posterSub">{{ posterSub }}</text>
-          </view>
-        </view>
 
-        <!-- 查询结果（网页验真结果块：push_dynamic 且推送成功时隐藏，避免与公众号推送重复/被仿冒页利用） -->
-        <view class="tr-card tr-card-ok" v-if="result && showWebResult">
+          <!-- 主视觉：品牌主图 + 验真徽标 + 商品名（沿用原 tr-poster 版式） -->
+          <view class="tr-poster-hero">
+            <image v-if="posterImage" class="tr-poster-hero-img" :src="posterImage" mode="aspectFill" />
+            <view class="tr-poster-hero-mask" v-if="posterImage"></view>
+            <view class="tr-poster-badge" :class="result.first ? 'tr-badge-ok' : 'tr-badge-warn'">
+              <text>{{ posterBadge }}</text>
+            </view>
+            <view class="tr-poster-hero-foot">
+              <text class="tr-poster-name">{{ posterName }}</text>
+              <text class="tr-poster-sub" v-if="posterSub">{{ posterSub }}</text>
+            </view>
+          </view>
+
+          <!-- 结论标题 -->
           <view class="tr-result-head">
             <SIcon name="verify" size="large" :color="ICON_SUCCESS" />
             <text class="tr-result-title">{{ resultTitle }}</text>
           </view>
 
-          <!-- 🔴 P1 试印码提示：流水号落在「顶部预留段」→ 明确告诉扫码的人这是演示码，
-               不让试印品冒充正品（试印包流入市场时必须一眼能分清）。 -->
-          <view class="tr-demo-tip" v-if="result.demo">
-            <text>【演示·试印】本码为印刷前试印码，不是正式防伪码，请勿作为正品凭证</text>
-          </view>
-
+          <!-- 文字说明 -->
           <view class="tr-line">
             <text class="tr-line-label">防伪码</text>
             <text class="tr-line-value">{{ result.code || '-' }}</text>
@@ -99,9 +100,16 @@
           </view>
 
           <text class="tr-tip" v-if="successTip">{{ successTip }}</text>
+
+          <!-- 内嵌二维码 + 操作引导（复用公众号临时引导码 pushImg，仅微信内生成） -->
+          <view class="tr-poster-qr" v-if="pushImg">
+            <image class="tr-poster-qr-img" :src="pushImg" mode="aspectFit" />
+            <text class="tr-poster-qr-tip">长按识别二维码，进入认证公众号查看验真结果</text>
+          </view>
+          <text class="tr-poster-qr-err" v-else-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
         </view>
 
-        <!-- 🔴 公众号推送引导（扫码查询方案 = 「网页 + 公众号推送」时）：
+        <!-- 🔴 公众号推送引导（扫码查询方案 = 「公众号推送」时）：
                2026-10-30 起它**降级为并行补充** —— 网页已经直接给结果与海报了，
                这里只是告诉用户「认证公众号也会推一份给你」，不再把它当唯一结果出口。
                仅在微信内展示 —— 其他浏览器长按识别不了二维码，展示就是纯干扰。 -->
@@ -245,7 +253,7 @@ const oauthFailed = ref(false);
 
 /**
  * 取引导二维码。
- * 🔴 只在档位真的要求「网页 + 公众号推送」时才请求：
+ * 🔴 只在档位为「公众号推送」（push_dynamic）时才请求：
  *    默认档位（网页验真）去调一次接口 = 白烧一个公众号二维码额度 + 多一个失败点。
  *    拿不到图就明确退化：页面本身的结果已经足够，不要让消费者以为查失败了。
  */
@@ -355,12 +363,12 @@ function openActivity() {
   execCompLink(linkFromString(a.link));
 }
 
-/** 是否「网页 + 公众号推送」档位 */
+/** 是否「公众号推送」档位（push_dynamic） */
 const pushMode = computed(() => result.value?.scanMode === 'push_dynamic');
 /**
  * 是否展示「网页验真」结果块（海报 + 结论 + 明细）。
  * 🔴 2026-10-30 起**任何档位都展示**：
- *    「网页 + 公众号推送」档位原先只给引导、结果只信公众号，理由是防仿冒页。
+ *    「公众号推送」档位原先只给引导、结果只信公众号，理由是防仿冒页。
  *    但实测反馈是：扫码后停在「防伪查询表单 + 请在公众号内查看验真结果」，
  *    既看不到结果、更看不到海报版式 —— 这一档等于没有结果。
  *    现在网页直接给结论与海报，公众号推送作为**并行补充**（下方引导块保留）。
@@ -438,7 +446,7 @@ async function submit() {
     result.value = await verifyTrace({ co, yzm: String(form.yzm || '').trim(), oc: oc.value }, tid.value);
     // 查到了就把输入表单收起来（页面只剩结果 + 海报 + 广告位）
     reQuery.value = false;
-    // 只有「网页 + 公众号推送」这一档才去取引导二维码
+    // 只有「公众号推送」档位（push_dynamic）才去取引导二维码
     if (result.value && result.value.scanMode === 'push_dynamic') loadPushGuide(result.value.code || co);
   } catch (e) {
     errorMsg.value = (e && e.message) || '查询失败，请稍后重试';
@@ -536,24 +544,41 @@ onLoad((options) => {
   border: 1px solid var(--border);
 }
 
-/* 🔴 #521 海报区：大图 + 底部信息条 + 右上角验真徽标（版式对齐对标站结果页） */
-.tr-poster {
-  position: relative;
+/* 🔴 溯源结果海报：把「banner + 结论卡」合并成一张带二维码的海报（对齐用户示意图）。
+   外层卡片承载圆角/阴影/内边距；演示条与主视觉用负外边距拉满左右与上沿。 */
+.tr-poster-card {
+  background: var(--card-bg);
   border-radius: var(--radius-md);
-  overflow: hidden;
   margin-bottom: 20rpx;
-  /* 🔴 没有主图时（批次未设 banner/logo —— 生产批次就是这种）用品牌色渐变当"文字海报"底，
-     否则容器高度=0 → 徽标与商品名溢出到卡外，看着像破版。
-     有主图时图片铺在上面盖住渐变；图片加载失败时渐变兜底，白字依然可读。 */
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  padding: 28rpx;
+}
+/* 演示/试印提示：海报顶端抢先提示（试印品一眼可辨，不能像正品）。
+   🔴 全部走既有令牌（--danger / --white），不新增裸 hex。 */
+.tr-poster-demo {
+  margin: -28rpx -28rpx 16rpx;
+  padding: 16rpx 28rpx;
+  background: var(--danger);
+  color: var(--white);
+  font-size: var(--fs-3);
+  line-height: 1.6;
+  text-align: center;
+}
+/* 主视觉：品牌主图 + 验真徽标（沿用原 tr-poster 版式）。
+   🔴 没有主图时用品牌色渐变当"文字海报"底，否则容器高度=0 → 徽标与商品名溢出。 */
+.tr-poster-hero {
+  position: relative;
+  margin: -28rpx -28rpx 20rpx;
   background: linear-gradient(135deg, var(--primary), var(--primary-deep));
   min-height: 240rpx;
-  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 /* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端海报高度为 0 */
-.tr-poster-img { width: 100%; height: 420rpx; display: block; background: var(--bg-page); }
+.tr-poster-hero-img { width: 100%; height: 420rpx; display: block; background: var(--bg-page); }
 /* 底部渐变遮罩：白字压在任何主图上都读得清。
    🔴 不新增裸色：既有 --bg-mask 令牌 + transparent 关键字（rgba 字面量会被 tokenAudit 基线拦） */
-.tr-poster-mask {
+.tr-poster-hero-mask {
   position: absolute;
   left: 0;
   right: 0;
@@ -573,7 +598,7 @@ onLoad((options) => {
 }
 .tr-badge-ok { color: var(--success); }
 .tr-badge-warn { color: var(--danger); }
-.tr-poster-foot {
+.tr-poster-hero-foot {
   position: absolute;
   left: 0;
   right: 0;
@@ -595,6 +620,34 @@ onLoad((options) => {
   opacity: 0.86;
   line-height: 1.3;
 }
+/* 🔴 海报内嵌二维码 + 操作引导（复用公众号临时引导码 pushImg，仅微信内生成） */
+.tr-poster-qr {
+  margin-top: 20rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--border);
+  text-align: center;
+}
+.tr-poster-qr-img {
+  width: 320rpx;
+  height: 320rpx;
+  margin: 0 auto 12rpx;
+  display: block;
+  background: var(--white);
+  border-radius: var(--radius-sm);
+}
+.tr-poster-qr-tip {
+  display: block;
+  font-size: var(--fs-3);
+  color: var(--t3);
+  line-height: 1.6;
+}
+.tr-poster-qr-err {
+  display: block;
+  margin-top: 16rpx;
+  font-size: var(--fs-3);
+  color: var(--t3);
+  text-align: center;
+}
 
 .tr-result-head {
   display: flex;
@@ -608,19 +661,6 @@ onLoad((options) => {
   color: var(--success);
 }
 .tr-title-err { color: var(--danger); }
-/* 试印码提示条：红条 + 红字，一眼可辨（试印品绝不能看起来像正品）。
-   🔴 全部走既有令牌（--danger / --bg-page / --radius-md），不新增裸 hex —— 
-      裸 hex 有基线护栏（tokenAudit），每加一处都在吃掉全项目的余量。 */
-.tr-demo-tip {
-  margin: 12rpx 0 4rpx;
-  padding: 16rpx 20rpx;
-  border-radius: var(--radius-md);
-  border-left: 6rpx solid var(--danger);
-  background: var(--bg-page);
-  color: var(--danger);
-  font-size: var(--fs-3);
-  line-height: 1.6;
-}
 .tr-line {
   display: flex;
   align-items: flex-start;
