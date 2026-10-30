@@ -40,36 +40,40 @@
           </view>
         </view>
 
-        <!-- 🔴 溯源结果海报：把「banner + 结论卡」合并成一张带二维码的海报（对齐用户示意图）。
-             结论做主视觉、内嵌公众号引导二维码、文字说明 + 操作引导。
-             🔴 demo 码顶部提示迁到海报最上方（试印品一眼可辨，不能像正品）。
-             🔴 功能不变：二维码复用既有公众号临时引导码 pushImg（push_dynamic 才生成，仅微信内展示）。 -->
+        <!-- 🔴 溯源结果海报：用用户指定的红金底图(poster-bg.jpg)做背景，叠加【文案 + 唯一一个二维码】。
+             🔴 文案 POSTER_NOTE 由用户指定（说明验真结果由认证公众号推送，用于识破仿冒查询网站）。
+             🔴 二维码复用既有公众号临时引导码 pushImg（push_dynamic 才生成，仅微信内展示）；
+                整页**只此一个**二维码 —— 之前 tr-card-push 又放了一遍导致出现两个码，本版去掉。
+             🔴 demo 码顶部提示迁到海报最上方（试印品一眼可辨，不能像正品）。 -->
         <view class="tr-poster-card" v-if="result && showWebResult">
           <!-- 演示/试印提示：海报顶端，抢在一切结论之前 -->
           <view class="tr-poster-demo" v-if="result.demo">
             <text>【演示·试印】本码为印刷前试印码，不是正式防伪码，请勿作为正品凭证</text>
           </view>
 
-          <!-- 主视觉：品牌主图 + 验真徽标 + 商品名（沿用原 tr-poster 版式） -->
-          <view class="tr-poster-hero">
-            <image v-if="posterImage" class="tr-poster-hero-img" :src="posterImage" mode="aspectFill" />
-            <view class="tr-poster-hero-mask" v-if="posterImage"></view>
-            <view class="tr-poster-badge" :class="result.first ? 'tr-badge-ok' : 'tr-badge-warn'">
-              <text>{{ posterBadge }}</text>
-            </view>
-            <view class="tr-poster-hero-foot">
-              <text class="tr-poster-name">{{ posterName }}</text>
-              <text class="tr-poster-sub" v-if="posterSub">{{ posterSub }}</text>
+          <!-- 底图 + 叠加层（底图用 /static 绝对路径，H5/MP 通用） -->
+          <view class="tr-poster-frame">
+            <image class="tr-poster-bg" src="/static/trace/poster-bg.jpg" mode="widthFix" />
+
+            <!-- 叠加面板：白卡浮于底图粉色区，承载文案 + 唯一二维码 -->
+            <view class="tr-poster-overlay">
+              <text class="tr-poster-note">{{ POSTER_NOTE }}</text>
+              <view class="tr-poster-qr" v-if="pushImg">
+                <image class="tr-poster-qr-img" :src="pushImg" mode="aspectFit" />
+              </view>
+              <text class="tr-poster-qr-tip" v-if="pushImg">进入认证公众号查看验真结果</text>
+              <text class="tr-poster-qr-err" v-else-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
             </view>
           </view>
+        </view>
 
-          <!-- 结论标题 -->
+        <!-- 🔴 验真明细：海报下方的常规信息卡（防伪码/查询次数/产品/品牌/厂家/产地/销售区域）。
+             从海报块里拆出来，海报只保留「底图 + 文案 + 二维码」的邀请函式观感。 -->
+        <view class="tr-card tr-detail" v-if="result && showWebResult">
           <view class="tr-result-head">
             <SIcon name="verify" size="large" :color="ICON_SUCCESS" />
             <text class="tr-result-title">{{ resultTitle }}</text>
           </view>
-
-          <!-- 文字说明 -->
           <view class="tr-line">
             <text class="tr-line-label">防伪码</text>
             <text class="tr-line-value">{{ result.code || '-' }}</text>
@@ -98,27 +102,7 @@
             <text class="tr-line-label">销售区域</text>
             <text class="tr-line-value">{{ regionText }}</text>
           </view>
-
           <text class="tr-tip" v-if="successTip">{{ successTip }}</text>
-
-          <!-- 内嵌二维码 + 操作引导（复用公众号临时引导码 pushImg，仅微信内生成） -->
-          <view class="tr-poster-qr" v-if="pushImg">
-            <image class="tr-poster-qr-img" :src="pushImg" mode="aspectFit" />
-            <text class="tr-poster-qr-tip">长按识别二维码，进入认证公众号查看验真结果</text>
-          </view>
-          <text class="tr-poster-qr-err" v-else-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
-        </view>
-
-        <!-- 🔴 公众号推送引导（扫码查询方案 = 「公众号推送」时）：
-               2026-10-30 起它**降级为并行补充** —— 网页已经直接给结果与海报了，
-               这里只是告诉用户「认证公众号也会推一份给你」，不再把它当唯一结果出口。
-               仅在微信内展示 —— 其他浏览器长按识别不了二维码，展示就是纯干扰。 -->
-        <view class="tr-card tr-card-push" v-if="pushImg || pushErr">
-          <text class="tr-card-title">公众号也会推一份验真结果</text>
-          <text class="tr-push-ok" v-if="pushImg">验真结果正通过认证公众号发送给您</text>
-          <text class="tr-card-desc">为防止假冒查询页面，本产品的验真结果同时由商家认证公众号推送一份。您也可以直接以本页结果为准。</text>
-          <image v-if="pushImg" class="tr-push-img" :src="pushImg" mode="aspectFit" />
-          <text class="tr-push-err" v-if="pushErr">当前无法生成引导二维码，请以本页结果为准。</text>
         </view>
 
         <!-- 首页展示位（后台配置的推广位，按展示条件由服务端挑好下发）
@@ -189,6 +173,9 @@ import { API_HOST, IS_MP_WEIXIN } from '../../utils/apiBase.js';
 //    → 必须传真实 hex。语义与 styles/token.scss 的 $success / $danger 对齐。
 const ICON_SUCCESS = '#07c160';
 const ICON_DANGER = '#f53f3f';
+
+// 海报叠加文案（用户指定：说明验真结果由认证公众号推送，用于识破仿冒查询网站）
+const POSTER_NOTE = '为防止假冒查询页面，本产品的验真结果由商家认证公众号推送。';
 
 const loading = ref(false);
 const errorMsg = ref('');
@@ -533,31 +520,26 @@ onLoad((options) => {
   font-weight: 600;
 }
 .tr-btn-off { opacity: 0.6; }
-/* 公众号推送方案的引导卡（与其它卡同令牌体系，不新增裸色值） */
-.tr-card-push { background: var(--bg-tag); text-align: center; }
-.tr-push-img { width: 320rpx; height: 320rpx; margin: 12rpx auto 4rpx; display: block; background: var(--white); border-radius: var(--radius-sm); }
-.tr-push-ok { display: block; margin-bottom: 12rpx; font-size: var(--fs-4); font-weight: 600; color: var(--success); }
-.tr-push-err { display: block; margin-top: 8rpx; font-size: var(--fs-2); color: var(--t3); }
+/* 🔴 公众号推送引导卡已移除：二维码现在只出现在溯源海报里（整页唯一一个），
+   不再另起一张卡放第二个码。pushImg 的取数逻辑仍保留在脚本区不变。 */
 /* 🔴 P2 激活入口卡：与查询卡区分（用既有令牌，不新增裸 hex） */
 .tr-card-act {
   background: var(--bg-tag);
   border: 1px solid var(--border);
 }
 
-/* 🔴 溯源结果海报：把「banner + 结论卡」合并成一张带二维码的海报（对齐用户示意图）。
-   外层卡片承载圆角/阴影/内边距；演示条与主视觉用负外边距拉满左右与上沿。 */
+/* 🔴 溯源结果海报：用红金底图做背景，叠加【文案 + 唯一一个二维码】的邀请函式海报。
+   外层卡片只承载圆角/阴影/裁切；底图 widthFix 撑开高度，叠加层用绝对定位浮在底色块上。 */
 .tr-poster-card {
   background: var(--card-bg);
   border-radius: var(--radius-md);
   margin-bottom: 20rpx;
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  padding: 28rpx;
 }
 /* 演示/试印提示：海报顶端抢先提示（试印品一眼可辨，不能像正品）。
    🔴 全部走既有令牌（--danger / --white），不新增裸 hex。 */
 .tr-poster-demo {
-  margin: -28rpx -28rpx 16rpx;
   padding: 16rpx 28rpx;
   background: var(--danger);
   color: var(--white);
@@ -565,88 +547,55 @@ onLoad((options) => {
   line-height: 1.6;
   text-align: center;
 }
-/* 主视觉：品牌主图 + 验真徽标（沿用原 tr-poster 版式）。
-   🔴 没有主图时用品牌色渐变当"文字海报"底，否则容器高度=0 → 徽标与商品名溢出。 */
-.tr-poster-hero {
-  position: relative;
-  margin: -28rpx -28rpx 20rpx;
-  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
-  min-height: 240rpx;
-  overflow: hidden;
-}
-/* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端海报高度为 0 */
-.tr-poster-hero-img { width: 100%; height: 420rpx; display: block; background: var(--bg-page); }
-/* 底部渐变遮罩：白字压在任何主图上都读得清。
-   🔴 不新增裸色：既有 --bg-mask 令牌 + transparent 关键字（rgba 字面量会被 tokenAudit 基线拦） */
-.tr-poster-hero-mask {
+/* 底图容器：相对定位，作为叠加层的定位上下文（底图 widthFix 决定容器高度）。 */
+.tr-poster-frame { position: relative; }
+/* 🔴 uni image 无内在尺寸 → widthFix 依赖 width 撑开高度；底图铺满海报宽度。 */
+.tr-poster-bg { width: 100%; display: block; }
+/* 🔴 叠加白卡：浮于底图粉色区，承载【文案 + 唯一二维码】，全用既有令牌（不新增裸色/rgba）。 */
+.tr-poster-overlay {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 260rpx;
-  background: linear-gradient(to bottom, transparent 0%, var(--bg-mask) 100%);
-}
-.tr-poster-badge {
-  position: absolute;
-  top: 20rpx;
-  right: 20rpx;
-  padding: 8rpx 20rpx;
-  border-radius: var(--radius-pill);
-  background: var(--white);
-  font-size: var(--fs-2);
-  font-weight: 600;
-}
-.tr-badge-ok { color: var(--success); }
-.tr-badge-warn { color: var(--danger); }
-.tr-poster-hero-foot {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 20rpx 24rpx 24rpx;
-}
-.tr-poster-name {
-  display: block;
-  font-size: var(--fs-6);
-  font-weight: 600;
-  color: var(--white);
-  line-height: 1.3;
-}
-.tr-poster-sub {
-  display: block;
-  margin-top: 6rpx;
-  font-size: var(--fs-3);
-  color: var(--white);
-  opacity: 0.86;
-  line-height: 1.3;
-}
-/* 🔴 海报内嵌二维码 + 操作引导（复用公众号临时引导码 pushImg，仅微信内生成） */
-.tr-poster-qr {
-  margin-top: 20rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx solid var(--border);
+  left: 10%;
+  right: 10%;
+  top: 28%;
+  bottom: 12%;
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 28rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
+.tr-poster-note {
+  font-size: var(--fs-3);
+  color: var(--t1);
+  line-height: 1.6;
+  margin-bottom: 20rpx;
+}
+/* 🔴 整页唯一二维码：复用公众号临时引导码 pushImg（push_dynamic 才生成，仅微信内展示）。 */
+.tr-poster-qr { margin: 4rpx 0; }
 .tr-poster-qr-img {
-  width: 320rpx;
-  height: 320rpx;
-  margin: 0 auto 12rpx;
+  width: 300rpx;
+  height: 300rpx;
   display: block;
   background: var(--white);
   border-radius: var(--radius-sm);
 }
 .tr-poster-qr-tip {
   display: block;
+  margin-top: 12rpx;
   font-size: var(--fs-3);
   color: var(--t3);
   line-height: 1.6;
 }
 .tr-poster-qr-err {
   display: block;
-  margin-top: 16rpx;
+  margin-top: 8rpx;
   font-size: var(--fs-3);
   color: var(--t3);
-  text-align: center;
+  line-height: 1.6;
 }
 
 .tr-result-head {
