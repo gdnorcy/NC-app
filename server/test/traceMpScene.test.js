@@ -18,7 +18,7 @@ function traceCodeOf(serial) {
   return computeTraceCode(`FW${TRACE_BATCH}${String(serial).padStart(6, '0')}00000`, TRACE_RULE);
 }
 const TRACE_CODE = traceCodeOf(1);
-const BATCH_ROW = { tenant_id: 7, id: 1, batch: TRACE_BATCH, is_active: 1 };
+const BATCH_ROW = { tenant_id: 7, id: 1, batch: TRACE_BATCH, is_active: 1, banner: 'https://h.com/uploads/banner.png' };
 // auth_status='authorized' → 走组件桩取 token（不额外发 token 请求），与既有 wx-mp 测试口径一致
 const CHANNEL = { id: 100, appid: 'wxtrace', app_secret: '', customer_id: 7, auth_status: 'authorized' };
 const CARD_SETTINGS = JSON.stringify({ displaySlots: [{ when: 1, title: 'card', cover: '', link: 'https://x.com/p?co={CODE}' }] });

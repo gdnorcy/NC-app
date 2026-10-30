@@ -2584,6 +2584,14 @@ function migrateTraceExtras(db) {
   if (tableExists(db, 'trace_codes') && !colExists(db, 'trace_codes', 'is_demo')) {
     db.exec('ALTER TABLE trace_codes ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0');
   }
+  // P3：扫码查询方案按批次冻结（出码时把当时方案写入 print_scan_mode；
+  //     scan_mode_follow=1 跟随当前全局设置、=0 冻结为出码时记录的模式）。
+  if (!colExists(db, 'trace_batches', 'print_scan_mode')) {
+    db.exec("ALTER TABLE trace_batches ADD COLUMN print_scan_mode TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'trace_batches', 'scan_mode_follow')) {
+    db.exec('ALTER TABLE trace_batches ADD COLUMN scan_mode_follow INTEGER NOT NULL DEFAULT 1');
+  }
   // P2：批次激活记录（先印后绑：码印出来时未激活，经销商激活后消费者才查得到溯源信息）
   db.exec(`
     CREATE TABLE IF NOT EXISTS trace_activations (

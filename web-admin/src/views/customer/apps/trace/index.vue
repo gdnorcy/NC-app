@@ -299,7 +299,7 @@
                     :title="`当前所选档位暂不可用：${currentMode.reason || '前置条件未满足'}，消费者侧会回落到网页验真。`"
                     class="mt12"
                   />
-                  <div class="form-hint mt12">三档只影响「新版印码与结果出口」，已印刷在外的旧码仍按其自身方式可用，不会被改动。</div>
+                  <div class="form-hint mt12">三档决定「印什么形态的码 + 验真结果从哪出来」。若希望某批次已印出的码不受后续全局设置变更影响，可在该批次编辑中开启「方案冻结」，将其固定为出码时的方案。</div>
                 </el-form-item>
                 <el-col :span="16">
                   <el-form-item label="公众号内回复验真">
@@ -494,6 +494,44 @@
               </el-form>
             </el-card>
           </section>
+
+          <!-- ===== 全局活动设置（P3 独立广告位，不复用首页展示位） ===== -->
+          <section v-show="settingTab === 'activity'">
+            <el-card class="set-card" shadow="never">
+              <template #header><span class="card-title">全局活动设置</span></template>
+              <el-form label-width="140px" class="set-form">
+                <el-alert type="info" :closable="false" show-icon class="mb12"
+                  title="在验真结果海报下方展示一张活动广告位（与首页展示位相互独立）。链接中的 [FWM] 会自动替换为本次查询的防伪码、[KEY] 会自动替换为下方填写的活动标识，便于活动落地页区分来源。" />
+                <el-form-item label="启用活动位">
+                  <el-switch v-model="s.activity.enabled" :active-value="true" :inactive-value="false" />
+                  <span class="form-hint">关闭后消费者侧不展示该广告位</span>
+                </el-form-item>
+                <el-form-item label="展示时机">
+                  <el-select v-model="s.activity.when" class="w260">
+                    <el-option :value="0" label="总是展示" />
+                    <el-option :value="1" label="仅首次查询展示" />
+                    <el-option :value="2" label="仅非首次查询展示" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="广告图">
+                  <el-input v-model.trim="s.activity.cover" placeholder="图片 URL（建议 750×300）" />
+                  <el-button link type="primary" class="ml8" @click="openActivityCover">选择素材</el-button>
+                </el-form-item>
+                <el-form-item label="标题文案">
+                  <el-input v-model.trim="s.activity.title" placeholder="如：扫码领周年庆福利，可含 [FWM] / [KEY]" />
+                </el-form-item>
+                <el-form-item label="跳转链接">
+                  <el-input v-model.trim="s.activity.link" placeholder="如：https://example.com/act?code=[FWM]&key=[KEY]" />
+                  <span class="form-hint">支持 [FWM]（防伪码）与 [KEY]（活动标识）占位符</span>
+                </el-form-item>
+                <el-form-item label="活动标识 KEY">
+                  <el-input v-model.trim="s.activity.linkKey" placeholder="如：anniv2026" />
+                  <span class="form-hint">会替换链接 / 文案中的 [KEY]</span>
+                </el-form-item>
+              </el-form>
+            </el-card>
+            <MaterialPicker v-model="activityCoverPicker.show" @confirm="onPickActivityCover" />
+          </section>
         </main>
 
         <!-- 数据类 Tab 的统一保存条（码制 Tab 走自身保存） -->
@@ -685,6 +723,15 @@
             <el-option :value="88" label="商品联动不发放" />
           </el-select>
           <span class="form-hint">决定消费者扫码后获得的奖励类型</span>
+        </el-form-item>
+
+        <!-- 🔴 P3 方案冻结：开关 OFF 时，本批次已印出的码沿用「出码时记录的模式」，
+             不受后续全局「扫码查询方案」变更影响（避免已印制在外、印成网页码的码被切到公众号通道）。 -->
+        <el-form-item label="方案冻结">
+          <el-switch v-model="batchDlg.form.scanModeFollow" :active-value="1" :inactive-value="0" active-text="跟随当前设置" inactive-text="冻结出码方案" />
+          <span class="form-hint" style="margin-left:8px" v-if="batchDlg.form.scanModeFollow === 0">
+            冻结后本批次印出的码按出码时记录的模式（{{ batchFrozenLabel || '尚未出码，将按当前设置' }}）验真
+          </span>
         </el-form-item>
 
         <el-form-item label="套标箱规">
@@ -908,6 +955,7 @@ const settingTabs = [
   { key: 'quick', label: '快捷设置', icon: 'flash' },
   { key: 'general', label: '通用设置', icon: 'image' },
   { key: 'redpack', label: '红包设置', icon: 'gift' },
+  { key: 'activity', label: '活动设置', icon: 'star' },
 ];
 const settingTab = ref('rule');
 
@@ -959,6 +1007,7 @@ function emptyBatch() {
     id: 0, batch: '', product: '', factory: '', brand: '', origin: '', province: '', city: '', district: '', isChuanhuo: 0,
     logo: '', banner: '', video: '', buyLink: '', isActive: true,
     inttype: 0, bbox: 0, sbox: 0, integral: 0, redBudgetCents: -1, validity: 0,
+    scanModeFollow: 1, printScanMode: '',
     caid: { jfEnabled: false, jf: { do: 0, up: 0 }, caidText: '', red: { merchantId: '' }, cjList: [] },
   };
 }
@@ -993,6 +1042,8 @@ function openBatchEdit(row) {
     integral: Number(row.integral || 0),
     redBudgetCents: Number(row.red_budget_cents ?? -1),
     validity: Number(row.validity || 0),
+    scanModeFollow: Number(row.scan_mode_follow ?? 1),
+    printScanMode: row.print_scan_mode || '',
     caid: {
       jfEnabled: String(hd.jf?.tp || '') === '1',
       jf: { do: Number(hd.jf?.do || 0), up: Number(hd.jf?.up || 0) },
@@ -1120,7 +1171,8 @@ async function saveBatch() {
         product: f.product, factory: f.factory, brand: f.brand, origin: f.origin,
         logo: f.logo, banner: f.banner, video: f.video, buyLink: f.buyLink,
         province: f.province, city: f.city, district: f.district,
-        isChuanhuo: Number(f.isChuanhuo || 0), isActive: f.isActive ? 1 : 0, ...batchExtra,
+        isChuanhuo: Number(f.isChuanhuo || 0), isActive: f.isActive ? 1 : 0,
+        scanModeFollow: Number(f.scanModeFollow ?? 1), printScanMode: f.printScanMode || '', ...batchExtra,
       });
     } else {
       await customerApiCall.post('/trace/batches', {
@@ -1520,11 +1572,16 @@ const s = reactive({
   displaySlots: [],
   // 扫码查询方案（服务端白名单归一化后的档位）+ 公众号内回复验真
   scanMode: 'web', wxReply: 1,
+  // 🔴 P3 全局活动广告位（独立字段，不复用首页展示位；服务端按 [FWM]/[KEY] 替换后下发）
+  activity: { enabled: false, cover: '', title: '', link: '', linkKey: '', when: 0 },
 });
 // 🔴 服务端下发的方案视图（三档标签/说明/可用性），本页不自带一份副本 ——
 //    否则「界面显示能用、服务端根本不支持」的空开关又会重演。
 const scanQuery = ref({ current: 'web', options: [] });
 const currentMode = computed(() => (scanQuery.value.options || []).find((o) => o.value === s.scanMode) || null);
+// 🔴 批次编辑弹窗里的「已冻结模式」展示：把批次记录的 print_scan_mode 翻成中文。
+const BATCH_MODE_LABELS = { web: '网页验真', push_dynamic: '网页 + 公众号推送', push_permanent: '公众号直推（小批量）' };
+const batchFrozenLabel = computed(() => BATCH_MODE_LABELS[String(batchDlg.form.printScanMode || '')] || '');
 const advancedMode = ref(false);
 
 /* ----------------- 首页展示位 ----------------- */
@@ -1582,20 +1639,41 @@ function onPickCover(url) {
   s.displaySlots[i].cover = url;
   coverPicker.show = false;
 }
+// 🔴 P3 活动广告位封面：复用系统素材选择器
+const activityCoverPicker = reactive({ show: false });
+function openActivityCover() { activityCoverPicker.show = true; }
+function onPickActivityCover(url) {
+  if (url) s.activity.cover = url;
+  activityCoverPicker.show = false;
+}
 
 const rawJson = ref('');
 const rawError = ref('');
 const setSaving = ref(false);
 const cocom = ref(0);
 
+/**
+ * 活动广告位的表单形状。
+ * 🔴 activity 是**对象字段**：不能整体覆盖 s.activity（库里存了 null / 残缺对象时，
+ *    模板里读 s.activity.enabled 会直接抛 "Cannot read properties of null" → 整个设置页白屏）。
+ *    所以统一走「默认值 ⊕ 已存字段」的合并。
+ */
+const EMPTY_ACTIVITY = () => ({ enabled: false, cover: '', title: '', link: '', linkKey: '', when: 0 });
+function activityForForm(raw) {
+  return { ...EMPTY_ACTIVITY(), ...(raw && typeof raw === 'object' ? raw : {}) };
+}
+
 function syncFormFromSettings(settings) {
   const src = settings || {};
   for (const key of Object.keys(s)) {
     // 🔴 展示位单独走 slotsForForm：要补默认值（accessKey 脱敏回填等）
     if (key === 'displaySlots') continue;
+    // 🔴 活动位同理：合并而非覆盖（避免库里 null/残缺对象把设置页搞崩）
+    if (key === 'activity') continue;
     if (src[key] !== undefined && src[key] !== null) s[key] = src[key];
   }
   s.displaySlots = slotsForForm(src.displaySlots);
+  s.activity = activityForForm(src.activity);
   // 高级模式原本是空的（读不到当前配置，只能盲打）→ 回填一次，编辑才有意义
   rawJson.value = JSON.stringify(s, null, 2);
 }
@@ -1624,7 +1702,8 @@ function onRawInput(val) {
     const parsed = JSON.parse(val);
     Object.keys(s).forEach((k) => {
       if (parsed[k] === undefined) return;
-      s[k] = k === 'displaySlots' ? slotsForForm(parsed[k]) : parsed[k];
+      // 🔴 活动位必须合并（raw JSON 里手写成 null 会让模板读 s.activity.enabled 直接炸）
+      s[k] = k === 'displaySlots' ? slotsForForm(parsed[k]) : (k === 'activity' ? activityForForm(parsed[k]) : parsed[k]);
     });
     rawError.value = '';
   } catch (err) {
