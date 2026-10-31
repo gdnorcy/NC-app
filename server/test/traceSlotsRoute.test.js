@@ -17,15 +17,12 @@ import request from 'supertest';
 import { config } from '../src/config.js';
 import { createDb, hashPassword } from '../src/db.js';
 import { createApp } from '../src/app.js';
-import { decryptSecret } from '../src/crypto.js';
-
 describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条件下发', () => {
   let tmpDir, db, app, server, token;
 
   const T = 12;
-  // 脱敏口径 = 前 4 + **** + 后 4（见 crypto.js maskSecretValue）
+  // 收敛后展示位只有一个密钥字段 authKey（明文存储、复制给对接方，但不下发到 C 端）。
   const PLAIN = 'sk-live-9f3c7a1e5b2d';
-  const MASKED = 'sk-l****5b2d';
 
   before(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'trace-slots-'));
@@ -74,43 +71,38 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
     { when: 4, title: '非首位', cover: '/d.png', link: '/pages/d' },
   ];
 
-  // ── 1) 密钥：密文落库、明文不落库 ────────────────────────────────────
-  it('保存展示位：接口密钥密文落库，明文绝不进库', async () => {
+  // ── 1) #532 偏差3 收敛：展示位只有一个密钥字段 authKey，接口密钥影子字段彻底移除 ──
+  //    2026-10-31 之前有 accessKey/keyCipher（接口密钥，预留、零消费点 = 空头权益）。
+  //    现在：提交 accessKey 既不应落库、也不应回显；库里不再有 keyCipher 概念。
+  it('收敛后：提交 accessKey 不落库、不回显，库里无 keyCipher', async () => {
     const res = await putSettings({ displaySlots: [{ ...SLOTS[0], accessKey: PLAIN }] });
     assert.equal(res.status, 200, JSON.stringify(res.body));
 
     const raw = storedJson();
-    assert.ok(!raw.includes(PLAIN), `明文密钥落库了：${raw}`);
+    assert.ok(!raw.includes('keyCipher'), '收敛后库里不应再有 keyCipher 字段');
     const stored = JSON.parse(raw).displaySlots[0];
-    assert.ok(stored.keyCipher, '库里应有 keyCipher');
-    assert.equal(decryptSecret(stored.keyCipher), PLAIN, '密文解不开或值不对');
-    assert.equal(stored.accessKey, undefined, '明文 accessKey 不应落库');
+    assert.equal(stored.accessKey, undefined, 'accessKey 字段不应落库');
+    assert.ok(!raw.includes(PLAIN), `明文不应落库：${raw}`);
   });
 
-  // ── 2) 回显：只给脱敏串，不给密文 ────────────────────────────────────
-  it('GET 回显只给脱敏串：密文与明文都不出网', async () => {
+  // ── 2) GET 回显里不再出现 accessKey/keyCipher（旧的脱敏串口径废弃）──
+  it('GET 回显不含 accessKey / keyCipher 字段', async () => {
     const res = await auth(request(app).get('/api/customer/trace/settings'));
     assert.equal(res.status, 200, JSON.stringify(res.body));
     const slot = res.body.settings.displaySlots[0];
-    assert.equal(slot.accessKey, MASKED, `脱敏串不对：${slot.accessKey}`);
-    assert.equal(slot.keyCipher, undefined, '密文绝不能回显给浏览器');
+    assert.equal(slot.accessKey, undefined, '收敛后不应再下发给前端的 accessKey');
+    assert.equal(slot.keyCipher, undefined, '收敛后不应再下发给前端的 keyCipher');
     assert.ok(!JSON.stringify(res.body).includes(PLAIN), '明文泄漏到响应体');
   });
 
-  // ── 3) 幂等：脱敏串原样回传 = 不改密钥；新明文才覆盖 ──────────────────
-  it('脱敏串原样回传不改变密文；传新明文才覆盖', async () => {
-    const before = JSON.parse(storedJson()).displaySlots[0].keyCipher;
-
-    const keep = await putSettings({ displaySlots: [{ ...SLOTS[0], accessKey: MASKED }] });
-    assert.equal(keep.status, 200, JSON.stringify(keep.body));
-    assert.equal(JSON.parse(storedJson()).displaySlots[0].keyCipher, before, '回传脱敏串竟然改了密钥');
-
-    const NEW = 'sk-live-rotated-0001';
-    const rot = await putSettings({ displaySlots: [{ ...SLOTS[0], accessKey: NEW }] });
-    assert.equal(rot.status, 200, JSON.stringify(rot.body));
-    const after = JSON.parse(storedJson()).displaySlots[0].keyCipher;
-    assert.notEqual(after, before, '传新明文却没有覆盖密钥');
-    assert.equal(decryptSecret(after), NEW);
+  // ── 3) authKey 仍是唯一密钥字段，且明文存储可复制给对接方（不下发到 C 端由 #13 锁）──
+  it('authKey 是唯一密钥字段：保存后原样回显（明文可见、给对接方）', async () => {
+    const KEY = 'ip15xdm4oglys0ei12luwm4o4lukswog';
+    const res = await putSettings({ displaySlots: [{ ...SLOTS[0], authKey: KEY }] });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const get = await auth(request(app).get('/api/customer/trace/settings'));
+    assert.equal(get.body.settings.displaySlots[0].authKey, KEY, '鉴权码应原样回显给后台（要复制给对接方）');
+    assert.ok(!JSON.parse(storedJson()).displaySlots[0].keyCipher, '不应生成 keyCipher');
   });
 
   // ── 4) 上限 8：第 9 个 400，且不落库 ─────────────────────────────────
@@ -123,16 +115,17 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
   });
 
   // ── 5) 展示条件非法 → 400 ────────────────────────────────────────────
-  it('展示条件非法（0/1/2/4/5 之外）→ 400', async () => {
-    const res = await putSettings({ displaySlots: [{ ...SLOTS[0], when: 3 }] });
+  it('展示条件非法（0/1/2/3/4/5 之外）→ 400', async () => {
+    // 3 已是合法档（仅非首次查询，#552 补），用 6 当非法值
+    const res = await putSettings({ displaySlots: [{ ...SLOTS[0], when: 6 }] });
     assert.equal(res.status, 400);
     assert.match(res.body.error, /展示条件非法/);
   });
 
   // ── 6) C 端下发：按「展示条件 + 本次查询态」挑，且保持配置顺序 ─────────
   it('C 端验真按展示条件下发 slots（首查/换位两次各一次判定）', async () => {
-    // 6.1 配好四个位（第一个位带密钥，验证密文不会漏到 C 端）
-    const put = await putSettings({ displaySlots: SLOTS.map((s, i) => ({ ...s, accessKey: i === 0 ? PLAIN : '' })) });
+    // 6.1 配好四个位（含一个位带 authKey，验证明文鉴权码不会漏到 C 端 —— 见 #13）
+    const put = await putSettings({ displaySlots: SLOTS.map((s, i) => ({ ...s, authKey: i === 0 ? 'ip15xdm4oglys0ei12luwm4o4lukswog' : '' })) });
     assert.equal(put.status, 200, JSON.stringify(put.body));
 
     // 6.2 建批次 + 生成码
@@ -166,6 +159,28 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
       .set('x-openid', 'aaa').send({ co: code });
     assert.equal(again.status, 200, JSON.stringify(again.body));
     assert.deepEqual(again.body.slots.map((s) => s.title), ['全部可见', '首位每次'], '首位复访下发的展示位不对');
+  });
+
+  // ── 6b) #552 仅非首次查询（when=3）：按「这个码被查第几次」分流，与查询人无关 ──
+  // 🔴 2026-10-31 补：展示位原先缺这一档，活动位早有「仅非首次查询」。同一语义两套口径会坑租户。
+  //    when=3 看的是 isFirstQuery（码被查第 1 次 vs 第 2+ 次），不是 isTopQueryer（人是不是首位）。
+  it('仅非首次查询(when=3)：码第1次查不显示、第2+次查才显示（与查询人无关）', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches')).send({ batch: 'NF01', product: '非首次产品' });
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    await putSettings({ slotsEnabled: 1, displaySlots: [{ when: 3, title: '复访才见', cover: '/a.png', link: '/pages/a' }] });
+
+    // ① 这个码首次被查（任何人）→ 不渲染
+    const first = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'nf-a').send({ co: code });
+    assert.equal(first.status, 200, JSON.stringify(first.body));
+    assert.deepEqual(first.body.slots, [], '码首查竟显示了「仅非首次」位');
+
+    // ② 同一个码第二次被查（不同人）→ 渲染；即便第二个人是「首位查询人」也不影响
+    db.prepare("UPDATE trace_histories SET created_at = datetime('now', '-1 minute') WHERE tenant_id = ?").run(T);
+    const second = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'nf-b').send({ co: code });
+    assert.equal(second.status, 200, JSON.stringify(second.body));
+    assert.deepEqual(second.body.slots.map((s) => s.title), ['复访才见'], '码第2次查应显示「仅非首次」位');
   });
 
   // ── 7) 查询次数 num 必须真递增（回归锁） ──────────────────────────────
@@ -271,5 +286,87 @@ describe('展示位路由层：密钥不落明文 + 脱敏回显 + C 端按条�
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal(res.body.slots[0].link, `/pages/x?co=${code}&tid=${T}`, '链接占位符没被替换');
     assert.equal(res.body.slots[0].title, `码 ${code}`, '标题占位符没被替换');
+  });
+
+  // ── 13) 鉴权码明文绝不随公开接口出网；[KEY] 出网的是签名（md5(码+鉴权码)）──
+  // 🔴 2026-10-31 安全加固：原先把 authKey 裸字段随 slot 下发到 C 端（公开接口、可被抓包），
+  //    即使链接里改成签名，密钥本体还是泄漏了。这里锁死「字段不出网 + 链接只带签名」。
+  it('展示位鉴权码明文不出 C 端；[KEY] 只替换成 md5(防伪码 + 鉴权码)', async () => {
+    const AUTHKEY = 'ip15xdm4oglys0ei12luwm4o4lukswog';
+    const batch = await auth(request(app).post('/api/customer/trace/batches')).send({ batch: 'AK01', product: '鉴权码产品' });
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    await putSettings({
+      slotsEnabled: 1,
+      displaySlots: [{ when: 1, title: 't', cover: '/a.png', link: `/pages/x?m=[KEY]`, authKey: AUTHKEY }],
+    });
+    const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'ak1').send({ co: code });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const slot = res.body.slots[0];
+    // ① 明文鉴权码本体不得随字段出网
+    assert.equal(slot.authKey, undefined, '鉴权码明文字段随 C 端响应出网了');
+    assert.ok(!JSON.stringify(res.body.slots).includes(AUTHKEY), '鉴权码明文内容泄漏到 C 端响应');
+    // ② 链接里的 [KEY] 必须是签名、且对应 md5(code + AUTHKEY)
+    const crypto = await import('node:crypto');
+    const expect = crypto.createHash('md5').update(`${code}${AUTHKEY}`, 'utf8').digest('hex');
+    assert.equal(slot.link, `/pages/x?m=${expect}`, `链接里的 [KEY] 应是 md5 签名，实际：${slot.link}`);
+  });
+
+  // ── 14) P0 过期拦截：批次 expire_at 已过期 → 验真被拒 ──
+  it('批次已过有效日期 → 验真返回 400 expired', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches'))
+      .send({ batch: 'EXP01', product: '过期产品', expireAt: '2000-01-01' });
+    assert.equal(batch.status, 200, JSON.stringify(batch.body));
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+    const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'exp1').send({ co: code });
+    assert.equal(res.status, 400, JSON.stringify(res.body));
+    assert.equal(res.body.expired, true, '应标记 expired');
+  });
+
+  // ── 15) P0 params / wailink 下发到 C 端（不再空头）──
+  it('自定义属性(params)与溯源外链(wailink)随验真结果下发给 C 端', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches'))
+      .send({ batch: 'PW01', product: '属性产品', params: [{ k: '材质', v: '纯棉' }, { k: '规格', v: 'L' }], wailink: { sy: 'https://x.com/trace/abc' } });
+    assert.equal(batch.status, 200, JSON.stringify(batch.body));
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+    const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'pw1').send({ co: code });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.batch.params.length, 2, 'params 应原样下发');
+    assert.equal(res.body.batch.params[0].k, '材质');
+    assert.equal(res.body.batch.wailink.sy, 'https://x.com/trace/abc', 'wailink.sy 应下发');
+  });
+
+  // ── 16) P0 窜货闭环：查询地区与限售区域前 2 字不一致 → 标记 cross_region ──
+  it('查询省与限售省不一致 → chuanhuoHit=true 且码被打标 cross_region=1', async () => {
+    const batch = await auth(request(app).post('/api/customer/trace/batches'))
+      .send({ batch: 'CR01', product: '窜货产品', isChuanhuo: 1, chuanhuoLimit: { province: '广东', city: '深圳' } });
+    assert.equal(batch.status, 200, JSON.stringify(batch.body));
+    const gen = await auth(request(app).post(`/api/customer/trace/batches/${batch.body.id}/generate-codes`)).send({ codetype: 6, codeno: 1 });
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    // 查询者上报省=北京（与限售省 广东 前 2 字不一致）→ 命中跨区
+    const res = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'cr1').send({ co: code, province: '北京', city: '北京' });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.batch.chuanhuoHit, true, '应命中跨区');
+    assert.equal(res.body.batch.crossRegion, 1, '码应被打标');
+
+    // 同省不误判：省=广东 市=广州（市与限购市 深圳 不一致也应命中；这里验证省级通过、市级不一致仍命中）
+    const res2 = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'cr2').send({ co: code, province: '广东', city: '广州' });
+    assert.equal(res2.status, 200, JSON.stringify(res2.body));
+    assert.equal(res2.body.batch.chuanhuoHit, true, '省同、市异应仍命中跨区');
+
+    // 完全匹配：省=广东 市=深圳 → 不命中
+    const res3 = await request(app).post(`/api/trace/public/verify?tid=${T}`).set('x-openid', 'cr3').send({ co: code, province: '广东', city: '深圳' });
+    assert.equal(res3.status, 200, JSON.stringify(res3.body));
+    assert.equal(res3.body.batch.chuanhuoHit, false, '省+市均匹配不应命中跨区');
+
+    // 后台列表应汇总出 cross_region_count >= 1
+    // 🔴 批次号会被码制归一化（如 CR01 → 000CR01），断言须用 endsWith 而非全等。
+    const list = await auth(request(app).get('/api/customer/trace/batches'));
+    const row = list.body.list.find((b) => String(b.batch).endsWith('CR01'));
+    assert.ok(row && row.cross_region_count >= 1, `后台列表应显示窜货异常计数 (row=${JSON.stringify(row)})`);
   });
 });
