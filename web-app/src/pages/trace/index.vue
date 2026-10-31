@@ -130,8 +130,19 @@
           <text class="tr-tip" :class="{ 'tr-tip-danger': overLimit }" v-if="successTip">{{ successTip }}</text>
         </view>
 
-        <!-- 🔴 P3 全局活动广告位（独立区块，海报下方；服务端已替换 [FWM]/[KEY]）
-             🔴 2026-10-31：首页「推荐」展示位（tr-slots）已整体移除（用户要求）。 -->
+        <!-- 🔴 P1（2026-10-31）：推荐位（批次级展位 ⊕ 全局展位合并下发）。
+             服务端已按「展示条件 + 本次查询态」挑选、替换 [FWM]/[KEY] 变量并剥掉密钥，
+             前端只做渲染，不再二次筛选/排序/替换。 -->
+        <view class="tr-card tr-slots" v-if="slotList.length">
+          <text class="tr-sec-title">推荐</text>
+          <view v-for="(s, i) in slotList" :key="i" class="tr-slot" @click="openSlot(s)">
+            <image v-if="s.cover" class="tr-slot-cover" :src="slotCover(s.cover)" mode="aspectFill" />
+            <view v-else class="tr-slot-cover tr-slot-cover-ph"><text class="tr-slot-ph-txt">推荐</text></view>
+            <text class="tr-slot-title">{{ s.title || '了解更多' }}</text>
+          </view>
+        </view>
+
+        <!-- 🔴 P3 全局活动广告位（独立区块，海报下方；服务端已替换 [FWM]/[KEY]） -->
         <view class="tr-card tr-activity" v-if="activity.enabled" @click="openActivity">
           <image v-if="activity.cover" class="tr-activity-cover" :src="absOriginUrl(activity.cover)" mode="aspectFill" />
           <view class="tr-activity-body">
@@ -143,6 +154,22 @@
         <!-- 🔴 P0（2026-10-31）：详细溯源 / 购买入口（wailink.sy 优先，回落购买链接） -->
         <view class="tr-card tr-links" v-if="traceLink">
           <view class="tr-btn tr-btn-ghost" @click="openTraceLink">{{ traceLinkLabel }}</view>
+        </view>
+
+        <!-- 🔴 P1（2026-10-31）：关联商品（与商城打通）。
+             服务端按 toshop_json.ids 实时 join 本租户在售商品，未开通商城/无关联/全下架 → 空数组，整区不渲染。 -->
+        <view class="tr-card tr-toshop" v-if="toshopList.length">
+          <text class="tr-sec-title">关联商品</text>
+          <scroll-view scroll-x class="tr-toshop-scroll" :show-scrollbar="false">
+            <view class="tr-toshop-row">
+              <view v-for="(g, i) in toshopList" :key="i" class="tr-toshop-item" @click="openToshop(g)">
+                <image v-if="g.thumb" class="tr-toshop-thumb" :src="absOriginUrl(g.thumb)" mode="aspectFill" />
+                <view v-else class="tr-toshop-thumb tr-toshop-thumb-ph"><text class="tr-toshop-ph-txt">商品</text></view>
+                <text class="tr-toshop-title">{{ g.title || ('商品 #' + g.id) }}</text>
+                <text class="tr-toshop-price" v-if="Number(g.price || 0) > 0">¥{{ fmtPrice(g.price) }}</text>
+              </view>
+            </view>
+          </scroll-view>
         </view>
 
         <!-- 🔴 P0：窜货提示（命中跨区或本码曾被标记异常时展示；策略决定提示给谁，这里只管客户端提示） -->
@@ -416,16 +443,40 @@ const attrList = computed(() => {
   return arr.filter((p) => p && (String(p.k || '').trim() || String(p.v || '').trim()));
 });
 
-/** 🔴 P0：详细溯源入口（wailink.sy 优先，回落到购买链接）；都没有则不渲染入口 */
+// 🔴 P1（2026-10-31）关联商品（商城打通）：服务端实时 join 在售商品下发；空数组 = 未开通/无关联/全下架。
+const toshopList = computed(() => {
+  const arr = batchInfo.value && batchInfo.value.toshop;
+  return Array.isArray(arr) ? arr : [];
+});
+/** 金额展示：服务端按「元」下发，统一两位小数 */
+function fmtPrice(p) {
+  const n = Number(p || 0);
+  return n.toFixed(2);
+}
+/** 点击关联商品 → 商城商品详情页（内部页面直接 navigateTo，不走 execCompLink 的外部链接逻辑） */
+function openToshop(g) {
+  if (!g || !g.id) return;
+  uni.navigateTo({ url: `/pages/mall/detail?id=${encodeURIComponent(g.id)}` });
+}
+
+/**
+ * 🔴 P0：详细溯源入口（wailink.sy 优先，回落购买链接）。
+ * 🔴 P1（2026-10-31）扩展：购买链接也空时，回落到「关联商品首条」的商品详情页（与商城打通闭环）。
+ *    都没有则不渲染入口。
+ */
 const traceLink = computed(() => {
   const b = batchInfo.value || {};
   const sy = (b.wailink && b.wailink.sy) || '';
   if (sy) return sy;
-  return b.buyLink || '';
+  if (b.buyLink) return b.buyLink;
+  const g = toshopList.value[0];
+  return g ? `/pages/mall/detail?id=${g.id}` : '';
 });
 const traceLinkLabel = computed(() => {
   const b = batchInfo.value || {};
-  return (b.wailink && b.wailink.sy) ? '查看详细溯源' : '前往购买';
+  if (b.wailink && b.wailink.sy) return '查看详细溯源';
+  if (b.buyLink) return '前往购买';
+  return toshopList.value.length ? '查看商品' : '';
 });
 function openTraceLink() {
   if (!traceLink.value) return;
@@ -754,7 +805,6 @@ onLoad((options) => {
   font-size: var(--fs-3);
   color: var(--primary);
 }
-/* 🔴 2026-10-31：「推荐」展示位（tr-slots）整块已移除，对应 CSS 一并删除。 */
 /* 🔴 P3 全局活动广告位：结果海报下方的一张整图（独立区块，不复用首页展示位） */
 .tr-activity {
   padding: 0;
@@ -785,6 +835,94 @@ onLoad((options) => {
   flex-shrink: 0;
   font-size: var(--fs-3);
   color: var(--t3);
+}
+/* 🔴 P1（2026-10-31）推荐位（批次 ⊕ 全局展位）—— C 端结果页下方整块恢复：
+   区块头 + 竖排条目（封面图 + 标题），点击走 openSlot（execCompLink）。 */
+.tr-slots { padding: 20rpx 24rpx; }
+.tr-sec-title {
+  display: block;
+  font-size: var(--fs-4);
+  font-weight: 600;
+  color: var(--t1);
+  margin-bottom: 16rpx;
+}
+.tr-slot {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 12rpx 0;
+  border-top: 1rpx solid var(--line, #f2f3f5);
+}
+.tr-slot:first-of-type { border-top: none; }
+.tr-slot-cover {
+  width: 160rpx;
+  height: 100rpx;
+  border-radius: 12rpx;
+  flex-shrink: 0;
+  background: var(--bg-page);
+}
+.tr-slot-cover-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tr-slot-ph-txt { font-size: var(--fs-3); color: var(--t3); }
+.tr-slot-title {
+  flex: 1;
+  margin-left: 20rpx;
+  font-size: var(--fs-4);
+  color: var(--t1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.5;
+}
+
+/* 🔴 P1（2026-10-31）关联商品（商城打通）：横滑卡片行 */
+.tr-toshop { padding: 20rpx 24rpx; }
+.tr-toshop-scroll { width: 100%; }
+.tr-toshop-row { display: flex; flex-direction: row; }
+.tr-toshop-item {
+  width: 220rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  background: var(--bg-page, #f7f8fa);
+  border-radius: 12rpx;
+  padding: 12rpx;
+  display: flex;
+  flex-direction: column;
+}
+.tr-toshop-thumb {
+  width: 100%;
+  height: 180rpx;
+  border-radius: 8rpx;
+  background: #eef0f3;
+}
+.tr-toshop-thumb-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tr-toshop-ph-txt { font-size: var(--fs-3); color: var(--t3); }
+.tr-toshop-title {
+  margin-top: 10rpx;
+  font-size: var(--fs-3);
+  color: var(--t1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.45;
+  min-height: calc(var(--fs-3) * 1.45 * 2);
+}
+.tr-toshop-price {
+  margin-top: 6rpx;
+  font-size: var(--fs-3);
+  color: var(--danger, #f53f3f);
+  font-weight: 600;
 }
 .tr-bottom-space { height: 60rpx; }
 </style>

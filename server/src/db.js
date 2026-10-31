@@ -2598,6 +2598,12 @@ function migrateTraceExtras(db) {
   if (!colExists(db, 'trace_batches', 'scan_mode_follow')) {
     db.exec('ALTER TABLE trace_batches ADD COLUMN scan_mode_follow INTEGER NOT NULL DEFAULT 1');
   }
+  // P1：批次级展位（复用 traceSlots.js 的归一化/挑选/签名；下发时「批次展位 ⊕ 全局展位」合并）。
+  //     JSON 数组存归一化后的展位（when/hidden/title/cover/link/timeMode/startAt/endAt/authKey），
+  //     authKey 为租户展示位统一密钥（批次展位复用，见 trace.js normalizeBatchSlots）。
+  if (!colExists(db, 'trace_batches', 'batch_slots_json')) {
+    db.exec("ALTER TABLE trace_batches ADD COLUMN batch_slots_json TEXT NOT NULL DEFAULT '[]'");
+  }
   // P2：批次激活记录（先印后绑：码印出来时未激活，经销商激活后消费者才查得到溯源信息）
   db.exec(`
     CREATE TABLE IF NOT EXISTS trace_activations (
