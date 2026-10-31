@@ -2537,6 +2537,13 @@ function migrate(db) {
   // ⚠️ 位置纪律：必须在 migrateSolutionApps(db) 之后调用 —— 演示方案靠它把「全部应用」
   //    纳入 solution_apps，trace 若先注册则当轮不会被演示方案收录（应用中心看不到）。
   seedTrace(db);
+  // ⚠️ 必须在 seedTraceCodeRules 之前：旧库 trace_codes 建表无 is_demo 列，而
+  //    seedTraceCodeRules→countTraceCodesGenerated 直接查询 is_demo →
+  //    旧库首次启动在迁移中途崩（ERR_SQLITE_ERROR: no such column: is_demo）。
+  //    P0 落地后旧库一直没被重启过，问题没暴露；补列必须早于任何读 is_demo 的逻辑。
+  if (tableExists(db, 'trace_codes') && !colExists(db, 'trace_codes', 'is_demo')) {
+    db.exec('ALTER TABLE trace_codes ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0');
+  }
   // ⚠️ 必须晚于 seedTrace：trace_code_rules / trace_codes 表要先存在。
   seedTraceCodeRules(db);
   // ⚠️ 必须晚于 seedTrace：P1/P2 的新增列与 trace_activations 表都基于 trace_* 表已存在。
@@ -2586,10 +2593,8 @@ function migrateTraceExtras(db) {
   if (!colExists(db, 'trace_batches', 'activate_pin_cipher')) {
     db.exec("ALTER TABLE trace_batches ADD COLUMN activate_pin_cipher TEXT NOT NULL DEFAULT ''");
   }
-  // P1：试印/演示码标记（扫码落库时按流水号预留段打标；统计口径排除 is_demo=1）
-  if (tableExists(db, 'trace_codes') && !colExists(db, 'trace_codes', 'is_demo')) {
-    db.exec('ALTER TABLE trace_codes ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0');
-  }
+  // （trace_codes.is_demo 补列迁移已提前到 migrate() 的 seedTraceCodeRules 之前，
+  //   这里不再重复 —— 同一迁移只保留一处，避免顺序歧义。）
   // P3：扫码查询方案按批次冻结（出码时把当时方案写入 print_scan_mode；
   //     scan_mode_follow=1 跟随当前全局设置、=0 冻结为出码时记录的模式）。
   if (!colExists(db, 'trace_batches', 'print_scan_mode')) {
