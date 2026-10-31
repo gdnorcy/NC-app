@@ -21,6 +21,7 @@
     <main class="trace-content">
       <!-- ============ 批次管理 ============ -->
       <section v-show="activeTab === 'batches'">
+        <div v-if="!batchDlg.visible">
         <!-- 🔴 码制软引导：只提示不阻断。硬拦会让「用默认码制直接干活」的租户一进来就卡死，
              而真正不可逆的坑（生成后结构参数锁死）放在保存/生成接口上兜底。 -->
         <el-alert v-if="!ruleConfirmed" type="warning" :closable="false" show-icon class="mb12">
@@ -99,6 +100,7 @@
         <div class="pager">
           <el-pagination v-model:current-page="batchQuery.page" :page-size="batchQuery.pageSize" :total="batchTotal"
             layout="total, prev, pager, next" @current-change="loadBatches" />
+        </div>
         </div>
       </section>
 
@@ -755,189 +757,331 @@
         </el-card>
       </section>
 
-    </main>
+    <!-- 新增/编辑批次（2026-10-31 改：对标图2 方式，内容区平铺表单，不再弹窗；
+         列表区 v-if="!batchDlg.visible" 与之互斥，保存/取消后回列表；
+         🔴 2026-10-31 修：v-if 必须同时绑定 activeTab==='batches'，
+         否则切到其他 Tab 时表单仍显示 → 与其他 Tab 内容重叠（图2 现象）。
+         表单 div 位于所有 section 之后（文档流末尾），其他 section v-show=false 不占位，
+         显示时自然落在内容区顶部，无需 scrollIntoView 滚动定位。）
+         🔴 P1（2026-10-31）：单列弹窗改 Tab（对标 8 Tab 结构，字段量已到规模），
+         本次落地 5 个 Tab：商品信息 / 活动设置 / 媒体与溯源 / 展位设置（批次级展位）/ 关联商品（商城打通）。 -->
+    <div v-if="batchDlg.visible && activeTab === 'batches'" class="batch-form-page">
+      <div class="batch-form-head">
+        <el-button link @click="batchDlg.visible = false"><el-icon><ArrowLeft /></el-icon>返回批次列表</el-button>
+        <h3 class="batch-form-title">{{ batchDlg.isEdit ? '编辑批次' : '新增批次' }}</h3>
+      </div>
+      <el-tabs v-model="batchDlg.tab" class="batch-tabs">
+        <!-- ===== 商品信息 ===== -->
+        <el-tab-pane label="商品信息" name="info">
+          <el-form label-width="100px" class="batch-form">
+            <el-form-item label="批次号" required>
+              <el-input v-model.trim="batchDlg.form.batch" placeholder="由码制「批次号长度」决定，如 7 位" />
+            </el-form-item>
+            <el-form-item label="产品"><el-input v-model.trim="batchDlg.form.product" /></el-form-item>
+            <el-form-item label="厂家"><el-input v-model.trim="batchDlg.form.factory" /></el-form-item>
+            <el-form-item label="品牌"><el-input v-model.trim="batchDlg.form.brand" /></el-form-item>
+            <el-form-item label="原产地"><el-input v-model.trim="batchDlg.form.origin" /></el-form-item>
+            <el-form-item label="省"><el-input v-model.trim="batchDlg.form.province" /></el-form-item>
+            <el-form-item label="市"><el-input v-model.trim="batchDlg.form.city" /></el-form-item>
+            <el-form-item label="区"><el-input v-model.trim="batchDlg.form.district" /></el-form-item>
+            <el-form-item label="窜货监控">
+              <el-select v-model="batchDlg.form.isChuanhuo" class="w240">
+                <el-option :value="0" label="不限（不记录）" />
+                <el-option :value="3" label="限定地区但不提示" />
+                <el-option :value="1" label="厂家+客户端同时提示" />
+                <el-option :value="2" label="仅厂家提示" />
+                <el-option :value="4" label="仅客户端提示" />
+              </el-select>
+              <span class="form-hint">命中跨区时：标记码异常 + 客户端提示（按策略决定提示给谁）；限售区域填省=省级比对、省+市=市级比对</span>
+            </el-form-item>
+            <el-form-item label="限售区域" class="sale-limit">
+              <el-input v-model.trim="batchDlg.form.chuanhuoLimit.province" placeholder="省，如 广东" class="w160" />
+              <el-input v-model.trim="batchDlg.form.chuanhuoLimit.city" placeholder="市，如 深圳" class="w160" style="margin-left:8px" />
+              <span class="form-hint" style="margin-left:8px">留空 = 不限售（仅记录不比对）</span>
+            </el-form-item>
+          </el-form>
+          <template v-if="batchDlg.isEdit">
+            <el-form label-width="100px" class="batch-form">
+              <el-form-item label="批次状态">
+                <el-switch v-model="batchDlg.form.isActive" active-text="启用" inactive-text="停用" />
+              </el-form-item>
+            </el-form>
+            <!-- 🔴 P2 先印后绑（激活闸门）管理位：口令给经销商、激活/撤销在这里操作 -->
+            <el-card class="sub-card" shadow="never">
+              <template #header><span class="card-title">先印后绑（激活闸门）</span></template>
+              <el-alert type="info" :closable="false" show-icon class="mb12"
+                title="开启「功能设置 → 码激活」后，本批次在被激活之前，消费者扫码只会看到「请联系经销商扫码激活」，看不到溯源详情。激活口令请线下交给经销商，凭口令由其自助激活。" />
+              <el-form label-width="100px" class="batch-form">
+                <el-form-item label="激活状态">
+                  <el-tag v-if="batchDlg.activation.activated" type="success" size="small">已激活</el-tag>
+                  <el-tag v-else type="warning" size="small">未激活</el-tag>
+                  <span class="form-hint" style="margin-left:8px" v-if="batchDlg.activation.activated">
+                    {{ batchDlg.activation.source === 'dealer' ? '经销商凭口令激活' : '租户后台激活' }}{{ batchDlg.activation.activatedAt ? ' · ' + batchDlg.activation.activatedAt : '' }}
+                  </span>
+                </el-form-item>
+                <el-form-item label="激活口令">
+                  <el-input :model-value="batchDlg.activation.activatePin || '未设置'" readonly placeholder="未设置">
+                    <template #append>
+                      <el-button :loading="pinSaving" @click="resetActivationPin">重置口令</el-button>
+                    </template>
+                  </el-input>
+                  <span class="form-hint">明文只在重置时显示一次，库里存密文；丢失只能重置</span>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="success" size="small" :disabled="batchDlg.activation.activated" @click="activateBatchGate(batchDlg.form)">激活批次</el-button>
+                  <el-button type="warning" size="small" :disabled="!batchDlg.activation.activated" @click="revokeActivation(batchDlg.form)">撤销激活</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </template>
+        </el-tab-pane>
 
-    <!-- 新增/编辑批次弹窗 -->
-    <el-dialog v-model="batchDlg.visible" :title="batchDlg.isEdit ? '编辑批次' : '新增批次'" width="640px" :close-on-click-modal="false">
-      <el-form label-width="100px" class="batch-form">
-        <el-form-item label="批次号" required>
-          <el-input v-model.trim="batchDlg.form.batch" placeholder="由码制「批次号长度」决定，如 7 位" />
-        </el-form-item>
-        <el-form-item label="产品"><el-input v-model.trim="batchDlg.form.product" /></el-form-item>
-        <el-form-item label="厂家"><el-input v-model.trim="batchDlg.form.factory" /></el-form-item>
-        <el-form-item label="品牌"><el-input v-model.trim="batchDlg.form.brand" /></el-form-item>
-        <el-form-item label="原产地"><el-input v-model.trim="batchDlg.form.origin" /></el-form-item>
-        <el-form-item label="省"><el-input v-model.trim="batchDlg.form.province" /></el-form-item>
-        <el-form-item label="市"><el-input v-model.trim="batchDlg.form.city" /></el-form-item>
-        <el-form-item label="区"><el-input v-model.trim="batchDlg.form.district" /></el-form-item>
-        <el-form-item label="窜货监控">
-          <el-select v-model="batchDlg.form.isChuanhuo" class="w240">
-            <el-option :value="0" label="不限（不记录）" />
-            <el-option :value="3" label="限定地区但不提示" />
-            <el-option :value="1" label="厂家+客户端同时提示" />
-            <el-option :value="2" label="仅厂家提示" />
-            <el-option :value="4" label="仅客户端提示" />
-          </el-select>
-          <span class="form-hint">命中跨区时：标记码异常 + 客户端提示（按策略决定提示给谁）；限售区域填省=省级比对、省+市=市级比对</span>
-        </el-form-item>
-        <el-form-item label="限售区域">
-          <el-input v-model.trim="batchDlg.form.chuanhuoLimit.province" placeholder="省，如 广东" class="w160" />
-          <el-input v-model.trim="batchDlg.form.chuanhuoLimit.city" placeholder="市，如 深圳" class="w160" style="margin-left:8px" />
-          <span class="form-hint" style="margin-left:8px">留空 = 不限售（仅记录不比对）</span>
-        </el-form-item>
+        <!-- ===== 活动设置 ===== -->
+        <el-tab-pane label="活动设置" name="activity">
+          <el-form label-width="100px" class="batch-form">
+            <el-form-item label="活动类型">
+              <el-select v-model="batchDlg.form.inttype" class="w240">
+                <el-option :value="0" label="无奖励" />
+                <el-option :value="1" label="积分奖励 1" />
+                <el-option :value="2" label="积分奖励 2" />
+                <el-option :value="3" label="积分奖励 3" />
+                <el-option :value="4" label="积分奖励 4" />
+                <el-option :value="5" label="积分奖励 5" />
+                <el-option :value="7" label="实物商品（邮寄）" />
+                <el-option :value="8" label="微信卡券" />
+                <el-option :value="9" label="微信红包" />
+                <el-option :value="99" label="专属抽奖" />
+                <el-option :value="88" label="商品联动不发放" />
+              </el-select>
+              <span class="form-hint">决定消费者扫码后获得的奖励类型</span>
+            </el-form-item>
 
-        <el-form-item label="活动类型">
-          <el-select v-model="batchDlg.form.inttype" class="w240">
-            <el-option :value="0" label="无奖励" />
-            <el-option :value="1" label="积分奖励 1" />
-            <el-option :value="2" label="积分奖励 2" />
-            <el-option :value="3" label="积分奖励 3" />
-            <el-option :value="4" label="积分奖励 4" />
-            <el-option :value="5" label="积分奖励 5" />
-            <el-option :value="7" label="实物商品（邮寄）" />
-            <el-option :value="8" label="微信卡券" />
-            <el-option :value="9" label="微信红包" />
-            <el-option :value="99" label="专属抽奖" />
-            <el-option :value="88" label="商品联动不发放" />
-          </el-select>
-          <span class="form-hint">决定消费者扫码后获得的奖励类型</span>
-        </el-form-item>
-
-        <!-- 🔴 P3 方案冻结：开关 OFF 时，本批次已印出的码沿用「出码时记录的模式」，
-             不受后续全局「扫码查询方案」变更影响（避免已印制在外、印成网页码的码被切到公众号通道）。 -->
-        <el-form-item label="方案冻结">
-          <el-switch v-model="batchDlg.form.scanModeFollow" :active-value="1" :inactive-value="0" active-text="跟随当前设置" inactive-text="冻结出码方案" />
-          <span class="form-hint" style="margin-left:8px" v-if="batchDlg.form.scanModeFollow === 0">
-            冻结后本批次印出的码按出码时记录的模式（{{ batchFrozenLabel || '尚未出码，将按当前设置' }}）验真
-          </span>
-        </el-form-item>
-
-        <el-form-item label="套标箱规">
-          <el-input-number v-model="batchDlg.form.bbox" :min="0" :max="9999" controls-position="right" />
-          <span class="form-hint" style="margin-left:8px">每箱盒数（0 = 不启用套标）</span>
-        </el-form-item>
-        <el-form-item label="套标盒规">
-          <el-input-number v-model="batchDlg.form.sbox" :min="0" :max="9999" controls-position="right" />
-          <span class="form-hint" style="margin-left:8px">每盒码数（0 = 不启用套标）</span>
-        </el-form-item>
-
-        <el-card class="sub-card" shadow="never">
-          <template #header><span class="card-title">奖励配置（四分区）</span></template>
-          <el-alert type="info" :closable="false" show-icon title="随批次存入 caid_json，由验真奖励引擎按「活动类型」消费；红包真发需先接入租户微信支付凭据。" class="mb12" />
-          <el-form-item label="积分红包">
-            <el-switch v-model="batchDlg.form.caid.jfEnabled" />
-            <template v-if="batchDlg.form.caid.jfEnabled">
-              <span class="form-hint" style="margin:0 8px">下限</span>
-              <el-input-number v-model="batchDlg.form.caid.jf.do" :min="0" :max="999999" controls-position="right" />
-              <span class="form-hint" style="margin:0 8px">上限</span>
-              <el-input-number v-model="batchDlg.form.caid.jf.up" :min="0" :max="999999" controls-position="right" />
-            </template>
-          </el-form-item>
-          <el-form-item label="微信卡券">
-            <el-input v-model="batchDlg.form.caid.caidText" type="textarea" :rows="2" class="w360" placeholder="一行一个 cardId" />
-          </el-form-item>
-          <el-form-item label="红包参数">
-            <el-input v-model="batchDlg.form.caid.red.merchantId" class="w320" placeholder="商户号（需租户微信支付凭据）" />
-          </el-form-item>
-          <el-form-item label="专属抽奖">
-            <div class="cj-list">
-              <div v-for="(p, idx) in batchDlg.form.caid.cjList" :key="idx" class="cj-row">
-                <el-input v-model="p.tx" placeholder="奖项名称" class="w160" />
-                <el-input v-model="p.gl" placeholder="权重" class="w100" />
-                <el-input v-model="p.zz" placeholder="值(#分隔)" class="w160" />
-                <el-button link type="danger" @click="batchDlg.form.caid.cjList.splice(idx, 1)">删除</el-button>
-              </div>
-              <el-button @click="batchDlg.form.caid.cjList.push({ tx: '', gl: '', zz: '', is: '1' })">+ 添加奖项</el-button>
-            </div>
-          </el-form-item>
-        </el-card>
-
-        <!-- 🔴 P0（2026-10-31）：媒体/日期/属性/溯源 由「仅编辑态」提到「新增即可配」，
-             否则新增批次只能生成码却配不了图、配不了属性 —— 与对标「新增批次即可配图片/视频/购买链接」对齐。 -->
-        <el-card class="sub-card" shadow="never">
-          <template #header><span class="card-title">媒体与溯源信息</span></template>
-          <el-form-item label="Logo">
-            <div class="media-pick">
-              <img v-if="batchDlg.form.logo" :src="batchDlg.form.logo" class="media-thumb" />
-              <el-button link type="primary" @click="openImgPicker('batch', 'logo')">{{ batchDlg.form.logo ? '更换图片' : '选择素材' }}</el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="主图">
-            <div class="media-pick">
-              <img v-if="batchDlg.form.banner" :src="batchDlg.form.banner" class="media-thumb" />
-              <el-button link type="primary" @click="openImgPicker('batch', 'banner')">{{ batchDlg.form.banner ? '更换图片' : '选择素材' }}</el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="视频">
-            <div class="media-pick">
-              <span class="media-url" v-if="batchDlg.form.video">{{ batchDlg.form.video }}</span>
-              <el-button link type="primary" @click="openVidPicker('batch', 'video')">{{ batchDlg.form.video ? '更换视频' : '选择素材' }}</el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="购买链接"><el-input v-model.trim="batchDlg.form.buyLink" placeholder="商品购买页 URL（未配溯源外链时回落到这里）" /></el-form-item>
-          <el-form-item label="生产日期">
-            <el-date-picker v-model="batchDlg.form.producedAt" type="date" value-format="YYYY-MM-DD" placeholder="生产日期" />
-          </el-form-item>
-          <el-form-item label="有效日期">
-            <el-date-picker v-model="batchDlg.form.expireAt" type="date" value-format="YYYY-MM-DD" placeholder="到期日（留空=长期有效）" />
-            <span class="form-hint" style="margin-left:8px">到期当日仍有效，过期后该批次码验真将被拦截</span>
-          </el-form-item>
-          <!-- 🔴 P0 自定义属性 / 生产过程：写 params_json，C 端结果页按序展示（对标「扩展属性 + 商品溯源·生产过程」） -->
-          <el-form-item label="自定义属性">
-            <div class="kv-list">
-              <div v-for="(p, idx) in batchDlg.form.params" :key="idx" class="kv-row">
-                <el-input v-model.trim="p.k" placeholder="属性名" class="w160" />
-                <el-input v-model.trim="p.v" placeholder="属性值" class="w240" />
-                <el-button link type="danger" @click="batchDlg.form.params.splice(idx, 1)">删除</el-button>
-              </div>
-              <el-button @click="batchDlg.form.params.push({ k: '', v: '' })">+ 添加属性</el-button>
-            </div>
-            <span class="form-hint">展示在验真结果页（如 材质/规格/批次号等）；生产过程类属性直接写在这里即可</span>
-          </el-form-item>
-          <!-- 🔴 P0 溯源外链：写 wailink_json.sy，C 端结果页给「查看详细溯源」入口，未配则回落购买链接 -->
-          <el-form-item label="溯源外链">
-            <el-input v-model.trim="batchDlg.form.wailink.sy" placeholder="如 https://.../trace/xxx（详细溯源页）" class="w360" />
-            <span class="form-hint" style="margin-left:8px">填了之后 C 端出现「查看详细溯源」按钮；不填则不显示</span>
-          </el-form-item>
-        </el-card>
-
-        <template v-if="batchDlg.isEdit">
-          <el-form-item label="批次状态">
-            <el-switch v-model="batchDlg.form.isActive" active-text="启用" inactive-text="停用" />
-          </el-form-item>
-
-          <!-- 🔴 P2 先印后绑（激活闸门）管理位：口令给经销商、激活/撤销在这里操作 -->
-          <el-card class="sub-card" shadow="never">
-            <template #header><span class="card-title">先印后绑（激活闸门）</span></template>
-            <el-alert type="info" :closable="false" show-icon class="mb12"
-              title="开启「功能设置 → 码激活」后，本批次在被激活之前，消费者扫码只会看到「请联系经销商扫码激活」，看不到溯源详情。激活口令请线下交给经销商，凭口令由其自助激活。" />
-            <el-form-item label="激活状态">
-              <el-tag v-if="batchDlg.activation.activated" type="success" size="small">已激活</el-tag>
-              <el-tag v-else type="warning" size="small">未激活</el-tag>
-              <span class="form-hint" style="margin-left:8px" v-if="batchDlg.activation.activated">
-                {{ batchDlg.activation.source === 'dealer' ? '经销商凭口令激活' : '租户后台激活' }}{{ batchDlg.activation.activatedAt ? ' · ' + batchDlg.activation.activatedAt : '' }}
+            <!-- 🔴 P3 方案冻结：开关 OFF 时，本批次已印出的码沿用「出码时记录的模式」，
+                 不受后续全局「扫码查询方案」变更影响（避免已印制在外、印成网页码的码被切到公众号通道）。 -->
+            <el-form-item label="方案冻结">
+              <el-switch v-model="batchDlg.form.scanModeFollow" :active-value="1" :inactive-value="0" active-text="跟随当前设置" inactive-text="冻结出码方案" />
+              <span class="form-hint" style="margin-left:8px" v-if="batchDlg.form.scanModeFollow === 0">
+                冻结后本批次印出的码按出码时记录的模式（{{ batchFrozenLabel || '尚未出码，将按当前设置' }}）验真
               </span>
             </el-form-item>
-            <el-form-item label="激活口令">
-              <el-input :model-value="batchDlg.activation.activatePin || '未设置'" readonly placeholder="未设置">
-                <template #append>
-                  <el-button :loading="pinSaving" @click="resetActivationPin">重置口令</el-button>
+
+            <el-form-item label="套标箱规">
+              <el-input-number v-model="batchDlg.form.bbox" :min="0" :max="9999" controls-position="right" />
+              <span class="form-hint" style="margin-left:8px">每箱盒数（0 = 不启用套标）</span>
+            </el-form-item>
+            <el-form-item label="套标盒规">
+              <el-input-number v-model="batchDlg.form.sbox" :min="0" :max="9999" controls-position="right" />
+              <span class="form-hint" style="margin-left:8px">每盒码数（0 = 不启用套标）</span>
+            </el-form-item>
+          </el-form>
+
+          <el-card class="sub-card" shadow="never">
+            <template #header><span class="card-title">奖励配置（四分区）</span></template>
+            <el-alert type="info" :closable="false" show-icon title="随批次存入 caid_json，由验真奖励引擎按「活动类型」消费；红包真发需先接入租户微信支付凭据。" class="mb12" />
+            <el-form label-width="100px" class="batch-form">
+              <el-form-item label="积分红包">
+                <el-switch v-model="batchDlg.form.caid.jfEnabled" />
+                <template v-if="batchDlg.form.caid.jfEnabled">
+                  <span class="form-hint" style="margin:0 8px">下限</span>
+                  <el-input-number v-model="batchDlg.form.caid.jf.do" :min="0" :max="999999" controls-position="right" />
+                  <span class="form-hint" style="margin:0 8px">上限</span>
+                  <el-input-number v-model="batchDlg.form.caid.jf.up" :min="0" :max="999999" controls-position="right" />
                 </template>
-              </el-input>
-              <span class="form-hint">明文只在重置时显示一次，库里存密文；丢失只能重置</span>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="success" size="small" :disabled="batchDlg.activation.activated" @click="activateBatchGate(batchDlg.form)">激活批次</el-button>
-              <el-button type="warning" size="small" :disabled="!batchDlg.activation.activated" @click="revokeActivation(batchDlg.form)">撤销激活</el-button>
-            </el-form-item>
+              </el-form-item>
+              <el-form-item label="微信卡券">
+                <el-input v-model="batchDlg.form.caid.caidText" type="textarea" :rows="2" class="w360" placeholder="一行一个 cardId" />
+              </el-form-item>
+              <el-form-item label="红包参数">
+                <el-input v-model="batchDlg.form.caid.red.merchantId" class="w320" placeholder="商户号（需租户微信支付凭据）" />
+              </el-form-item>
+              <el-form-item label="专属抽奖">
+                <div class="cj-list">
+                  <div v-for="(p, idx) in batchDlg.form.caid.cjList" :key="idx" class="cj-row">
+                    <el-input v-model="p.tx" placeholder="奖项名称" class="w160" />
+                    <el-input v-model="p.gl" placeholder="权重" class="w100" />
+                    <el-input v-model="p.zz" placeholder="值(#分隔)" class="w160" />
+                    <el-button link type="danger" @click="batchDlg.form.caid.cjList.splice(idx, 1)">删除</el-button>
+                  </div>
+                  <el-button @click="batchDlg.form.caid.cjList.push({ tx: '', gl: '', zz: '', is: '1' })">+ 添加奖项</el-button>
+                </div>
+              </el-form-item>
+            </el-form>
           </el-card>
-        </template>
-      </el-form>
-      <template #footer>
+        </el-tab-pane>
+
+        <!-- ===== 媒体与溯源 ===== -->
+        <el-tab-pane label="媒体与溯源" name="media">
+          <el-form label-width="100px" class="batch-form">
+            <el-form-item label="Logo">
+              <div class="media-pick">
+                <img v-if="batchDlg.form.logo" :src="batchDlg.form.logo" class="media-thumb" />
+                <el-button link type="primary" @click="openImgPicker('batch', 'logo')">{{ batchDlg.form.logo ? '更换图片' : '选择素材' }}</el-button>
+              </div>
+            </el-form-item>
+            <el-form-item label="主图">
+              <div class="media-pick">
+                <img v-if="batchDlg.form.banner" :src="batchDlg.form.banner" class="media-thumb" />
+                <el-button link type="primary" @click="openImgPicker('batch', 'banner')">{{ batchDlg.form.banner ? '更换图片' : '选择素材' }}</el-button>
+              </div>
+            </el-form-item>
+            <el-form-item label="视频">
+              <div class="media-pick">
+                <span class="media-url" v-if="batchDlg.form.video">{{ batchDlg.form.video }}</span>
+                <el-button link type="primary" @click="openVidPicker('batch', 'video')">{{ batchDlg.form.video ? '更换视频' : '选择素材' }}</el-button>
+              </div>
+            </el-form-item>
+            <el-form-item label="购买链接">
+              <el-input v-model.trim="batchDlg.form.buyLink" placeholder="商品购买页 URL（未配溯源外链且未配关联商品时回落到这里）" />
+            </el-form-item>
+            <el-form-item label="生产日期">
+              <el-date-picker v-model="batchDlg.form.producedAt" type="date" value-format="YYYY-MM-DD" placeholder="生产日期" />
+            </el-form-item>
+            <el-form-item label="有效日期">
+              <el-date-picker v-model="batchDlg.form.expireAt" type="date" value-format="YYYY-MM-DD" placeholder="到期日（留空=长期有效）" />
+              <span class="form-hint" style="margin-left:8px">到期当日仍有效，过期后该批次码验真将被拦截</span>
+            </el-form-item>
+            <!-- 🔴 P0 自定义属性 / 生产过程：写 params_json，C 端结果页按序展示（对标「扩展属性 + 商品溯源·生产过程」） -->
+            <el-form-item label="自定义属性">
+              <div class="kv-list">
+                <div v-for="(p, idx) in batchDlg.form.params" :key="idx" class="kv-row">
+                  <el-input v-model.trim="p.k" placeholder="属性名" class="w160" />
+                  <el-input v-model.trim="p.v" placeholder="属性值" class="w240" />
+                  <el-button link type="danger" @click="batchDlg.form.params.splice(idx, 1)">删除</el-button>
+                </div>
+                <el-button @click="batchDlg.form.params.push({ k: '', v: '' })">+ 添加属性</el-button>
+              </div>
+              <span class="form-hint">展示在验真结果页（如 材质/规格/批次号等）；生产过程类属性直接写在这里即可</span>
+            </el-form-item>
+            <!-- 🔴 P0 溯源外链：写 wailink_json.sy，C 端结果页给「查看详细溯源」入口，未配则回落购买链接 -->
+            <el-form-item label="溯源外链">
+              <el-input v-model.trim="batchDlg.form.wailink.sy" placeholder="如 https://.../trace/xxx（详细溯源页）" class="w360" />
+              <span class="form-hint" style="margin-left:8px">填了之后 C 端出现「查看详细溯源」按钮；不填则不显示</span>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+
+        <!-- ===== 展位设置（P1 批次级展位） ===== -->
+        <el-tab-pane label="展位设置" name="slots">
+          <el-alert type="info" :closable="false" show-icon class="mb12"
+            title="批次级展位：本批次码查询后额外展示的推荐位，与全局「首页展示位」合并下发（批次在前、全局在后）。鉴权码复用租户展示位密钥（链接 [KEY] = md5(防伪码 + 租户鉴权码)），无需单独配置。" />
+          <el-empty v-if="!batchDlg.form.batchSlots.length" description="还没有本批次展位，点下方「新增展位」开始配置（最多 {{ SLOT_MAX }} 个）" :image-size="60" />
+
+          <div v-for="(it, i) in batchDlg.form.batchSlots" :key="i" class="slot-item" :class="{ 'slot-item-off': Number(it.hidden) === 1 }">
+            <div class="slot-item-hd">
+              <span class="slot-idx">第 {{ i + 1 }} 位</span>
+              <el-tag v-if="Number(it.hidden) === 1" type="info" size="small" effect="plain">已隐藏</el-tag>
+              <el-tag v-else-if="it.when === 0" type="info" size="small" effect="plain">已关闭</el-tag>
+              <div class="slot-ops">
+                <el-switch
+                  :model-value="Number(it.hidden) === 1 ? 0 : 1"
+                  :active-value="1"
+                  :inactive-value="0"
+                  size="small"
+                  inline-prompt
+                  active-text="显示"
+                  inactive-text="隐藏"
+                  class="sw-prompt sw-prompt-2"
+                  @change="(v) => { it.hidden = Number(v) === 1 ? 0 : 1; }"
+                />
+                <el-button link size="small" :disabled="i === 0" @click="moveBatchSlot(i, -1)">上移</el-button>
+                <el-button link size="small" :disabled="i === batchDlg.form.batchSlots.length - 1" @click="moveBatchSlot(i, 1)">下移</el-button>
+                <el-button link size="small" type="danger" @click="removeBatchSlot(i)">删除</el-button>
+              </div>
+            </div>
+            <el-form label-width="90px" class="slot-form">
+              <el-form-item label="封面图">
+                <div class="slot-cover-pick" @click="openImgPicker('batchSlot', String(i))">
+                  <img v-if="it.cover" :src="it.cover" class="slot-thumb" />
+                  <div v-else class="slot-add">+ 选择图片</div>
+                </div>
+                <span class="form-hint">建议 240×180；未上传时 C 端显示占位底色</span>
+              </el-form-item>
+              <el-form-item label="标题">
+                <el-input v-model.trim="it.title" maxlength="32" placeholder="展示位标题" class="slot-in" />
+              </el-form-item>
+              <el-form-item label="展示条件">
+                <el-select v-model="it.when" class="slot-when">
+                  <el-option v-for="w in SLOT_WHEN_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="有效时段">
+                <el-select v-model="it.timeMode" class="slot-when" @change="onBatchSlotTimeChange(it)">
+                  <el-option v-for="w in SLOT_TIME_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
+                </el-select>
+                <span class="form-hint">相对三档（一周/二周/一月）选中后立即填入下方日期，可再手动微调；不选时间 = 长期有效</span>
+              </el-form-item>
+              <el-form-item v-if="Number(it.timeMode) === 4 || it.startAt || it.endAt" label="起止日期">
+                <el-date-picker v-model="it.startAt" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" class="slot-date" :clearable="false" />
+                <span class="slot-date-sep">至</span>
+                <el-date-picker v-model="it.endAt" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" class="slot-date" :clearable="false" />
+              </el-form-item>
+              <el-form-item label="跳转链接">
+                <el-input v-model.trim="it.link" placeholder="/pages/xxx 或 https://..." class="slot-in" />
+                <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转。可用变量：[FWM] = 当前防伪码，[KEY] = 本展位签名（md5(防伪码 + 租户鉴权码)，例：...?c=[FWM]&amp;m=[KEY]）</span>
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <div class="slot-foot">
+            <el-button :disabled="batchDlg.form.batchSlots.length >= SLOT_MAX" @click="addBatchSlot">+ 新增展位</el-button>
+          </div>
+        </el-tab-pane>
+
+        <!-- ===== 关联商品（P1 商城打通） ===== -->
+        <el-tab-pane label="关联商品" name="toshop">
+          <el-alert type="info" :closable="false" show-icon class="mb12"
+            title="关联本租户商城的在售商品：C 端验真结果页展示「关联商品」卡片，点击跳转商城商品详情；批次未配购买链接时，购买入口回落到关联商品首条。租户未开通商城应用时不可选择。" />
+          <el-empty v-if="goodsError" :description="goodsError" :image-size="60" />
+          <template v-else>
+            <div class="toshop-head">
+              <el-input v-model="goodsKeyword" placeholder="搜索商品标题" class="w240" clearable @keyup.enter="loadGoodsOptions(1)" @clear="loadGoodsOptions(1)">
+                <template #append><el-button @click="loadGoodsOptions(1)">搜索</el-button></template>
+              </el-input>
+              <span class="form-hint" style="margin-left:8px">点击左侧商品加入关联，右侧可移除；共 {{ goodsTotal }} 个在售商品</span>
+            </div>
+            <div class="toshop-wrap">
+              <div class="toshop-pool">
+                <div v-for="g in goodsList" :key="g.id"
+                  class="toshop-item" :class="{ 'toshop-item-sel': isToshopSelected(g.id) }"
+                  @click="toggleToshop(g)">
+                  <img v-if="g.thumb" :src="g.thumb" class="toshop-thumb" />
+                  <div v-else class="toshop-thumb toshop-thumb-ph">图</div>
+                  <div class="toshop-meta">
+                    <div class="toshop-title">{{ g.title || ('商品 #' + g.id) }}</div>
+                    <div class="toshop-price">¥{{ Number(g.price || 0).toFixed(2) }}</div>
+                  </div>
+                  <el-tag v-if="isToshopSelected(g.id)" type="success" size="small" effect="plain">已关联</el-tag>
+                </div>
+                <el-empty v-if="!goodsList.length" description="没有匹配的在售商品" :image-size="50" />
+                <div class="toshop-page" v-if="goodsTotal > goodsList.length">
+                  <el-button link type="primary" @click="loadGoodsOptions(1)">重新加载</el-button>
+                  <span class="form-hint">仅展示前 {{ goodsList.length }} 条，用搜索缩小范围</span>
+                </div>
+              </div>
+              <div class="toshop-picked">
+                <div class="toshop-picked-hd">
+                  <span>已关联（{{ batchDlg.form.toshopIds.length }}）</span>
+                  <el-button link type="danger" size="small" :disabled="!batchDlg.form.toshopIds.length" @click="batchDlg.form.toshopIds = []">清空</el-button>
+                </div>
+                <div v-for="g in pickedGoods" :key="g.id" class="toshop-pick-item">
+                  <img v-if="g.thumb" :src="g.thumb" class="toshop-thumb toshop-thumb-sm" />
+                  <div v-else class="toshop-thumb toshop-thumb-sm toshop-thumb-ph">图</div>
+                  <span class="toshop-pick-title">{{ g.title || ('商品 #' + g.id) }}</span>
+                  <el-button link type="danger" size="small" @click="removeToshop(g.id)">移除</el-button>
+                </div>
+                <el-empty v-if="!batchDlg.form.toshopIds.length" description="尚未关联商品" :image-size="50" />
+              </div>
+            </div>
+          </template>
+        </el-tab-pane>
+      </el-tabs>
+      <div class="batch-form-footer">
         <el-button @click="batchDlg.visible = false">取消</el-button>
         <el-button type="primary" :loading="batchSaving" @click="saveBatch">保存</el-button>
-      </template>
-    </el-dialog>
+      </div>
+    </div>
+    </main>
+
 
     <!-- 生成防伪码弹窗（🔴 用 el-input-number 替代 window.prompt） -->
     <el-dialog v-model="genDlg.visible" :title="`生成防伪码：${genDlg.row?.batch || ''}`" width="460px" :close-on-click-modal="false">
@@ -1039,9 +1183,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Search, CircleCheckFilled, WarningFilled } from '@element-plus/icons-vue';
+import { Plus, Search, ArrowLeft, CircleCheckFilled, WarningFilled } from '@element-plus/icons-vue';
 // 🔴 标准 §5.2：必须走 customerApiCall（baseURL=/api/customer），禁止裸 fetch / 自建 request
 import { customerApiCall } from '../../../../api';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
@@ -1122,13 +1266,73 @@ function gotoRuleTab() {
   loadRule();
 }
 
-const batchDlg = reactive({ visible: false, isEdit: false, form: {}, activation: { activated: false, activatePin: '', source: '', activatedAt: '', hasPin: false } });
+const batchDlg = reactive({ visible: false, isEdit: false, tab: 'info', form: {}, activation: { activated: false, activatePin: '', source: '', activatedAt: '', hasPin: false } });
 const batchSaving = ref(false);
 const pinSaving = ref(false);
 /** 安全解析 JSON：坏数据回落默认，避免 undefined 进表单输入框（P0 字段回填用） */
 function safeParse(str, fallback) {
   try { const v = JSON.parse(String(str || '')); return v ?? fallback; } catch { return fallback; }
 }
+
+// 🔴 P1（2026-10-31）批次级展位：与全局展示位同字段（封面/标题/展示条件/有效时段/起止/链接/隐藏），
+//    但**不配鉴权码** —— 服务端 normalizeBatchSlots 统一复用租户展示位密钥（用户拍板，见 trace.js）。
+const EMPTY_BATCH_SLOT = () => ({ when: 1, hidden: 0, title: '', cover: '', link: '', timeMode: 0, startAt: '', endAt: '' });
+function addBatchSlot() {
+  if (batchDlg.form.batchSlots.length >= SLOT_MAX) { ElMessage.warning(`展位最多 ${SLOT_MAX} 个`); return; }
+  batchDlg.form.batchSlots.push(EMPTY_BATCH_SLOT());
+}
+function removeBatchSlot(i) { batchDlg.form.batchSlots.splice(i, 1); }
+function moveBatchSlot(i, delta) {
+  const list = batchDlg.form.batchSlots;
+  const j = i + delta;
+  if (j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+}
+// 时段模式与全局展示位同规则（相对档落具体日期 / 不限清空）
+function onBatchSlotTimeChange(it) { onSlotTimeChange(it); }
+
+// 🔴 P1（2026-10-31）关联商品（商城打通）：候选来自 GET /trace/goods（本租户在售商品，
+//    requireTenant + 未开通商城应用 → 403，后台该区块降级为提示不可选）。
+//    穿梭框只存商品 id（toshop_json={"ids":[...]}），下发时服务端按在售实时 join（非快照）。
+const goodsList = ref([]);
+const goodsTotal = ref(0);
+const goodsKeyword = ref('');
+const goodsError = ref('');
+const goodsLoaded = ref(false);
+async function loadGoodsOptions() {
+  try {
+    const res = await customerApiCall.get('/trace/goods', { params: { page: 1, pageSize: 100, keyword: goodsKeyword.value } });
+    goodsError.value = '';
+    goodsLoaded.value = true;
+    goodsList.value = Array.isArray(res.list) ? res.list : [];
+    goodsTotal.value = Number(res.total || 0);
+  } catch (e) {
+    goodsLoaded.value = true;
+    goodsError.value = (e && e.status === 403) ? '当前租户未开通商城应用，无法选择关联商品（可在应用中心开通）' : (e || '商品列表加载失败');
+    goodsList.value = [];
+    goodsTotal.value = 0;
+  }
+}
+function isToshopSelected(id) { return batchDlg.form.toshopIds.includes(Number(id)); }
+function toggleToshop(g) {
+  const id = Number(g.id);
+  const idx = batchDlg.form.toshopIds.indexOf(id);
+  if (idx >= 0) batchDlg.form.toshopIds.splice(idx, 1);
+  else batchDlg.form.toshopIds.push(id);
+}
+function removeToshop(id) {
+  const idx = batchDlg.form.toshopIds.indexOf(Number(id));
+  if (idx >= 0) batchDlg.form.toshopIds.splice(idx, 1);
+}
+/** 右侧「已关联」区：从候选列表里挑已选的（候选没拉全时至少展示 id 兜底条） */
+const pickedGoods = computed(() => {
+  const picked = goodsList.value.filter((g) => batchDlg.form.toshopIds.includes(Number(g.id)));
+  const pickedIds = new Set(picked.map((g) => Number(g.id)));
+  const missing = batchDlg.form.toshopIds.filter((id) => !pickedIds.has(Number(id)));
+  return picked.concat(missing.map((id) => ({ id: Number(id), title: `商品 #${id}`, thumb: '', price: 0 })));
+});
+// 首次切到「关联商品」Tab 时懒加载商品候选（未开通 403 也只会提示一次）
+watch(() => batchDlg.tab, (t) => { if (t === 'toshop' && !goodsLoaded.value) loadGoodsOptions(); });
 
 function emptyBatch() {
   return {
@@ -1140,9 +1344,16 @@ function emptyBatch() {
     chuanhuoLimit: {}, params: [], wailink: { sy: '' },
     scanModeFollow: 1, printScanMode: '',
     caid: { jfEnabled: false, jf: { do: 0, up: 0 }, caidText: '', red: { merchantId: '' }, cjList: [] },
+    // 🔴 P1（2026-10-31）：批次级展位（不配鉴权码，服务端复用租户展示位密钥）+ 关联商品（商城 ids）
+    batchSlots: [], toshopIds: [],
   };
 }
-function openBatchCreate() { batchDlg.isEdit = false; batchDlg.form = emptyBatch(); batchDlg.visible = true; }
+function openBatchCreate() {
+  batchDlg.isEdit = false;
+  batchDlg.tab = 'info';
+  batchDlg.form = emptyBatch();
+  batchDlg.visible = true;
+}
 function openBatchEdit(row) {
   let hd = {};
   try { hd = JSON.parse(row.caid_json || '{}'); } catch (e) { hd = {}; }
@@ -1188,7 +1399,20 @@ function openBatchEdit(row) {
       red: { merchantId: hd.red?.merchantId || '' },
       cjList,
     },
+    // 🔴 P1（2026-10-31）：批次级展位 + 关联商品回显。
+    //    batchSlots 原样回显（含服务端统一的 authKey）——密钥不进表单 UI，但随保存原样带回，
+    //    服务端 normalize 对已有 authKey 不再重生成 → 编辑保存幂等，已印出的链接不失效。
+    //    toshop_json 结构为 {"ids":[...]}，历史空对象回落空数组。
+    batchSlots: (() => {
+      const v = safeParse(row.batch_slots_json, []);
+      return Array.isArray(v) ? v : [];
+    })(),
+    toshopIds: (() => {
+      const v = safeParse(row.toshop_json, {});
+      return Array.isArray(v?.ids) ? v.ids.map(Number).filter((x) => x > 0) : [];
+    })(),
   };
+  batchDlg.tab = 'info';
   batchDlg.visible = true;
   // 🔴 P2：顺带拉批次的激活态（编辑弹窗里管理口令/激活/撤销）
   loadBatchActivation(row.id);
@@ -1304,6 +1528,9 @@ async function saveBatch() {
     // 🔴 P0（2026-10-31）：新增可配字段一并下发（漏了等于每次保存把它们清空 → 老问题）
     producedAt: String(f.producedAt || ''), expireAt: String(f.expireAt || ''),
     chuanhuoLimit: f.chuanhuoLimit || {}, params: Array.isArray(f.params) ? f.params : [], wailink: f.wailink || {},
+    // 🔴 P1（2026-10-31）：批次级展位 + 关联商品 —— 与 POST/PUT 服务端列清单必须同步（#532 铁律）
+    batchSlots: Array.isArray(f.batchSlots) ? f.batchSlots : [],
+    toshop: { ids: Array.isArray(f.toshopIds) ? f.toshopIds : [] },
   };
   try {
     if (batchDlg.isEdit) {
@@ -1883,6 +2110,11 @@ function writePicked(picker, url) {
   if (picker.target === 'settings') s[picker.field] = url;
   else if (picker.target === 'batch') batchDlg.form[picker.field] = url;
   else if (picker.target === 'activity') s.activity.cover = url;
+  // 🔴 P1：批次级展位封面 —— target='batchSlot'，field 存展位下标
+  else if (picker.target === 'batchSlot' && Array.isArray(batchDlg.form.batchSlots)) {
+    const i = Number(picker.field);
+    if (i >= 0 && i < batchDlg.form.batchSlots.length) batchDlg.form.batchSlots[i].cover = url;
+  }
 }
 function onPickImg(url) {
   writePicked(imgPicker, url);
@@ -2195,6 +2427,53 @@ onMounted(() => {
 .slot-date { width: 168px; }
 .slot-date-sep { margin: 0 8px; color: var(--el-text-color-secondary); }
 .slot-foot { display: flex; align-items: center; gap: 12px; }
+
+/* 🔴 P1（2026-10-31）关联商品穿梭框：左候选池 / 右已选 */
+.batch-tabs .el-tab-pane { max-height: 58vh; overflow: auto; padding: 4px 6px 8px; }
+/* 2026-11-01 样式兜底：极端环境/旧缓存下标签列被压缩成竖排、控件塌缩时，强制标签不换行不收缩 */
+.batch-form :deep(.el-form-item__label) {
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+}
+.batch-form :deep(.el-form-item__content) {
+  flex: 1 1 auto !important;
+  min-width: 0;
+}
+/* 🔴 2026-11-01 同行为多控件行防纵向堆叠（实测：专属抽奖奖项行/自定义属性行/限售区域省·市·提示被逐项换行） */
+.cj-row, .kv-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.cj-row :deep(.el-input), .kv-row :deep(.el-input) { flex: 1 1 auto; min-width: 0; }
+.cj-row :deep(.el-button), .kv-row :deep(.el-button) { flex: 0 0 auto; }
+.sale-limit :deep(.el-form-item__content) { flex-wrap: nowrap; }
+.sale-limit :deep(.el-form-item__content > .el-input) { flex: 1 1 auto; min-width: 0; }
+.sale-limit :deep(.el-form-item__content > .form-hint) { flex: 0 1 auto; min-width: 0; white-space: normal; }
+/* 2026-10-31 改：新增/编辑批次内容区平铺（对标图2，不再弹窗） */
+.batch-form-page {
+  background: #fff; border-radius: 8px; border: 1px solid #e5e6eb;
+  padding: 16px 20px 20px; margin-top: 12px;
+}
+.batch-form-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #f2f3f5; margin-bottom: 12px; }
+.batch-form-title { margin: 0; font-size: 16px; font-weight: 600; color: #1d2129; }
+.batch-form-footer { display: flex; justify-content: flex-end; gap: 12px; padding-top: 14px; border-top: 1px solid #f2f3f5; margin-top: 12px; }
+.toshop-head { display: flex; align-items: center; margin-bottom: 10px; }
+.toshop-wrap { display: flex; gap: 14px; align-items: stretch; }
+.toshop-pool, .toshop-picked {
+  flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; min-height: 300px; max-height: 420px;
+  overflow: auto; background: #fafbfc; padding: 10px;
+}
+.toshop-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.toshop-item:hover { background: #f2f3f5; }
+.toshop-item-sel { background: #ecf5ff; }
+.toshop-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e6eb; flex: none; }
+.toshop-thumb-ph { display: flex; align-items: center; justify-content: center; color: #c9cdd4; background: #f2f3f5; font-size: 14px; }
+.toshop-thumb-sm { width: 34px; height: 34px; }
+.toshop-meta { flex: 1; min-width: 0; }
+.toshop-title { font-size: 13px; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toshop-price { font-size: 12px; color: #f53f3f; margin-top: 2px; }
+.toshop-picked-hd { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #4e5969; font-weight: 600; margin-bottom: 8px; }
+.toshop-pick-item { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 6px; }
+.toshop-pick-item:hover { background: #f2f3f5; }
+.toshop-pick-title { flex: 1; min-width: 0; font-size: 13px; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toshop-page { padding: 8px 4px 2px; display: flex; align-items: center; gap: 10px; }
 
 /* 数据统计 */
 .stat-cards { margin-bottom: 4px; }

@@ -130,6 +130,54 @@ function getSettings(db, tenantId) {
 }
 
 /**
+ * P1（2026-10-31）：批次级展位归一化（复用 traceSlots.js 的 normalizeDisplaySlots）。
+ * 定义在工厂函数**外层**：验真接口(Public router) 与 批次增改(Admin router) 都要用。
+ *
+ * 🔴 密钥复用租户展示位密钥（用户 2026-10-31 拍板）：
+ *    · 租户全局展示位配过密钥 → 本批次所有展位统一用「全局第一位 authKey」；
+ *    · 全局没配过 → 统一用本批次第一个已有密钥（编辑态幂等，normalizeDisplaySlots
+ *      对已有 authKey 不再重生成）；
+ *    · 都为空 → 生成一把共享密钥，保存后固定（再次保存不再变，已印出的链接不失效）。
+ *    🔴 为什么统一成一把：外部对接方只认一把密钥验签 md5(防伪码+密钥)；
+ *      每位置各一套密钥，对接方不知道用哪把重算 → 签名对不上。
+ */
+function normalizeBatchSlots(db, tenantId, input) {
+  const slots = normalizeDisplaySlots(Array.isArray(input) ? input : []);
+  if (!slots.length) return slots;
+  const { settings } = getSettings(db, tenantId);
+  const globalKey = (Array.isArray(settings.displaySlots) ? settings.displaySlots : [])
+    .find((s) => s && s.authKey)?.authKey || '';
+  let sharedKey = globalKey || slots.find((s) => s.authKey)?.authKey || '';
+  if (!sharedKey) {
+    sharedKey = crypto.randomBytes(16).toString('hex'); // 与 traceSlots 同形状（32 位 hex）
+  }
+  slots.forEach((s) => { s.authKey = sharedKey; });
+  return slots;
+}
+
+/**
+ * P1（2026-10-31）：关联商品实时 join（toshop_json 只存 ids，下发时按在售商品实时取 ——
+ * 改价/下架即时同步，不做快照）。未开通 goods 应用或 ids 为空 → 空数组（C 端整区不渲染）。
+ */
+function buildTraceToshop(db, tenantId, batch) {
+  const cfg = safeJson(batch.toshop_json, {});
+  const ids = (Array.isArray(cfg?.ids) ? cfg.ids : []).map(Number).filter((x) => x > 0);
+  if (!ids.length || !hasSolution(db, tenantId, 'goods')) return [];
+  const ph = ids.map(() => '?').join(',');
+  const rows = db.prepare(
+    `SELECT id, title, thumb, price, market_price FROM goods
+     WHERE customer_id = ? AND status = 'sell' AND id IN (${ph})`
+  ).all(tenantId, ...ids);
+  return rows.map((g) => ({
+    id: g.id,
+    title: String(g.title || ''),
+    thumb: String(g.thumb || ''),
+    price: Number(g.price || 0),
+    marketPrice: Number(g.market_price || 0),
+  }));
+}
+
+/**
  * 🔴 按码里切出的批次段反查批次。
  *
  * 主路径 = 精确匹配 trace_batches.batch（写入时已按 m[2] 归一，必然命中）。
@@ -686,12 +734,21 @@ export function createTracePublicRouter(db) {
       // 🔴 必须在这里剥掉 keyCipher：展示位是公开接口下发的，密文一旦出网
       //    等于把租户的接口凭据交给任何人（拿到密文 + 我们服务的解密能力即可还原）。
       // 🔴 展示位总开关（slotsEnabled=0）→ 整个区块不下发（后台关掉即彻底不出现）。
-      // 🔴 链接里的 {CODE}/{TID} 在这里替换成真实值 —— 服务端替换是唯一出处，
+      // 🔴 链接里的 {CODE}/{TID}/[FWM]/[KEY] 在这里替换成真实值 —— 服务端替换是唯一出处，
       //    前端不再做（前端也不知道该码值；以前 C 端拿到的还是字面量 {CODE}，点必坏）。
-      slots: (slotsEnabled(settings) ? pickDisplaySlots(settings.displaySlots || [], {
-        isFirstQuery: Number(record.num || 0) <= 1,
-        isTopQueryer: Boolean(record.openid) && record.openid === openid,
-      }) : []).map(({ keyCipher, authKey, ...rest }) => ({
+      // 🔴 P1（2026-10-31）：批次级展位 ⊕ 全局展位合并后统一挑选 —— 批次位排前、全局位随后，
+      //    每项带 scope: 'batch'|'global'（C 端可选展示来源标记，默认不加角标）。
+      //    批次展位密钥已由 normalizeBatchSlots 统一为租户展示位密钥，替换用每项自身 authKey。
+      slots: (slotsEnabled(settings) ? [
+        ...pickDisplaySlots(safeJson(batch.batch_slots_json, []), {
+          isFirstQuery: Number(record.num || 0) <= 1,
+          isTopQueryer: Boolean(record.openid) && record.openid === openid,
+        }).map((s) => ({ ...s, scope: 'batch' })),
+        ...pickDisplaySlots(settings.displaySlots || [], {
+          isFirstQuery: Number(record.num || 0) <= 1,
+          isTopQueryer: Boolean(record.openid) && record.openid === openid,
+        }).map((s) => ({ ...s, scope: 'global' })),
+      ] : []).map(({ keyCipher, authKey, ...rest }) => ({
         // 🔴 两个密钥类字段都要剥，一个不留：
         //    · keyCipher —— 接口密钥密文（拿到密文 + 我方解密能力即可还原凭据）；
         //    · authKey   —— 展位鉴权码本体。它要留给对接方在后台复制，**不下发给消费者**；
@@ -739,6 +796,9 @@ export function createTracePublicRouter(db) {
         rcon: Number(batch.rcon || 0),
         params: safeJson(batch.params_json, []),
         wailink: safeJson(batch.wailink_json, {}),
+        // 🔴 P1（2026-10-31）关联商品（与商城打通）：toshop_json 只存商品 id 列表，
+        //    这里按租户在售商品实时 join（未开通商城应用或商品已下架 → 空数组，C 端整区不渲染）。
+        toshop: buildTraceToshop(db, tenantId, batch),
       },
       reward,
       settings: {
@@ -1097,6 +1157,30 @@ export function createTraceAdminRouter(db) {
     }
   });
 
+  // 🔴 P1（2026-10-31）关联商品候选池：本租户在售商品（goods.status='sell'），
+  //    后台穿梭框只读候选；回显 join 走 buildTraceToshop 同口径（实时 join，非快照）。
+  router.get('/goods', (req, res) => {
+    try {
+      if (!hasSolution(db, req.traceTenantId, 'goods')) {
+        return sendError(res, 403, '当前租户未开通商城应用，无法选择关联商品（可在应用中心开通）');
+      }
+      const cid = req.traceTenantId;
+      const { keyword = '', page = 1, pageSize = 100 } = req.query;
+      const where = ['customer_id = ?', "status = 'sell'"];
+      const params = [cid];
+      if (keyword) { where.push('title LIKE ?'); params.push(`%${keyword}%`); }
+      const whereSql = where.join(' AND ');
+      const total = db.prepare(`SELECT COUNT(*) AS n FROM goods WHERE ${whereSql}`).get(...params).n;
+      const list = db.prepare(
+        `SELECT id, title, thumb, price, unit, stock FROM goods WHERE ${whereSql}
+         ORDER BY sort_order DESC, id DESC LIMIT ? OFFSET ?`
+      ).all(...params, Number(pageSize), (Number(page) - 1) * Number(pageSize));
+      return res.json({ list, total });
+    } catch (e) {
+      return sendError(res, 500, e.message);
+    }
+  });
+
   router.get('/code-rule', (req, res) => {
     const cur = getRule(db, req.traceTenantId);
     // 🔴 回传锁定态：前端据此禁用码制输入框并给出「已印刷不可改」的明确提示，
@@ -1157,9 +1241,9 @@ export function createTraceAdminRouter(db) {
     if (normalized.error) return sendError(res, 400, normalized.error);
     const { rule } = getRule(db, req.traceTenantId);
     try {
-      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
-        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}));
+      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, batch_slots_json, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
+        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)));
       addHistory(db, req.traceTenantId, 1, normalized.batch, req, '新增防伪批次');
       return res.json({ id: Number(info.lastInsertRowid), batch: normalized.batch });
     } catch (e) {
@@ -1178,9 +1262,9 @@ export function createTraceAdminRouter(db) {
     const exists = db.prepare('SELECT id FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
     if (!exists) return sendError(res, 404, '批次不存在');
     const b = req.body || {};
-    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
+    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, batch_slots_json = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
       WHERE tenant_id = ? AND id = ?`)
-      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
+      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
     addHistory(db, req.traceTenantId, 1, String(id), req, '编辑防伪批次');
     return res.json({ ok: true });
   });
