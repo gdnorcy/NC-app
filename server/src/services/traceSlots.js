@@ -211,6 +211,26 @@ export function slotsEnabled(settings) {
 }
 
 /**
+ * 查询页展示位闸门：在「展示位总开关 slotsEnabled」之上叠加的一层。
+ * 🔴 默认 = 关：这是**新加的**默认关闭开关，老租户 settings 里没有该字段，必须按「关」处理。
+ *    与 slotsEnabled 的「默认开」相反 —— 那里是为了不破坏老功能，这里是新功能，默认不显示才符合需求。
+ * 🔴 优先级：批次级 show_slots_query(-1 继承 / 0 关 / 1 开) 高于全局 showSlotsOnQuery。
+ *    只有「总闸开」且「查询页闸门开」时才下发；批次显式设 0 可压制全局开。
+ * ⚠️ 公众号推送里的展示位推广卡只由 slotsEnabled 总闸控，不受此函数影响（需求明确分开两条通道）。
+ * @param {object} settings 租户设置（读 showSlotsOnQuery）
+ * @param {object} [batch] 批次行（读 show_slots_query 列）
+ * @returns {boolean} 查询页是否下发展示位
+ */
+export function showSlotsOnQuery(settings, batch) {
+  const bRaw = batch?.show_slots_query;
+  if (bRaw !== undefined && bRaw !== null && Number(bRaw) !== -1) {
+    return Number(bRaw) === 1;
+  }
+  const gRaw = settings?.showSlotsOnQuery;
+  return Number(gRaw || 0) === 1;
+}
+
+/**
  * 展示位占位符替换（标题与链接都走它）。
  *
  * 两套语法都认（大小写不敏感）：

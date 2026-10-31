@@ -12,7 +12,7 @@ import { hasSolution } from '../tenant.js';
 import { buildTraceCodeFromSerial, canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, isDemoSerial, parseTraceCode, randomTraceKeys, serializeTraceRule, parseTraceRule, verifyTraceCode } from '../services/traceCode.js';
 import { generateTracePackage } from '../services/traceGenerate.js';
 import { makeZip } from '../services/zip.js';
-import { normalizeDisplaySlots, pickDisplaySlots, slotsEnabled, substituteSlotPlaceholders } from '../services/traceSlots.js';
+import { normalizeDisplaySlots, pickDisplaySlots, slotsEnabled, showSlotsOnQuery, substituteSlotPlaceholders } from '../services/traceSlots.js';
 import { checkQueryQuota, registerTraceQuery } from '../services/traceQuery.js';
 import { buildScanQueryView, normalizeScanMode, normalizeTraceSwitch } from '../services/traceScanMode.js';
 import { issueOpenidTicket, readOpenidTicket } from '../services/traceOauth.js';
@@ -738,12 +738,14 @@ export function createTracePublicRouter(db) {
       // 🔴 必须在这里剥掉 keyCipher：展示位是公开接口下发的，密文一旦出网
       //    等于把租户的接口凭据交给任何人（拿到密文 + 我们服务的解密能力即可还原）。
       // 🔴 展示位总开关（slotsEnabled=0）→ 整个区块不下发（后台关掉即彻底不出现）。
+      // 🔴 查询页闸门（showSlotsOnQuery）：在总闸之上叠加，默认关闭 —— 即便总闸开，
+      //    后台没显式打开查询页展示，C 端查询页也不显示（公众号推送不受此闸门影响）。
       // 🔴 链接里的 {CODE}/{TID}/[FWM]/[KEY] 在这里替换成真实值 —— 服务端替换是唯一出处，
       //    前端不再做（前端也不知道该码值；以前 C 端拿到的还是字面量 {CODE}，点必坏）。
       // 🔴 P1（2026-10-31）：批次级展位 ⊕ 全局展位合并后统一挑选 —— 批次位排前、全局位随后，
       //    每项带 scope: 'batch'|'global'（C 端可选展示来源标记，默认不加角标）。
       //    批次展位密钥已由 normalizeBatchSlots 统一为租户展示位密钥，替换用每项自身 authKey。
-      slots: (slotsEnabled(settings) ? [
+      slots: (slotsEnabled(settings) && showSlotsOnQuery(settings, batch) ? [
         ...pickDisplaySlots(safeJson(batch.batch_slots_json, []), {
           isFirstQuery: Number(record.num || 0) <= 1,
           isTopQueryer: Boolean(record.openid) && record.openid === openid,
@@ -1150,6 +1152,9 @@ export function createTraceAdminRouter(db) {
       // 🔴 展示位总开关：必须服务端归一（0/1），不能把客户端原值直接落库。
       //    缺省不写这个字段 = 保持原值（老租户库里没有该字段时读侧按「开」处理）。
       if ('slotsEnabled' in patch) patch.slotsEnabled = normalizeTraceSwitch(patch.slotsEnabled);
+      // 🔴 查询页展示位闸门：必须服务端归一（0/1），默认关（老租户无此字段 → 归一为 0）。
+      //    缺省不写 = 保持原值，但读侧 showSlotsOnQuery 已对缺字段按「关」处理，不会误开。
+      if ('showSlotsOnQuery' in patch) patch.showSlotsOnQuery = normalizeTraceSwitch(patch.showSlotsOnQuery);
       // 🔴 scanQuery 是**算出来的视图**（可用性依赖当前公众号配置），不是配置本身 ——
       //    一旦被写回 settings_json，下一次读到的就是过期快照（公众号后来配好了也仍显示不可用）。
       delete patch.scanQuery;
@@ -1245,9 +1250,9 @@ export function createTraceAdminRouter(db) {
     if (normalized.error) return sendError(res, 400, normalized.error);
     const { rule } = getRule(db, req.traceTenantId);
     try {
-      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, batch_slots_json, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
-        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)));
+      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, batch_slots_json, show_slots_query, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
+        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1));
       addHistory(db, req.traceTenantId, 1, normalized.batch, req, '新增防伪批次');
       return res.json({ id: Number(info.lastInsertRowid), batch: normalized.batch });
     } catch (e) {
@@ -1266,9 +1271,9 @@ export function createTraceAdminRouter(db) {
     const exists = db.prepare('SELECT id FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
     if (!exists) return sendError(res, 404, '批次不存在');
     const b = req.body || {};
-    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, batch_slots_json = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
+    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, batch_slots_json = ?, show_slots_query = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
       WHERE tenant_id = ? AND id = ?`)
-      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
+      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
     addHistory(db, req.traceTenantId, 1, String(id), req, '编辑防伪批次');
     return res.json({ ok: true });
   });

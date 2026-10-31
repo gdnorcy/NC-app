@@ -440,11 +440,24 @@
                     :inactive-value="0"
                     size="small"
                     inline-prompt
-                    active-text="开启"
-                    inactive-text="关闭"
+                    active-text="总闸开"
+                    inactive-text="总闸关"
                     class="sw-prompt sw-prompt-2"
                   />
-                  <span class="form-hint">最多 {{ SLOT_MAX }} 个；关闭后 C 端结果页与公众号卡片都不再出现「推荐」区块</span>
+                  <!-- 🔴 查询页闸门（用户 2026-10-31 拍板）：在总闸「slotsEnabled」之上叠加的一层，默认关。
+                       只有总闸开 且 此开关开，C 端验真结果页才展示推广位；关掉则结果页不显示（不影响总闸/公众号推送）。
+                       与公众号推送通道完全独立：推送里的推广卡只由总闸控，本开关只管查询页。 -->
+                  <el-switch
+                    v-model="s.showSlotsOnQuery"
+                    :active-value="1"
+                    :inactive-value="0"
+                    size="small"
+                    inline-prompt
+                    active-text="查询页开"
+                    inactive-text="查询页关"
+                    class="sw-prompt sw-prompt-2"
+                  />
+                  <span class="form-hint">总闸：关闭后 C 端结果页与公众号卡片都不再出现「推荐」区块；查询页开关：默认关，开启后（且总闸开）验真结果页展示推广位，公众号推送不受此开关影响</span>
                 </div>
               </template>
 
@@ -964,6 +977,18 @@
         <el-tab-pane label="展位设置" name="slots">
           <el-alert type="info" :closable="false" show-icon class="mb12"
             title="批次级展位：本批次码查询后额外展示的推荐位，与全局「首页展示位」合并下发（批次在前、全局在后）。鉴权码复用租户展示位密钥（链接 [KEY] = md5(防伪码 + 租户鉴权码)），无需单独配置。" />
+          <!-- 🔴 批次级查询页闸门（用户 2026-10-31 拍板）：默认「继承全局」，可覆盖本批次在 C 端验真结果页是否展示展位。
+               与公众号推送无关（推送只由总闸控）。仅当全局/批次任一处显式「强制显示」且总闸开启时，该批次查询页才出现展位。 -->
+          <el-form label-width="96px" class="mb12">
+            <el-form-item label="查询页展示">
+              <el-select v-model="batchDlg.form.showSlotsQuery" class="slot-when">
+                <el-option label="继承全局设置" :value="-1" />
+                <el-option label="强制显示" :value="1" />
+                <el-option label="强制隐藏" :value="0" />
+              </el-select>
+              <span class="form-hint">默认继承全局「查询页开关」；可单独覆盖本批次在 C 端验真结果页是否展示展位（不影响公众号推送）</span>
+            </el-form-item>
+          </el-form>
           <el-empty v-if="!batchDlg.form.batchSlots.length" description="还没有本批次展位，点下方「新增展位」开始配置（最多 {{ SLOT_MAX }} 个）" :image-size="60" />
 
           <div v-for="(it, i) in batchDlg.form.batchSlots" :key="i" class="slot-item" :class="{ 'slot-item-off': Number(it.hidden) === 1 }">
@@ -1345,7 +1370,8 @@ function emptyBatch() {
     scanModeFollow: 1, printScanMode: '',
     caid: { jfEnabled: false, jf: { do: 0, up: 0 }, caidText: '', red: { merchantId: '' }, cjList: [] },
     // 🔴 P1（2026-10-31）：批次级展位（不配鉴权码，服务端复用租户展示位密钥）+ 关联商品（商城 ids）
-    batchSlots: [], toshopIds: [],
+    // 🔴 查询页闸门：默认 -1（继承全局），新增批次不显式选即跟随全局设置。
+    batchSlots: [], toshopIds: [], showSlotsQuery: -1,
   };
 }
 function openBatchCreate() {
@@ -1411,6 +1437,8 @@ function openBatchEdit(row) {
       const v = safeParse(row.toshop_json, {});
       return Array.isArray(v?.ids) ? v.ids.map(Number).filter((x) => x > 0) : [];
     })(),
+    // 🔴 批次级查询页闸门回显：-1 继承 / 0 关 / 1 开（缺字段回落继承默认）。
+    showSlotsQuery: Number(row.show_slots_query ?? -1),
   };
   batchDlg.tab = 'info';
   batchDlg.visible = true;
@@ -1531,6 +1559,8 @@ async function saveBatch() {
     // 🔴 P1（2026-10-31）：批次级展位 + 关联商品 —— 与 POST/PUT 服务端列清单必须同步（#532 铁律）
     batchSlots: Array.isArray(f.batchSlots) ? f.batchSlots : [],
     toshop: { ids: Array.isArray(f.toshopIds) ? f.toshopIds : [] },
+    // 🔴 查询页闸门：-1 继承 / 0 关 / 1 开（缺省继承全局，与服务端列清单同步）
+    showSlotsQuery: Number(f.showSlotsQuery ?? -1),
   };
   try {
     if (batchDlg.isEdit) {
@@ -1939,6 +1969,9 @@ const s = reactive({
   // 🔴 slotsEnabled = 整块「推荐」区块的总开关（1 开 / 0 关）。
   //    缺省 1：老租户库里没有这个字段，若按 0 回填，上线即所有租户的推荐位全部消失。
   slotsEnabled: 1,
+  // 🔴 showSlotsOnQuery = 查询页展示位闸门（在总闸之上叠加，默认关）。
+  //    缺省 0：这是**新加的默认关闭开关**，老租户 settings 无此字段 → 按关处理，符合「默认关闭」需求。
+  showSlotsOnQuery: 0,
   displaySlots: [],
   // 扫码查询方案（服务端白名单归一化后的档位）+ 公众号内回复验真
   scanMode: 'web', wxReply: 1,
