@@ -185,4 +185,34 @@ describe('防伪溯源 trace：全链路（建批次 → 生成码 → C 端验�
     assert.equal(res.status, 400);
     assert.ok(String(res.body.error).includes('不自洽'), `错误信息未说明不自洽：${res.body.error}`);
   });
+
+  // ── 9) 商家「标记异常」透传到 C 端验真（mark-error → is_err → verify 响应 isErr → 前端展示「已标记异常」卡） ──
+  it('商家标记异常后，C 端验真响应带 isErr=1（前端据此展示异常卡）', async () => {
+    // 9.1 生成 1 个码
+    const gen = await auth(request(app).post('/api/customer/trace/batches/1/generate-codes'))
+      .send({ codetype: 6, codeno: 1 });
+    assert.equal(gen.status, 200, JSON.stringify(gen.body));
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    // 9.2 首次验真：isErr 应为 0（尚未标记）
+    const v1 = await request(app).post(`/api/trace/public/verify?tid=${A}`).send({ co: code });
+    assert.equal(v1.status, 200, `验真失败：${JSON.stringify(v1.body)}`);
+    assert.equal(Number(v1.body.batch.isErr || 0), 0, '未标记时验真响应 isErr 应为 0');
+
+    // 9.3 取码 id → 调用标记异常
+    const row = db.prepare('SELECT id FROM trace_codes WHERE tenant_id = ? AND code = ?').get(A, code);
+    assert.ok(row, '生成的码应在 trace_codes 有记录');
+    const mark = await auth(request(app).post(`/api/customer/trace/codes/${row.id}/mark-error`)).send({ reason: '测试标记' });
+    assert.equal(mark.status, 200, JSON.stringify(mark.body));
+
+    // 9.4 再次验真：isErr 应为 1（标记已透传，前端据此展示「已标记异常」卡）
+    const v2 = await request(app).post(`/api/trace/public/verify?tid=${A}`).send({ co: code });
+    assert.equal(v2.status, 200, `验真失败：${JSON.stringify(v2.body)}`);
+    assert.equal(Number(v2.body.batch.isErr || 0), 1, '标记异常后验真响应应带 isErr=1');
+
+    // 9.5 埋点：库里 is_err 确为 1（与响应一致）
+    const dbRow = db.prepare('SELECT is_err FROM trace_codes WHERE id = ?').get(row.id);
+    assert.equal(Number(dbRow.is_err), 1, '库中 is_err 应已置 1');
+  });
+
 });

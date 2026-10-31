@@ -172,13 +172,21 @@
           </scroll-view>
         </view>
 
-        <!-- 🔴 P0：窜货提示（命中跨区或本码曾被标记异常时展示；策略决定提示给谁，这里只管客户端提示） -->
+        <!-- 🔴 P0：窜货提示（命中跨区时展示）。策略决定提示给谁，这里只管客户端提示。 -->
         <view class="tr-card tr-card-warn" v-if="batchInfo.chuanhuoHit || batchInfo.crossRegion">
           <view class="tr-result-head">
             <SIcon name="show" size="large" :color="ICON_DANGER" />
             <text class="tr-result-title tr-title-warn">疑似窜货</text>
           </view>
           <text class="tr-tip">本商品的查询地区与授权销售区域不一致，建议通过正规渠道购买并联系厂家核实。</text>
+        </view>
+        <!-- 🔴 商家手动「标记异常」（mark-error → is_err）：与窜货区分文案，不显示「疑似窜货」以免误导。 -->
+        <view class="tr-card tr-card-warn" v-else-if="batchInfo.isErr">
+          <view class="tr-result-head">
+            <SIcon name="show" size="large" :color="ICON_DANGER" />
+            <text class="tr-result-title tr-title-warn">已标记异常</text>
+          </view>
+          <text class="tr-tip">该防伪码已被商家标记为异常，建议通过正规渠道购买并联系厂家核实。</text>
         </view>
 
         <!-- 错误卡片 -->

@@ -797,8 +797,11 @@ export function createTracePublicRouter(db) {
         },
         // 🔴 本次查询是否命中跨区（前端地区与限售区域前 2 字比对不一致）。C 端据此弹「疑似窜货」提示。
         chuanhuoHit,
-        // 🔴 本码是否已被标记为窜货异常（前次查询命中跨区即打标），C 端据此展示异常态。
+        // 🔴 本码是否已被标记为窜货异常（前次查询命中跨区即打标），C 端据此展示「疑似窜货」态。
         crossRegion: record ? Number(record.cross_region || 0) : 0,
+        // 🔴 本码是否被商家手动「标记异常」（mark-error 写 is_err，与窜货 cross_region 是两回事）。
+        //    C 端据此单独展示「已标记异常」卡（文案区别于窜货，不混用，避免误导消费者）。
+        isErr: record ? Number(record.is_err || 0) : 0,
         rcon: Number(batch.rcon || 0),
         params: safeJson(batch.params_json, []),
         wailink: safeJson(batch.wailink_json, {}),
