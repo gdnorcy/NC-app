@@ -794,7 +794,7 @@
               </el-select>
               <span class="form-hint">命中跨区时：标记码异常 + 客户端提示（按策略决定提示给谁）；限售区域填省=省级比对、省+市=市级比对</span>
             </el-form-item>
-            <el-form-item label="限售区域">
+            <el-form-item label="限售区域" class="sale-limit">
               <el-input v-model.trim="batchDlg.form.chuanhuoLimit.province" placeholder="省，如 广东" class="w160" />
               <el-input v-model.trim="batchDlg.form.chuanhuoLimit.city" placeholder="市，如 深圳" class="w160" style="margin-left:8px" />
               <span class="form-hint" style="margin-left:8px">留空 = 不限售（仅记录不比对）</span>
@@ -1291,8 +1291,8 @@ function moveBatchSlot(i, delta) {
 // 时段模式与全局展示位同规则（相对档落具体日期 / 不限清空）
 function onBatchSlotTimeChange(it) { onSlotTimeChange(it); }
 
-// 🔴 P1（2026-10-31）关联商品（商城打通）：候选来自 GET /mall/goods（本租户在售商品，
-//    requireGoodsApp 未开通商城应用 → 403，后台该区块降级为提示不可选）。
+// 🔴 P1（2026-10-31）关联商品（商城打通）：候选来自 GET /trace/goods（本租户在售商品，
+//    requireTenant + 未开通商城应用 → 403，后台该区块降级为提示不可选）。
 //    穿梭框只存商品 id（toshop_json={"ids":[...]}），下发时服务端按在售实时 join（非快照）。
 const goodsList = ref([]);
 const goodsTotal = ref(0);
@@ -1301,7 +1301,7 @@ const goodsError = ref('');
 const goodsLoaded = ref(false);
 async function loadGoodsOptions() {
   try {
-    const res = await customerApiCall.get('/mall/goods', { params: { page: 1, pageSize: 100, keyword: goodsKeyword.value } });
+    const res = await customerApiCall.get('/trace/goods', { params: { page: 1, pageSize: 100, keyword: goodsKeyword.value } });
     goodsError.value = '';
     goodsLoaded.value = true;
     goodsList.value = Array.isArray(res.list) ? res.list : [];
@@ -2439,6 +2439,13 @@ onMounted(() => {
   flex: 1 1 auto !important;
   min-width: 0;
 }
+/* 🔴 2026-11-01 同行为多控件行防纵向堆叠（实测：专属抽奖奖项行/自定义属性行/限售区域省·市·提示被逐项换行） */
+.cj-row, .kv-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.cj-row :deep(.el-input), .kv-row :deep(.el-input) { flex: 1 1 auto; min-width: 0; }
+.cj-row :deep(.el-button), .kv-row :deep(.el-button) { flex: 0 0 auto; }
+.sale-limit :deep(.el-form-item__content) { flex-wrap: nowrap; }
+.sale-limit :deep(.el-form-item__content > .el-input) { flex: 1 1 auto; min-width: 0; }
+.sale-limit :deep(.el-form-item__content > .form-hint) { flex: 0 1 auto; min-width: 0; white-space: normal; }
 /* 2026-10-31 改：新增/编辑批次内容区平铺（对标图2，不再弹窗） */
 .batch-form-page {
   background: #fff; border-radius: 8px; border: 1px solid #e5e6eb;

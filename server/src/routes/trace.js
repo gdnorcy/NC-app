@@ -1157,6 +1157,30 @@ export function createTraceAdminRouter(db) {
     }
   });
 
+  // 🔴 P1（2026-10-31）关联商品候选池：本租户在售商品（goods.status='sell'），
+  //    后台穿梭框只读候选；回显 join 走 buildTraceToshop 同口径（实时 join，非快照）。
+  router.get('/goods', (req, res) => {
+    try {
+      if (!hasSolution(db, req.traceTenantId, 'goods')) {
+        return sendError(res, 403, '当前租户未开通商城应用，无法选择关联商品（可在应用中心开通）');
+      }
+      const cid = req.traceTenantId;
+      const { keyword = '', page = 1, pageSize = 100 } = req.query;
+      const where = ['customer_id = ?', "status = 'sell'"];
+      const params = [cid];
+      if (keyword) { where.push('title LIKE ?'); params.push(`%${keyword}%`); }
+      const whereSql = where.join(' AND ');
+      const total = db.prepare(`SELECT COUNT(*) AS n FROM goods WHERE ${whereSql}`).get(...params).n;
+      const list = db.prepare(
+        `SELECT id, title, thumb, price, unit, stock FROM goods WHERE ${whereSql}
+         ORDER BY sort_order DESC, id DESC LIMIT ? OFFSET ?`
+      ).all(...params, Number(pageSize), (Number(page) - 1) * Number(pageSize));
+      return res.json({ list, total });
+    } catch (e) {
+      return sendError(res, 500, e.message);
+    }
+  });
+
   router.get('/code-rule', (req, res) => {
     const cur = getRule(db, req.traceTenantId);
     // 🔴 回传锁定态：前端据此禁用码制输入框并给出「已印刷不可改」的明确提示，

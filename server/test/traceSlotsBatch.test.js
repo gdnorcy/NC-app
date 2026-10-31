@@ -152,6 +152,34 @@ describe('P1：批次展位合并下发 + 关联商品(商城打通)', () => {
     assert.ok('marketPrice' in first, '应下发 marketPrice');
   });
 
+  // ── 4b) 后台关联商品候选池：GET /trace/goods 只返回本租户在售商品 ──
+  it('后台关联商品候选池：只返回本租户在售商品（sell 过滤 + keyword）', async () => {
+    const cg1 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sell', datetime('now'), datetime('now'))").run(T, '后台候选一', '/c1.png', 9.9, 12).lastInsertRowid;
+    const cg2 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'off', datetime('now'), datetime('now'))").run(T, '后台候选已下架', '/c2.png', 1, 2).lastInsertRowid;
+    const list = await auth(request(app).get('/api/customer/trace/goods?page=1&pageSize=100'));
+    assert.equal(list.status, 200, JSON.stringify(list.body));
+    const ids = list.body.list.map((g) => Number(g.id));
+    assert.ok(ids.includes(Number(cg1)), '在售商品应出现在候选池');
+    assert.ok(!ids.includes(Number(cg2)), '已下架商品不应出现在候选池');
+    assert.equal(list.body.list[0].price, 9.9, '候选应带实时价格');
+    const kw = await auth(request(app).get('/api/customer/trace/goods?keyword=候选一'));
+    assert.equal(kw.status, 200, JSON.stringify(kw.body));
+    assert.equal(kw.body.list.length, 1, 'keyword 应过滤出目标商品');
+    assert.equal(kw.body.list[0].title, '后台候选一');
+  });
+
+  // ── 4c) 未开通商城应用 → 候选接口 403（与 C 端 toshop 空数组同口径） ──
+  it('后台关联商品候选池：租户未开通 goods 应用 → 403', async () => {
+    db.prepare("UPDATE projects SET solutions = ? WHERE id = ?").run(JSON.stringify(['trace']), T);
+    try {
+      const res = await auth(request(app).get('/api/customer/trace/goods'));
+      assert.equal(res.status, 403, '未开通商城应用应 403');
+      assert.match(String(res.body.error || ''), /商城应用/);
+    } finally {
+      db.prepare("UPDATE projects SET solutions = ? WHERE id = ?").run(JSON.stringify(['trace', 'goods']), T);
+    }
+  });
+
   // ── 5) 未开通商城应用 → toshop 空数组（C 端整区不渲染） ──
   it('租户未开通 goods 应用：toshop 为空数组（即便配了 ids）', async () => {
     // 临时撤掉 goods 开通态，模拟未开通商城
