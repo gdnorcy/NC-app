@@ -21,6 +21,7 @@
     <main class="trace-content">
       <!-- ============ 批次管理 ============ -->
       <section v-show="activeTab === 'batches'">
+        <div v-if="!batchDlg.visible">
         <!-- 🔴 码制软引导：只提示不阻断。硬拦会让「用默认码制直接干活」的租户一进来就卡死，
              而真正不可逆的坑（生成后结构参数锁死）放在保存/生成接口上兜底。 -->
         <el-alert v-if="!ruleConfirmed" type="warning" :closable="false" show-icon class="mb12">
@@ -99,6 +100,7 @@
         <div class="pager">
           <el-pagination v-model:current-page="batchQuery.page" :page-size="batchQuery.pageSize" :total="batchTotal"
             layout="total, prev, pager, next" @current-change="loadBatches" />
+        </div>
         </div>
       </section>
 
@@ -757,10 +759,15 @@
 
     </main>
 
-    <!-- 新增/编辑批次弹窗
+    <!-- 新增/编辑批次（2026-10-31 改：对标图2 方式，内容区平铺表单，不再弹窗；
+         列表区 v-if="!batchDlg.visible" 与之互斥，保存/取消后回列表。）
          🔴 P1（2026-10-31）：单列弹窗改 Tab（对标 8 Tab 结构，字段量已到规模），
          本次落地 5 个 Tab：商品信息 / 活动设置 / 媒体与溯源 / 展位设置（批次级展位）/ 关联商品（商城打通）。 -->
-    <el-dialog v-model="batchDlg.visible" :title="batchDlg.isEdit ? '编辑批次' : '新增批次'" width="760px" :close-on-click-modal="false">
+    <div v-if="batchDlg.visible" class="batch-form-page">
+      <div class="batch-form-head">
+        <el-button link @click="batchDlg.visible = false"><el-icon><ArrowLeft /></el-icon>返回批次列表</el-button>
+        <h3 class="batch-form-title">{{ batchDlg.isEdit ? '编辑批次' : '新增批次' }}</h3>
+      </div>
       <el-tabs v-model="batchDlg.tab" class="batch-tabs">
         <!-- ===== 商品信息 ===== -->
         <el-tab-pane label="商品信息" name="info">
@@ -1066,11 +1073,11 @@
           </template>
         </el-tab-pane>
       </el-tabs>
-      <template #footer>
+      <div class="batch-form-footer">
         <el-button @click="batchDlg.visible = false">取消</el-button>
         <el-button type="primary" :loading="batchSaving" @click="saveBatch">保存</el-button>
-      </template>
-    </el-dialog>
+      </div>
+    </div>
 
     <!-- 生成防伪码弹窗（🔴 用 el-input-number 替代 window.prompt） -->
     <el-dialog v-model="genDlg.visible" :title="`生成防伪码：${genDlg.row?.batch || ''}`" width="460px" :close-on-click-modal="false">
@@ -1172,9 +1179,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Search, CircleCheckFilled, WarningFilled } from '@element-plus/icons-vue';
+import { Plus, Search, ArrowLeft, CircleCheckFilled, WarningFilled } from '@element-plus/icons-vue';
 // 🔴 标准 §5.2：必须走 customerApiCall（baseURL=/api/customer），禁止裸 fetch / 自建 request
 import { customerApiCall } from '../../../../api';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
@@ -1342,6 +1349,8 @@ function openBatchCreate() {
   batchDlg.tab = 'info';
   batchDlg.form = emptyBatch();
   batchDlg.visible = true;
+  // 2026-10-31 改：内容区平铺表单，打开后滚到表单区顶部（原弹窗无此需要）
+  nextTick(() => document.querySelector('.batch-form-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 function openBatchEdit(row) {
   let hd = {};
@@ -1405,6 +1414,8 @@ function openBatchEdit(row) {
   batchDlg.visible = true;
   // 🔴 P2：顺带拉批次的激活态（编辑弹窗里管理口令/激活/撤销）
   loadBatchActivation(row.id);
+  // 2026-10-31 改：内容区平铺表单，打开后滚到表单区顶部
+  nextTick(() => document.querySelector('.batch-form-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
 /** 拉取批次激活态（P2 先印后绑） */
@@ -2419,6 +2430,14 @@ onMounted(() => {
 
 /* 🔴 P1（2026-10-31）关联商品穿梭框：左候选池 / 右已选 */
 .batch-tabs .el-tab-pane { max-height: 58vh; overflow: auto; padding: 4px 6px 8px; }
+/* 2026-10-31 改：新增/编辑批次内容区平铺（对标图2，不再弹窗） */
+.batch-form-page {
+  background: #fff; border-radius: 8px; border: 1px solid #e5e6eb;
+  padding: 16px 20px 20px; margin-top: 12px;
+}
+.batch-form-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #f2f3f5; margin-bottom: 12px; }
+.batch-form-title { margin: 0; font-size: 16px; font-weight: 600; color: #1d2129; }
+.batch-form-footer { display: flex; justify-content: flex-end; gap: 12px; padding-top: 14px; border-top: 1px solid #f2f3f5; margin-top: 12px; }
 .toshop-head { display: flex; align-items: center; margin-bottom: 10px; }
 .toshop-wrap { display: flex; gap: 14px; align-items: stretch; }
 .toshop-pool, .toshop-picked {
