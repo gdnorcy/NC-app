@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import crypto from 'node:crypto';
 import {
   SLOTMAX, SLOTWHEN, SLOTTIME, normalizeDisplaySlots, pickDisplaySlots, slotsEnabled,
-  substituteSlotPlaceholders, slotStamp, inSlotWindow,
+  substituteSlotPlaceholders, slotStamp, inSlotWindow, slotAuthSign,
 } from '../src/services/traceSlots.js';
 
 // ============================================================
@@ -36,8 +37,8 @@ test('数量上限 8：第 9 个抛（不做静默截断）', () => {
   assert.throws(() => normalizeDisplaySlots(list), /最多 8 个/);
 });
 
-test('展示条件非法一律抛（0/1/2/4/5 之外）', () => {
-  for (const bad of [3, 6, 7, 9, -1, 99]) {
+test('展示条件非法一律抛（0/1/2/3/4/5 之外）', () => {
+  for (const bad of [6, 7, 9, -1, 99]) {
   assert.throws(() => normalizeDisplaySlots([slot(bad)]), /展示条件非法/, `when=${bad} 应抛`);
   }
 });
@@ -46,12 +47,14 @@ test('五个合法展示条件全部收（含 0 关闭）', () => {
   assert.deepEqual(normalizeDisplaySlots(VALIDWHENS.map((w) => slot(w))).map((s) => s.when), VALIDWHENS);
 });
 
-test('接口密钥不透明透传：原样保留、且不被校验/解密', () => {
+// 🔴 2026-10-31 收敛（#532 偏差3）：原 `keyCipher`（接口密钥）影子字段已移除，
+//    normalize 不再接收/透传它，旧数据里的 keyCipher 在下次保存时被自然剥离（不主动崩溃）。
+test('收敛后：传入 keyCipher 被忽略、不进入归一化结果（兼容旧库残留）', () => {
   const out = normalizeOne({ keyCipher: 'C_IPHER-不透明' });
-  assert.equal(out.keyCipher, 'C_IPHER-不透明');
-  // 非字符串形态一律不带上（防把密文对象/明文混进配置）
-  const badKey = normalizeOne({ keyCipher: 123 });
-  assert.equal(Object.prototype.hasOwnProperty.call(badKey, 'keyCipher'), false);
+  assert.equal(out.keyCipher, undefined, 'keyCipher 不应再进入展示位配置');
+  assert.equal(out.authKey, undefined === undefined ? out.authKey : out.authKey, 'authKey 仍是唯一密钥字段');
+  // 归一化结果只含白名单字段（含 authKey 但为空时由兜底生成）
+  assert.match(out.authKey, /^[0-9a-f]{32}$/, 'authKey 空时服务端兜底生成');
 });
 
 test('渲染挑选：OFF 恒不渲染、ALL 恒渲染', () => {
@@ -59,6 +62,28 @@ test('渲染挑选：OFF 恒不渲染、ALL 恒渲染', () => {
   assert.equal(off.length, 0);
   const all = pickDisplaySlots([slot(SLOTWHEN.ALL)], { isFirstQuery: false, isTopQueryer: false });
   assert.equal(all.length, 1);
+});
+
+// 🔴 2026-10-31 补：展示位原先缺「仅非首次查询」档（活动位早就有），同一语义两套口径会被租户踩。
+//    · 2 首次查询  → isFirstQuery（这个码被查第 1 次）
+//    · 3 非首次查询 → !isFirstQuery（这个码第 2 次起被查）
+//    注意它与 4/5（按「人」是不是首位查询人）是两回事：2/3 看「码被查了几次」。
+test('渲染挑选：仅首次(2)/仅非首次(3) 两档按「这个码被查第几次」分流', () => {
+  const list = [slot(SLOTWHEN.FIRST), slot(SLOTWHEN.NOT_FIRST)];
+  // 这个码第 1 次被查 → 只渲染「仅首次」
+  const first = pickDisplaySlots(list, { isFirstQuery: true, isTopQueryer: true });
+  assert.deepEqual(first.map((s) => s.when), [SLOTWHEN.FIRST]);
+  // 这个码第 2 次起被查 → 只渲染「仅非首次」（无论查询人是不是首位）
+  const notFirst = pickDisplaySlots(list, { isFirstQuery: false, isTopQueryer: true });
+  assert.deepEqual(notFirst.map((s) => s.when), [SLOTWHEN.NOT_FIRST]);
+  // 非首次 + 非首位人也只渲染「仅非首次」（与 4/5 的「人」轴无关）
+  const notFirstNotTop = pickDisplaySlots(list, { isFirstQuery: false, isTopQueryer: false });
+  assert.deepEqual(notFirstNotTop.map((s) => s.when), [SLOTWHEN.NOT_FIRST]);
+});
+
+test('#552 异常值 when=3 现在合法、when=99 仍抛', () => {
+  assert.doesNotThrow(() => normalizeOne({ when: SLOTWHEN.NOT_FIRST }), 'when=3 应已合法');
+  assert.throws(() => normalizeOne({ when: 99 }), /展示条件非法/, 'when=99 应抛');
 });
 
 test('渲染挑选：首次/首位每次/非首位 三态各自正确', () => {
@@ -234,16 +259,42 @@ test('#532 鉴权码：已填则原样保留（幂等 —— 保存一次换一�
   assert.equal(normalizeDisplaySlots([once], { now: NOW })[0].authKey, mine);
 });
 
-test('#532 链接变量：[FWM] → 防伪码、[KEY] → 鉴权码（大小写不敏感，与活动位同语法）', () => {
+test('#532 链接变量：[FWM] → 防伪码、[KEY] → md5(防伪码+鉴权码) 签名（大小写不敏感）', () => {
   const out = substituteSlotPlaceholders('https://x.com/a?c=[FWM]&m=[key]', {
     code: 'FW123', tenantId: 7, authKey: 'KEY-abc',
   });
-  assert.equal(out, 'https://x.com/a?c=FW123&m=KEY-abc');
+  const sign = crypto.createHash('md5').update('FW123KEY-abc', 'utf8').digest('hex');
+  assert.equal(out, `https://x.com/a?c=FW123&m=${sign}`);
+});
+
+// 🔴 2026-10-31 修：原先 [KEY] 直接吐 authKey 明文 —— 链接会被消费者转发出去，
+//    等于把密钥公开，拿到的人可为任意防伪码伪造合法链接。现在必须只吐签名。
+test('#532 [KEY] 绝不泄漏鉴权码明文（安全红线锁）', () => {
+  const authKey = 'ip15xdm4oglys0ei12luwm4o4lukswog';
+  const out = substituteSlotPlaceholders('?m=[KEY]', { code: 'FW123', tenantId: 7, authKey });
+  assert.doesNotMatch(out, /ip15xdm4oglys0ei12luwm4o4lukswog/, '明文鉴权码不得出现在链接里');
+  assert.match(out, /^[?]m=[0-9a-f]{32}$/, '应是 32 位 md5 签名');
+  // 换一个码 → 签名必须变（否则等于没签名）
+  const other = substituteSlotPlaceholders('?m=[KEY]', { code: 'FW999', tenantId: 7, authKey });
+  assert.notEqual(other, out);
+});
+
+test('#532 slotAuthSign：同一 (码, 密钥) 恒等、换码换密钥都变', () => {
+  const a = slotAuthSign('FW1', 'k');
+  const expected = crypto.createHash('md5').update('FW1k', 'utf8').digest('hex');
+  assert.equal(a, expected);
+  assert.equal(slotAuthSign('FW1', 'k'), a, '必须可重算 —— 外部系统靠这个验真');
+  assert.notEqual(slotAuthSign('FW2', 'k'), a);
+  assert.notEqual(slotAuthSign('FW1', 'k2'), a);
+  // 空值不要炸（老配置没配鉴权码时 authKey=''）
+  assert.match(slotAuthSign('', ''), /^[0-9a-f]{32}$/);
 });
 
 test('#532 两套占位符语法并存：老配置 {CODE}/{TID} 不受影响', () => {
   const out = substituteSlotPlaceholders('{CODE}/{TID}|[FWM]/[KEY]', {
     code: 'FW123', tenantId: 7, authKey: 'K1',
   });
-  assert.equal(out, 'FW123/7|FW123/K1');
+  assert.ok(out.startsWith('FW123/7|FW123/'), `花括号/方括号两套都要认：${out}`);
+  // [KEY] 段已是签名，不再是 'K1'
+  assert.doesNotMatch(out, /K1$/);
 });

@@ -77,6 +77,13 @@
               <el-tag v-else type="warning" size="small">待激活</el-tag>
             </template>
           </el-table-column>
+          <!-- 🔴 P0（2026-10-31）窜货异常计数：命中跨区查询的码数（服务端按限售区域比对打标） -->
+          <el-table-column label="窜货异常" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="Number(row.cross_region_count) > 0" type="danger" size="small">{{ row.cross_region_count }} 条</el-tag>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="320" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="openGen(row)">生成</el-button>
@@ -498,9 +505,9 @@
                   </el-form-item>
                   <el-form-item label="跳转链接">
                     <el-input v-model.trim="it.link" placeholder="/pages/xxx 或 https://..." class="slot-in" />
-                    <!-- 🔴 连接可用变量（对标站「连接变量」）：[FWM]=当前防伪码、[KEY]=本展位鉴权码。
+                    <!-- 🔴 连接可用变量（对标站「连接变量」）：[FWM]=当前防伪码、[KEY]=本展位的链接签名。
                          两套写法都认（老的 {CODE}/{TID} 也照旧生效），大小写不敏感，服务端替换后下发。 -->
-                    <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转。可用变量：[FWM] = 当前防伪码，[KEY] = 本展位鉴权码（例：...?c=[FWM]&amp;m=[KEY]）</span>
+                    <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转。可用变量：[FWM] = 当前防伪码，[KEY] = 本展位签名（md5(防伪码 + 鉴权码)，例：...?c=[FWM]&amp;m=[KEY]）</span>
                   </el-form-item>
                   <el-form-item label="鉴权码">
                     <el-input v-model.trim="it.authKey" placeholder="留空则由系统自动生成" class="slot-in">
@@ -508,11 +515,7 @@
                         <el-button @click="refreshAuthKey(it)">刷新</el-button>
                       </template>
                     </el-input>
-                    <span class="form-hint">随链接一起发给对方用于接口验签（明文可见，不是密码）。建议接口侧按 md5([FWM] + 本鉴权码) 校验；刷新后旧链接会失效，已印刷的码请谨慎</span>
-                  </el-form-item>
-                  <el-form-item label="接口密钥">
-                    <el-input v-model.trim="it.accessKey" show-password placeholder="用于代理外部接口调用" class="slot-in" />
-                    <span class="form-hint">保存后仅回显脱敏串；原样提交表示不修改，输入新值才会覆盖。当前为预留字段，暂不影响展示位行为</span>
+                    <span class="form-hint">对接方凭它验真：把本码复制给对方，链接里的 [KEY] = md5(防伪码 + 本鉴权码)，对方算同样的值比对即可。🔴 链接里下发的是签名、不是本码；刷新后旧链接会失效，已印刷的码请谨慎</span>
                   </el-form-item>
                 </el-form>
               </div>
@@ -767,13 +770,20 @@
         <el-form-item label="省"><el-input v-model.trim="batchDlg.form.province" /></el-form-item>
         <el-form-item label="市"><el-input v-model.trim="batchDlg.form.city" /></el-form-item>
         <el-form-item label="区"><el-input v-model.trim="batchDlg.form.district" /></el-form-item>
-        <el-form-item label="窜货检测">
-          <el-select v-model="batchDlg.form.isChuanhuo" class="w200">
-            <el-option :value="0" label="关闭" />
-            <el-option :value="2" label="按省" />
-            <el-option :value="3" label="按市" />
-            <el-option :value="4" label="按区县" />
+        <el-form-item label="窜货监控">
+          <el-select v-model="batchDlg.form.isChuanhuo" class="w240">
+            <el-option :value="0" label="不限（不记录）" />
+            <el-option :value="3" label="限定地区但不提示" />
+            <el-option :value="1" label="厂家+客户端同时提示" />
+            <el-option :value="2" label="仅厂家提示" />
+            <el-option :value="4" label="仅客户端提示" />
           </el-select>
+          <span class="form-hint">命中跨区时：标记码异常 + 客户端提示（按策略决定提示给谁）；限售区域填省=省级比对、省+市=市级比对</span>
+        </el-form-item>
+        <el-form-item label="限售区域">
+          <el-input v-model.trim="batchDlg.form.chuanhuoLimit.province" placeholder="省，如 广东" class="w160" />
+          <el-input v-model.trim="batchDlg.form.chuanhuoLimit.city" placeholder="市，如 深圳" class="w160" style="margin-left:8px" />
+          <span class="form-hint" style="margin-left:8px">留空 = 不限售（仅记录不比对）</span>
         </el-form-item>
 
         <el-form-item label="活动类型">
@@ -842,7 +852,10 @@
           </el-form-item>
         </el-card>
 
-        <template v-if="batchDlg.isEdit">
+        <!-- 🔴 P0（2026-10-31）：媒体/日期/属性/溯源 由「仅编辑态」提到「新增即可配」，
+             否则新增批次只能生成码却配不了图、配不了属性 —— 与对标「新增批次即可配图片/视频/购买链接」对齐。 -->
+        <el-card class="sub-card" shadow="never">
+          <template #header><span class="card-title">媒体与溯源信息</span></template>
           <el-form-item label="Logo">
             <div class="media-pick">
               <img v-if="batchDlg.form.logo" :src="batchDlg.form.logo" class="media-thumb" />
@@ -861,7 +874,34 @@
               <el-button link type="primary" @click="openVidPicker('batch', 'video')">{{ batchDlg.form.video ? '更换视频' : '选择素材' }}</el-button>
             </div>
           </el-form-item>
-          <el-form-item label="购买链接"><el-input v-model.trim="batchDlg.form.buyLink" /></el-form-item>
+          <el-form-item label="购买链接"><el-input v-model.trim="batchDlg.form.buyLink" placeholder="商品购买页 URL（未配溯源外链时回落到这里）" /></el-form-item>
+          <el-form-item label="生产日期">
+            <el-date-picker v-model="batchDlg.form.producedAt" type="date" value-format="YYYY-MM-DD" placeholder="生产日期" />
+          </el-form-item>
+          <el-form-item label="有效日期">
+            <el-date-picker v-model="batchDlg.form.expireAt" type="date" value-format="YYYY-MM-DD" placeholder="到期日（留空=长期有效）" />
+            <span class="form-hint" style="margin-left:8px">到期当日仍有效，过期后该批次码验真将被拦截</span>
+          </el-form-item>
+          <!-- 🔴 P0 自定义属性 / 生产过程：写 params_json，C 端结果页按序展示（对标「扩展属性 + 商品溯源·生产过程」） -->
+          <el-form-item label="自定义属性">
+            <div class="kv-list">
+              <div v-for="(p, idx) in batchDlg.form.params" :key="idx" class="kv-row">
+                <el-input v-model.trim="p.k" placeholder="属性名" class="w160" />
+                <el-input v-model.trim="p.v" placeholder="属性值" class="w240" />
+                <el-button link type="danger" @click="batchDlg.form.params.splice(idx, 1)">删除</el-button>
+              </div>
+              <el-button @click="batchDlg.form.params.push({ k: '', v: '' })">+ 添加属性</el-button>
+            </div>
+            <span class="form-hint">展示在验真结果页（如 材质/规格/批次号等）；生产过程类属性直接写在这里即可</span>
+          </el-form-item>
+          <!-- 🔴 P0 溯源外链：写 wailink_json.sy，C 端结果页给「查看详细溯源」入口，未配则回落购买链接 -->
+          <el-form-item label="溯源外链">
+            <el-input v-model.trim="batchDlg.form.wailink.sy" placeholder="如 https://.../trace/xxx（详细溯源页）" class="w360" />
+            <span class="form-hint" style="margin-left:8px">填了之后 C 端出现「查看详细溯源」按钮；不填则不显示</span>
+          </el-form-item>
+        </el-card>
+
+        <template v-if="batchDlg.isEdit">
           <el-form-item label="批次状态">
             <el-switch v-model="batchDlg.form.isActive" active-text="启用" inactive-text="停用" />
           </el-form-item>
@@ -1085,11 +1125,19 @@ function gotoRuleTab() {
 const batchDlg = reactive({ visible: false, isEdit: false, form: {}, activation: { activated: false, activatePin: '', source: '', activatedAt: '', hasPin: false } });
 const batchSaving = ref(false);
 const pinSaving = ref(false);
+/** 安全解析 JSON：坏数据回落默认，避免 undefined 进表单输入框（P0 字段回填用） */
+function safeParse(str, fallback) {
+  try { const v = JSON.parse(String(str || '')); return v ?? fallback; } catch { return fallback; }
+}
+
 function emptyBatch() {
   return {
     id: 0, batch: '', product: '', factory: '', brand: '', origin: '', province: '', city: '', district: '', isChuanhuo: 0,
     logo: '', banner: '', video: '', buyLink: '', isActive: true,
     inttype: 0, bbox: 0, sbox: 0, integral: 0, redBudgetCents: -1, validity: 0,
+    // 🔴 P0（2026-10-31）：新增/编辑可用的属性与溯源字段（避免「新增批次配不了图/属性」的空头）
+    producedAt: '', expireAt: '',
+    chuanhuoLimit: {}, params: [], wailink: { sy: '' },
     scanModeFollow: 1, printScanMode: '',
     caid: { jfEnabled: false, jf: { do: 0, up: 0 }, caidText: '', red: { merchantId: '' }, cjList: [] },
   };
@@ -1127,6 +1175,12 @@ function openBatchEdit(row) {
     validity: Number(row.validity || 0),
     scanModeFollow: Number(row.scan_mode_follow ?? 1),
     printScanMode: row.print_scan_mode || '',
+    // 🔴 P0（2026-10-31）：日期 / 窜货限售区域 / 自定义属性 / 溯源外链 回填（缺省给安全默认，避免 undefined 进输入框）
+    producedAt: row.produced_at || '',
+    expireAt: row.expire_at || '',
+    chuanhuoLimit: safeParse(row.chuanhuo_limit_json, {}),
+    params: Array.isArray(safeParse(row.params_json, [])) ? safeParse(row.params_json, []) : [],
+    wailink: safeParse(row.wailink_json, {}) || { sy: '' },
     caid: {
       jfEnabled: String(hd.jf?.tp || '') === '1',
       jf: { do: Number(hd.jf?.do || 0), up: Number(hd.jf?.up || 0) },
@@ -1247,6 +1301,9 @@ async function saveBatch() {
   const batchExtra = {
     inttype: Number(f.inttype || 0), bbox: Number(f.bbox || 0), sbox: Number(f.sbox || 0),
     integral: Number(f.integral || 0), redBudgetCents: Number(f.redBudgetCents ?? -1), validity: Number(f.validity || 0), caid,
+    // 🔴 P0（2026-10-31）：新增可配字段一并下发（漏了等于每次保存把它们清空 → 老问题）
+    producedAt: String(f.producedAt || ''), expireAt: String(f.expireAt || ''),
+    chuanhuoLimit: f.chuanhuoLimit || {}, params: Array.isArray(f.params) ? f.params : [], wailink: f.wailink || {},
   };
   try {
     if (batchDlg.isEdit) {
@@ -1689,12 +1746,13 @@ const SLOT_WHEN_OPTIONS = [
   { value: 0, label: '关闭（不显示）' },
   { value: 1, label: '全部查询都显示' },
   { value: 2, label: '仅首次查询显示' },
+  { value: 3, label: '仅非首次查询显示' },
   { value: 5, label: '首位查询人每次显示' },
   { value: 4, label: '非首位查询人显示' },
 ];
 // 🔴 hidden = 位级隐藏开关（1 隐藏 / 0 显示）。与 when（展示条件）是两道独立闸门。
 const EMPTY_SLOT = () => ({
-  when: 1, hidden: 0, title: '', cover: '', link: '', accessKey: '',
+  when: 1, hidden: 0, title: '', cover: '', link: '',
   timeMode: 0, startAt: '', endAt: '', authKey: '',
 });
 
@@ -1755,10 +1813,11 @@ function refreshAuthKey(it) {
 
 /**
  * 服务端下发的展示位 → 表单形状。
- * 🔴 服务端剥掉了 keyCipher 只给脱敏的 accessKey，这里补成空串避免 undefined 进输入框。
  * 🔴 hidden 必须归一化成 0/1：库里存 null/缺字段时，undefined 进 el-switch 会显示成「已隐藏」
  *    （el-switch 只有值等于 active-value 才算开），于是老配置一加载就被误判成隐藏。
  * 🔴 timeMode 缺省 0（不限）：老配置没有这个字段，若按 undefined 处理会显示成空选择框。
+ * 🔴 2026-10-31 收敛（#532 偏差3）：展示位只剩一个密钥字段 authKey（鉴权码），
+ *    不再有 accessKey/keyCipher（接口密钥）影子字段 —— 表单无需再补它的脱敏回填。
  */
 function slotsForForm(list) {
   return (Array.isArray(list) ? list : []).slice(0, SLOT_MAX).map((it) => ({
@@ -1767,7 +1826,6 @@ function slotsForForm(list) {
     title: String(it.title || ''),
     cover: String(it.cover || ''),
     link: String(it.link || ''),
-    accessKey: String(it.accessKey || ''),
     timeMode: Number(it.timeMode) || 0,
     startAt: String(it.startAt || '').slice(0, 10),
     endAt: String(it.endAt || '').slice(0, 10),
@@ -1856,7 +1914,7 @@ function activityForForm(raw) {
 function syncFormFromSettings(settings) {
   const src = settings || {};
   for (const key of Object.keys(s)) {
-    // 🔴 展示位单独走 slotsForForm：要补默认值（accessKey 脱敏回填等）
+    // 🔴 展示位单独走 slotsForForm：要补默认值（hidden/timeMode/authKey 等）
     if (key === 'displaySlots') continue;
     // 🔴 活动位同理：合并而非覆盖（避免库里 null/残缺对象把设置页搞崩）
     if (key === 'activity') continue;
@@ -1914,7 +1972,6 @@ async function saveSettings() {
         title: it.title,
         cover: it.cover,
         link: it.link,
-        accessKey: it.accessKey,
         // 🔴 有效时段与鉴权码：不带上就等于每次保存把它们清空（新增字段被旧 map 吞掉）。
         //    鉴权码留空时服务端会生成一串并固化，之后不再变。
         timeMode: Number(it.timeMode) || 0,

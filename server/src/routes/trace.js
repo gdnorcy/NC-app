@@ -592,6 +592,17 @@ export function createTracePublicRouter(db) {
       : findBatchBySegment(db, tenantId, parsed.batch, rule);
     if (!batch || Number(batch.is_active) !== 1) return sendError(res, 400, '防伪码不存在或已失效');
 
+    // 🔴 P0（2026-10-31）过期拦截：批次配了有效日期(expire_at)，且当前中国本地日期已越过 → 码失效。
+    //    🐞 为什么不在 JS 里用 Date 直接比：服务器跑 UTC，直接 new Date() 与库里的「中国本地日期」差 8 小时，
+    //       边界当天（如 expire_at=今天）会误判。统一用「中国本地日期字符串」做字典序比较（YYYY-MM-DD 可直接比大小）。
+    if (batch.expire_at) {
+      const cnDate = new Date(Date.now() + 8 * 3600 * 1000);
+      const today = `${cnDate.getUTCFullYear()}-${String(cnDate.getUTCMonth() + 1).padStart(2, '0')}-${String(cnDate.getUTCDate()).padStart(2, '0')}`;
+      if (today > String(batch.expire_at)) {
+        return sendError(res, 400, '该批次防伪码已过有效期，请联系销售方确认', { expired: true, expireAt: batch.expire_at });
+      }
+    }
+
     // 🔴 P2 激活闸门（先印后绑）：批次未被激活（经销商扫码绑定）之前，
     //    消费者扫码只得到一句引导语，看不到任何溯源详情。
     //    闸门必须放在**写查询记录之前** —— 未激活的批次不该把「查询次数」涨上去，
@@ -624,6 +635,33 @@ export function createTracePublicRouter(db) {
     record = reg.record;
     batch = reg.batch;
 
+    // 🔴 P0（2026-10-31）窜货闭环：批次启用了窜货监控且带了限售区域时，
+    //    拿查询者上报的地区（province/city）与限售区域按「前 2 字」比对（规避"内蒙古自治区"vs"内蒙古"后缀差异）。
+    //    命中跨区 → 标记本码 cross_region=1（供后台异常明细/统计），并向下发 chuanhuoHit 供 C 端提示。
+    //    未上报地区（C 端未采集或不支持）→ 不误判，仅记录配置级监控，等数据齐了再比对。
+    let chuanhuoHit = false;
+    const chLimit = safeJson(batch.chuanhuo_limit_json, {});
+    const needRecord = Number(batch.is_chuanhuo || 0) !== 0 && (chLimit.province || chLimit.city);
+    if (needRecord && record) {
+      const qProv = String(req.body?.province || '').trim();
+      const qCity = String(req.body?.city || '').trim();
+      const head2 = (s) => String(s || '').slice(0, 2);
+      const provLimit = chLimit.province ? head2(chLimit.province) : '';
+      const cityLimit = chLimit.city ? head2(chLimit.city) : '';
+      // 精度由「限售区域填到哪一级」决定：填了省=省级比对，省+市=市级比对（先省后市）。
+      // 查询者未上报对应级别地区 → 无法判定，跳过（不误判）。
+      let mismatch = false;
+      if (provLimit && head2(qProv) && head2(qProv) !== provLimit) mismatch = true;
+      else if (cityLimit && head2(qCity) && head2(qCity) !== cityLimit) mismatch = true;
+      if (mismatch) {
+        chuanhuoHit = true;
+        if (Number(record.cross_region || 0) !== 1) {
+          db.prepare('UPDATE trace_codes SET cross_region = 1, updated_at = datetime(\'now\') WHERE id = ?').run(record.id);
+          record.cross_region = 1; // 🔴 同步内存对象，否则下发响应读到的还是旧值 0
+        }
+      }
+    }
+
     const reward = applyTraceReward({
       db,
       tenantId,
@@ -653,12 +691,16 @@ export function createTracePublicRouter(db) {
       slots: (slotsEnabled(settings) ? pickDisplaySlots(settings.displaySlots || [], {
         isFirstQuery: Number(record.num || 0) <= 1,
         isTopQueryer: Boolean(record.openid) && record.openid === openid,
-      }) : []).map(({ keyCipher, ...rest }) => ({
-        // 🔴 authKey 是**要明文下发**的（拼进跳转链接给外部接口验签），不是凭据，
-        //    所以只剥 keyCipher（接口密钥密文）；鉴权码留着给占位符替换与前端展示。
+      }) : []).map(({ keyCipher, authKey, ...rest }) => ({
+        // 🔴 两个密钥类字段都要剥，一个不留：
+        //    · keyCipher —— 接口密钥密文（拿到密文 + 我方解密能力即可还原凭据）；
+        //    · authKey   —— 展位鉴权码本体。它要留给对接方在后台复制，**不下发给消费者**；
+        //      链接里只能用它的签名 md5(防伪码 + 鉴权码)，见 traceSlots.js#slotAuthSign。
+        //      若这里跟着 ...rest 一起出网，任何抓包的人都能拿到本体去伪造任意码的链接，
+        //      那前面「[KEY] 改签名」的安全加固就是自欺欺人。
         ...rest,
-        title: substituteSlotPlaceholders(rest.title, { code, tenantId, authKey: rest.authKey }),
-        link: substituteSlotPlaceholders(rest.link, { code, tenantId, authKey: rest.authKey }),
+        title: substituteSlotPlaceholders(rest.title, { code, tenantId, authKey }),
+        link: substituteSlotPlaceholders(rest.link, { code, tenantId, authKey }),
       })),
       num: Number(record.num || 0),
       // 🔴 当前「扫码查询方案」：C 端据此决定是否渲染「长按识别、由公众号推送结果」引导。
@@ -682,6 +724,18 @@ export function createTracePublicRouter(db) {
         logo: batch.logo,
         video: batch.video,
         buyLink: batch.buy_link,
+        // 🔴 P0（2026-10-31）生产/有效日期：C 端可展示「生产日期 / 有效期至」；过期拦截在服务端 verify 入口已做。
+        producedAt: batch.produced_at || '',
+        expireAt: batch.expire_at || '',
+        // 🔴 P0 窜货监控配置：策略 + 限售区域；C 端按此展示监控提示，命中跨区由服务端打标。
+        chuanhuo: {
+          strategy: Number(batch.is_chuanhuo || 0),
+          limit: safeJson(batch.chuanhuo_limit_json, {}),
+        },
+        // 🔴 本次查询是否命中跨区（前端地区与限售区域前 2 字比对不一致）。C 端据此弹「疑似窜货」提示。
+        chuanhuoHit,
+        // 🔴 本码是否已被标记为窜货异常（前次查询命中跨区即打标），C 端据此展示异常态。
+        crossRegion: record ? Number(record.cross_region || 0) : 0,
         rcon: Number(batch.rcon || 0),
         params: safeJson(batch.params_json, []),
         wailink: safeJson(batch.wailink_json, {}),
@@ -999,9 +1053,13 @@ export function createTraceAdminRouter(db) {
       // 🔴 扫码查询方案由服务端出具（含每档是否真的可用 + 不可用的具体原因），
       //    后台只负责渲染 —— 不做「后台写一份标签、服务端认另一份」的两份真相。
       scanQuery: buildScanQueryView(db, req.traceTenantId, settings),
+      // 🔴 2026-10-31 收敛（#532 偏差3）：展示位只保留一个密钥类字段 `authKey`（鉴权码，
+      //    要复制给对接方、链接里只带它的 md5 签名）。原 `keyCipher`/`accessKey`（接口密钥）
+      //    是预留且无任何消费点的影子字段，已移除 —— 回显也不再带它（兼容旧库：旧 keyCipher 在此剥掉，
+      //    下次保存即彻底清掉），避免租户看到两个不知道哪个生效的密钥字段。
       displaySlots: slots.map((s) => {
-        const { keyCipher, ...rest } = s || {};
-        return { ...rest, accessKey: maskSecretValue(readSecret(keyCipher)) };
+        const { keyCipher, accessKey, ...rest } = s || {};
+        return rest;
       }),
     };
     return res.json({ settings: view, cocom: Number(row?.cocom ?? 0) });
@@ -1014,17 +1072,13 @@ export function createTraceAdminRouter(db) {
       const prev = getSettings(db, req.traceTenantId).settings || {};
       const prevSlots = Array.isArray(prev.displaySlots) ? prev.displaySlots : [];
       const submitted = Array.isArray(patch.displaySlots) ? patch.displaySlots : [];
-      // 🔴 顺序不能反：先归一化会让明文密钥被当普通字段透传进库（**明文落库**），
-      //    所以先把密钥轮成密文，再交给归一化（归一化对密文只做不透明透传）。
-      const staged = submitted.map((raw, i) => {
-        const one = raw && typeof raw === 'object' ? raw : {};
-        const cipher = mergeSecretInput(String(one.accessKey || ''), String(prevSlots[i]?.keyCipher || ''));
-        const { accessKey, ...rest } = one; // 明文不落库
-        return { ...rest, keyCipher: cipher };
-      });
+      // 🔴 2026-10-31 收敛（#532 偏差3）：展示位只有一个密钥类字段 `authKey`（鉴权码），
+      //    不再有 `accessKey`/`keyCipher`（接口密钥）这套影子字段 —— 它预留且无消费点，属空头权益。
+      //    所以这里不需要再做「明文 → 密文」轮子，直接整批归一化即可。
+      //    旧数据里若残留 keyCipher，归一化不会读它、会在下次保存时被自然剥掉（兼容旧库、不主动崩溃）。
       // 🔴 必须**整批**归一化：逐个调用会让「最多 8 个」的上限校验永远不成立
       //    （每次只看到 1 个），上限形同虚设。归一化也顺带剥掉多余字段。
-      patch.displaySlots = normalizeDisplaySlots(staged);
+      patch.displaySlots = normalizeDisplaySlots(submitted);
       // 🔴 枚举字段必须服务端白名单归一：客户端传什么是不可信的，
       //    落到库里的只能是 traceScanMode 里那几档之一（非法值一律回落默认档）。
       if ('scanMode' in patch) patch.scanMode = normalizeScanMode(patch.scanMode);
@@ -1077,6 +1131,9 @@ export function createTraceAdminRouter(db) {
     // 🔴 P2 激活态：一次查全租户的激活记录做映射（避免每行一次查询的 N+1）。
     const actRows = db.prepare('SELECT batch_id, source, actor, created_at FROM trace_activations WHERE tenant_id = ?').all(req.traceTenantId);
     const actMap = new Map(actRows.map((r) => [Number(r.batch_id), r]));
+    // 🔴 P0（2026-10-31）窜货异常计数：一次按 batch_id 分组聚合 cross_region=1 的行，映射回列表（避免 N+1）。
+    const crRows = db.prepare('SELECT batch_id, COUNT(*) AS c FROM trace_codes WHERE tenant_id = ? AND cross_region = 1 GROUP BY batch_id').all(req.traceTenantId);
+    const crMap = new Map(crRows.map((r) => [Number(r.batch_id), Number(r.c)]));
     const withAct = list.map((b) => {
       const act = actMap.get(Number(b.id));
       return {
@@ -1084,6 +1141,7 @@ export function createTraceAdminRouter(db) {
         activated: act ? 1 : 0,
         activation_source: act?.source || '',
         activated_at: act?.created_at || '',
+        cross_region_count: crMap.get(Number(b.id)) || 0,
       };
     });
     const cur = getRule(db, req.traceTenantId);
@@ -1099,9 +1157,9 @@ export function createTraceAdminRouter(db) {
     if (normalized.error) return sendError(res, 400, normalized.error);
     const { rule } = getRule(db, req.traceTenantId);
     try {
-      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
-        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1));
+      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
+        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}));
       addHistory(db, req.traceTenantId, 1, normalized.batch, req, '新增防伪批次');
       return res.json({ id: Number(info.lastInsertRowid), batch: normalized.batch });
     } catch (e) {
@@ -1120,9 +1178,9 @@ export function createTraceAdminRouter(db) {
     const exists = db.prepare('SELECT id FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
     if (!exists) return sendError(res, 404, '批次不存在');
     const b = req.body || {};
-    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
+    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
       WHERE tenant_id = ? AND id = ?`)
-      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
+      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
     addHistory(db, req.traceTenantId, 1, String(id), req, '编辑防伪批次');
     return res.json({ ok: true });
   });

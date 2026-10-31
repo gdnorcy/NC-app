@@ -2614,6 +2614,24 @@ function migrateTraceExtras(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_trace_activations_batch ON trace_activations (tenant_id, batch_id);
   `);
+  // P0（2026-10-31）：生产/有效日期 —— 替代原先孤立无消费的 `validity` 整型字段。
+  //   produced_at 生产日期、expire_at 有效日期（YYYY-MM-DD，中国本地口径；空 = 不限）。
+  //   验真入口据此拦过期批次（控制「假码是否还生效」）。
+  if (!colExists(db, 'trace_batches', 'produced_at')) {
+    db.exec("ALTER TABLE trace_batches ADD COLUMN produced_at TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'trace_batches', 'expire_at')) {
+    db.exec("ALTER TABLE trace_batches ADD COLUMN expire_at TEXT NOT NULL DEFAULT ''");
+  }
+  // P0：窜货限售区域（省/市/区），与批次「销售区域」(province/city/district) 语义分离。
+  //   策略存 is_chuanhuo（0 不限 / 3 限定地区不提示 / 1 厂家+客户端提示 / 2 仅厂家提示 / 4 仅客户端提示）。
+  if (!colExists(db, 'trace_batches', 'chuanhuo_limit_json')) {
+    db.exec("ALTER TABLE trace_batches ADD COLUMN chuanhuo_limit_json TEXT NOT NULL DEFAULT '{}'");
+  }
+  // P0：码记录窜货异常标记（验真命中跨区时打标，供后台异常明细与统计）。
+  if (tableExists(db, 'trace_codes') && !colExists(db, 'trace_codes', 'cross_region')) {
+    db.exec('ALTER TABLE trace_codes ADD COLUMN cross_region INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 /**

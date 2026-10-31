@@ -112,6 +112,20 @@
             <text class="tr-line-label">销售区域</text>
             <text class="tr-line-value">{{ regionText }}</text>
           </view>
+          <!-- 🔴 P0（2026-10-31）：生产/有效日期（服务端过期拦截已做，这里仅展示） -->
+          <view class="tr-line" v-if="batchInfo.producedAt">
+            <text class="tr-line-label">生产日期</text>
+            <text class="tr-line-value">{{ batchInfo.producedAt }}</text>
+          </view>
+          <view class="tr-line" v-if="batchInfo.expireAt">
+            <text class="tr-line-label">有效至</text>
+            <text class="tr-line-value">{{ batchInfo.expireAt }}</text>
+          </view>
+          <!-- 🔴 P0：自定义属性 / 生产过程（写 params_json，后台有序维护，C 端按序展示） -->
+          <view class="tr-line" v-for="(p, i) in attrList" :key="i">
+            <text class="tr-line-label">{{ p.k || '属性' }}</text>
+            <text class="tr-line-value">{{ p.v || '-' }}</text>
+          </view>
           <!-- 🔴 达到次数上限（超限）时提示文案变红；未超限保持常规灰色说明色 -->
           <text class="tr-tip" :class="{ 'tr-tip-danger': overLimit }" v-if="successTip">{{ successTip }}</text>
         </view>
@@ -124,6 +138,20 @@
             <text class="tr-activity-title">{{ activity.title || '查看活动详情' }}</text>
             <text class="tr-activity-cta">查看详情 ›</text>
           </view>
+        </view>
+
+        <!-- 🔴 P0（2026-10-31）：详细溯源 / 购买入口（wailink.sy 优先，回落购买链接） -->
+        <view class="tr-card tr-links" v-if="traceLink">
+          <view class="tr-btn tr-btn-ghost" @click="openTraceLink">{{ traceLinkLabel }}</view>
+        </view>
+
+        <!-- 🔴 P0：窜货提示（命中跨区或本码曾被标记异常时展示；策略决定提示给谁，这里只管客户端提示） -->
+        <view class="tr-card tr-card-warn" v-if="batchInfo.chuanhuoHit || batchInfo.crossRegion">
+          <view class="tr-result-head">
+            <SIcon name="show" size="large" :color="ICON_DANGER" />
+            <text class="tr-result-title tr-title-warn">疑似窜货</text>
+          </view>
+          <text class="tr-tip">本商品的查询地区与授权销售区域不一致，建议通过正规渠道购买并联系厂家核实。</text>
         </view>
 
         <!-- 错误卡片 -->
@@ -381,6 +409,29 @@ const regionText = computed(() => {
   return parts.length ? parts.join(' / ') : '-';
 });
 
+/** 🔴 P0（2026-10-31）：自定义属性列表（过滤掉空 k 和空 v，避免展示空白行） */
+const attrList = computed(() => {
+  const arr = batchInfo.value.params;
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((p) => p && (String(p.k || '').trim() || String(p.v || '').trim()));
+});
+
+/** 🔴 P0：详细溯源入口（wailink.sy 优先，回落到购买链接）；都没有则不渲染入口 */
+const traceLink = computed(() => {
+  const b = batchInfo.value || {};
+  const sy = (b.wailink && b.wailink.sy) || '';
+  if (sy) return sy;
+  return b.buyLink || '';
+});
+const traceLinkLabel = computed(() => {
+  const b = batchInfo.value || {};
+  return (b.wailink && b.wailink.sy) ? '查看详细溯源' : '前往购买';
+});
+function openTraceLink() {
+  if (!traceLink.value) return;
+  execCompLink(linkFromString(traceLink.value));
+}
+
 const originText = computed(() => batchInfo.value.origin || '-');
 
 const welcomeText = computed(() => {
@@ -557,6 +608,20 @@ onLoad((options) => {
   background: var(--bg-tag);
   border: 1px solid var(--border);
 }
+/* 🔴 P0（2026-10-31）：详细溯源/购买入口（幽灵按钮，复用主色不新增裸色） */
+.tr-links { padding: 16rpx 24rpx; }
+.tr-btn-ghost {
+  margin-top: 0;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+/* 🔴 P0：窜货提示卡（复用既有 --danger 令牌，不新增裸色/令牌） */
+.tr-card-warn {
+  background: var(--bg-tag);
+  border: 1px solid var(--danger);
+}
+.tr-title-warn { color: var(--danger); }
 
 /* 🔴 溯源结果海报：用红金底图做背景，叠加【文案 + 唯一一个二维码】的邀请函式海报。
    外层卡片只承载圆角/阴影/裁切；底图 widthFix 撑开高度，叠加层用绝对定位浮在底色块上。 */
