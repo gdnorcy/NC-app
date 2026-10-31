@@ -92,3 +92,13 @@ export function traceSceneQr(code, tid, oc) {
 export function activateBatch(batch, pin, tid) {
   return request('/batch-activate' + qs({ tid }), 'POST', { batch, pin });
 }
+
+/**
+ * H5 跳转小程序：向服务端换取微信 URL Link（仅本平台小程序可用，凭证约束见服务端）。
+ * POST /public/urllink
+ * @param {{appId:string, path:string, query?:string, envVersion?:string}} payload
+ * @returns {Promise<{urlLink:string}>}
+ */
+export function fetchMiniUrlLink(payload) {
+  return request('/urllink', 'POST', payload);
+}

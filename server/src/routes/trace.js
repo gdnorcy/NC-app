@@ -23,6 +23,7 @@ import { absoluteUrl, publicBaseUrl } from '../utils/publicUrl.js';
 import { countTraceCodesGenerated, isTraceBatchActivated } from '../db.js';
 import { WxMpService, showQrImageUrl } from '../services/wx-mp.js';
 import { WxComponentService } from '../services/wx-component.js';
+import { getWxMiniConfig, generateMiniUrlLink } from '../services/wxMiniLink.js';
 
 // 🔴 extra：可选的**结构化补充字段**（与 error 文案并存）。
 //    用途：给前端可编程的判据（如闸门拦截时带 gateRequired=true），
@@ -51,6 +52,33 @@ function pageParams(req) {
 
 function safeJson(text, fallback) {
   try { return JSON.parse(text || ''); } catch { return fallback; }
+}
+
+/**
+ * 购买链接落库：结构化对象 → JSON 字符串；旧版纯字符串 → 原样存。
+ * 🔴 必须兼容两种形态，否则老数据（纯 URL 字符串）被 JSON.stringify 包一层反而坏掉。
+ */
+function storeBuyLink(v) {
+  if (v && typeof v === 'object') return JSON.stringify(v);
+  return String(v || '');
+}
+
+/**
+ * 读取购买链接下发给 C 端：JSON 对象原样返回；旧版纯字符串原样返回（C 端再判定）。
+ */
+function parseBuyLink(raw) {
+  const o = safeJson(raw, null);
+  return o && typeof o === 'object' && !Array.isArray(o) ? o : raw;
+}
+
+/** 第三方 API 用的 pro.link：只给「能放进 URL 框」的链接（web / internal 的 url），其它类型回落空串 */
+function buyLinkToUrl(raw) {
+  const o = safeJson(raw, null);
+  if (o && typeof o === 'object' && !Array.isArray(o)) {
+    if (o.linkType === 'web' || o.linkType === 'internal') return String(o.url || '');
+    return '';
+  }
+  return raw || '';
 }
 
 function nowIso() {
@@ -786,7 +814,7 @@ export function createTracePublicRouter(db) {
         banner: batch.banner,
         logo: batch.logo,
         video: batch.video,
-        buyLink: batch.buy_link,
+        buyLink: parseBuyLink(batch.buy_link),
         // 🔴 P0（2026-10-31）生产/有效日期：C 端可展示「生产日期 / 有效期至」；过期拦截在服务端 verify 入口已做。
         producedAt: batch.produced_at || '',
         expireAt: batch.expire_at || '',
@@ -911,7 +939,7 @@ export function createTracePublicRouter(db) {
       content: 0,
       no: 1,
       co,
-      pro: { name: batch.product, pic: batch.banner, link: batch.buy_link },
+      pro: { name: batch.product, pic: batch.banner, link: buyLinkToUrl(batch.buy_link) },
       title: settings.suc_one || '验证通过',
       text: [batch.product, batch.factory, batch.brand].filter(Boolean),
       source: [],
@@ -1082,6 +1110,26 @@ export function createTracePublicRouter(db) {
     }
     activateTraceBatch(db, tenantId, batch.id, 'dealer', '', '经销商凭口令激活');
     return res.json({ ok: true, batch: batch.batch, product: batch.product || '' });
+  });
+
+  // 🔴 H5 跳转小程序通道：C 端 H5（微信内）要拉起小程序，MP 端可用 wx.navigateToMiniProgram，
+  //    H5 没有该 API，需服务端生成 URL Link（generate_urllink）后前端 location.href 拉起。
+  //    凭证约束：只能为「本平台小程序」生成（我们持有其 wx_mini 的 access_token）；
+  //    第三方小程序无凭证 → 明确 400，由 C 端复制 AppID 兜底，不假装能跳。
+  router.post('/public/urllink', async (req, res) => {
+    const { appId, path, query, envVersion } = req.body || {};
+    if (!appId) return sendError(res, 400, '缺少 appId');
+    const cfg = getWxMiniConfig(db);
+    if (!cfg.appId) return sendError(res, 502, 'wx_mini 未配置');
+    if (appId !== cfg.appId) {
+      return sendError(res, 400, 'unsupported_target', { reason: '仅支持跳转本平台小程序' });
+    }
+    try {
+      const urlLink = await generateMiniUrlLink(db, { path, query, envVersion });
+      return res.json({ urlLink });
+    } catch (e) {
+      return sendError(res, 502, e.message || 'URL Link 生成失败');
+    }
   });
 
   return router;
@@ -1255,7 +1303,7 @@ export function createTraceAdminRouter(db) {
     try {
       const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, batch_slots_json, show_slots_query, is_active, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
-        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1));
+        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), storeBuyLink(b.buyLink), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1));
       addHistory(db, req.traceTenantId, 1, normalized.batch, req, '新增防伪批次');
       return res.json({ id: Number(info.lastInsertRowid), batch: normalized.batch });
     } catch (e) {
@@ -1276,7 +1324,7 @@ export function createTraceAdminRouter(db) {
     const b = req.body || {};
     db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, batch_slots_json = ?, show_slots_query = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
       WHERE tenant_id = ? AND id = ?`)
-      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
+      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), storeBuyLink(b.buyLink), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
     addHistory(db, req.traceTenantId, 1, String(id), req, '编辑防伪批次');
     return res.json({ ok: true });
   });

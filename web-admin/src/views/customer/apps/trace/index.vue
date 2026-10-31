@@ -944,7 +944,22 @@
               </div>
             </el-form-item>
             <el-form-item label="购买链接">
-              <el-input v-model.trim="batchDlg.form.buyLink" placeholder="商品购买页 URL（未配溯源外链且未配关联商品时回落到这里）" />
+              <div class="buy-link-editor">
+                <el-select v-model="batchDlg.form.buyLink.linkType" class="w140" @change="onBuyLinkTypeChange">
+                  <el-option v-for="t in buyLinkTypes" :key="t.value" :label="t.label" :value="t.value" />
+                </el-select>
+                <template v-if="batchDlg.form.buyLink.linkType === 'miniapp'">
+                  <el-input v-model.trim="batchDlg.form.buyLink.miniAppId" placeholder="小程序 AppID（wx 开头）" class="w200" />
+                  <el-input v-model.trim="batchDlg.form.buyLink.miniAppPath" placeholder="页面路径，如 /pages/mall/detail?id=1" class="w220" />
+                  <el-select v-model="batchDlg.form.buyLink.miniAppEnv" class="w100">
+                    <el-option v-for="e in buyLinkEnvs" :key="e.value" :label="e.label" :value="e.value" />
+                  </el-select>
+                </template>
+                <template v-else>
+                  <el-input v-model.trim="batchDlg.form.buyLink.url" :placeholder="buyLinkPlaceholder" class="w360" />
+                </template>
+              </div>
+              <span class="form-hint">选「外部小程序」可在小程序端 / H5 端跳转；H5 端仅本平台小程序可拉起，其余会复制 AppID 兜底</span>
             </el-form-item>
             <el-form-item label="生产日期">
               <el-date-picker v-model="batchDlg.form.producedAt" type="date" value-format="YYYY-MM-DD" placeholder="生产日期" />
@@ -1359,10 +1374,54 @@ const pickedGoods = computed(() => {
 // 首次切到「关联商品」Tab 时懒加载商品候选（未开通 403 也只会提示一次）
 watch(() => batchDlg.tab, (t) => { if (t === 'toshop' && !goodsLoaded.value) loadGoodsOptions(); });
 
+// 🔴 购买链接结构化（与 web-app/src/utils/compLinkModel.js 同口径：linkType / url / miniAppId / miniAppPath / miniAppEnv）
+//    ⚠️ 该模型以 web-app 的 compLinkModel 为唯一事实来源；此处只放 UI 选项，字段语义不得擅自改。
+const buyLinkTypes = [
+  { value: 'internal', label: '内部页面' },
+  { value: 'miniapp', label: '外部小程序' },
+  { value: 'web', label: '网页链接' },
+  { value: 'phone', label: '拨打电话' },
+];
+const buyLinkEnvs = [
+  { value: 'release', label: '正式版' },
+  { value: 'trial', label: '体验版' },
+  { value: 'develop', label: '开发版' },
+];
+const buyLinkPlaceholder = computed(() => {
+  const t = batchDlg.form.buyLink && batchDlg.form.buyLink.linkType;
+  if (t === 'internal') return '内部页面路径，如 /pages/mall/detail?id=1';
+  if (t === 'phone') return '电话号码，如 400-888-8888';
+  return '商品购买页 URL（https://...）';
+});
+function onBuyLinkTypeChange() {
+  const bl = batchDlg.form.buyLink;
+  if (!bl) return;
+  bl.url = bl.url || '';
+  bl.miniAppId = bl.miniAppId || '';
+  bl.miniAppPath = bl.miniAppPath || '';
+  bl.miniAppEnv = bl.miniAppEnv || 'release';
+}
+// 老数据（纯字符串 URL）/ 空值 → 结构化对象（http(s) 视为网页，其余视为内部页面）
+function parseBuyLink(raw) {
+  if (!raw) return { linkType: 'web', url: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release' };
+  if (typeof raw === 'object') {
+    return {
+      linkType: raw.linkType || 'web',
+      url: raw.url || '',
+      miniAppId: raw.miniAppId || '',
+      miniAppPath: raw.miniAppPath || '',
+      miniAppEnv: raw.miniAppEnv || 'release',
+    };
+  }
+  const s = String(raw);
+  const isHttp = /^https?:\/\//i.test(s);
+  return { linkType: isHttp ? 'web' : 'internal', url: s, miniAppId: '', miniAppPath: '', miniAppEnv: 'release' };
+}
+
 function emptyBatch() {
   return {
     id: 0, batch: '', product: '', factory: '', brand: '', origin: '', province: '', city: '', district: '', isChuanhuo: 0,
-    logo: '', banner: '', video: '', buyLink: '', isActive: true,
+    logo: '', banner: '', video: '', buyLink: { linkType: 'web', url: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release' }, isActive: true,
     inttype: 0, bbox: 0, sbox: 0, integral: 0, redBudgetCents: -1, validity: 0,
     // 🔴 P0（2026-10-31）：新增/编辑可用的属性与溯源字段（避免「新增批次配不了图/属性」的空头）
     producedAt: '', expireAt: '',
@@ -1402,7 +1461,7 @@ function openBatchEdit(row) {
     logo: row.logo || '',
     banner: row.banner || '',
     video: row.video || '',
-    buyLink: row.buy_link || '',
+    buyLink: parseBuyLink(row.buy_link),
     isActive: !!Number(row.is_active),
     inttype: Number(row.inttype || 0),
     bbox: Number(row.bbox || 0),

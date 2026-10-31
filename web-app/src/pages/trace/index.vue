@@ -221,9 +221,9 @@ import { onLoad } from '@dcloudio/uni-app';
 import PageNav from '../../components/PageNav.vue';
 import SIcon from '../../components/SIcon.vue';
 import { getTid } from '../../utils/mallUtil.js';
-import { scanEntry, verifyTrace, traceSceneQr, traceScanMode, wxAuthStartUrl } from '../../utils/traceApi.js';
+import { scanEntry, verifyTrace, traceSceneQr, traceScanMode, wxAuthStartUrl, fetchMiniUrlLink } from '../../utils/traceApi.js';
 import { execCompLink } from '../../utils/compLink.js';
-import { linkFromString } from '../../utils/compLinkModel.js';
+import { linkFromString, normalizeLink } from '../../utils/compLinkModel.js';
 import { API_HOST, IS_MP_WEIXIN } from '../../utils/apiBase.js';
 
 // 🔴 SIcon 的 color 会被烘焙进产物（SVG data-URI / 预生成 PNG），var() 到不了
@@ -488,7 +488,45 @@ const traceLinkLabel = computed(() => {
 });
 function openTraceLink() {
   if (!traceLink.value) return;
-  execCompLink(linkFromString(traceLink.value));
+  const raw = traceLink.value;
+  // 购买链接可能是结构化对象（新）或纯字符串（历史数据），统一归一
+  const link = typeof raw === 'string' ? linkFromString(raw) : normalizeLink(raw);
+  // 🔴 H5 端外部小程序：无 wx.navigateToMiniProgram，需服务端生成 URL Link 拉起；
+  //    MP 端走 execCompLink 的 wx.navigateToMiniProgram 直跳，无需后端。
+  // 🔴 仅「本平台小程序」能生成 URL Link（服务端仅持有其凭证）；第三方目标会回落复制 AppID。
+  // #ifdef H5
+  if (link.linkType === 'miniapp') {
+    openMiniAppUrlLink(link);
+    return;
+  }
+  // #endif
+  execCompLink(link);
+}
+
+/**
+ * H5 端拉起外部小程序：请求服务端生成微信 URL Link 后 location.href 跳转。
+ * 失败（如第三方小程序无凭证 / 微信配额）则复制 AppID，提示在微信内搜索打开。
+ */
+async function openMiniAppUrlLink(link) {
+  try {
+    const data = await fetchMiniUrlLink({
+      appId: link.miniAppId,
+      path: link.miniAppPath,
+      query: '',
+      envVersion: link.miniAppEnv || 'release',
+    });
+    if (data && data.urlLink) {
+      window.location.href = data.urlLink;
+      return;
+    }
+    throw new Error('empty urlLink');
+  } catch (e) {
+    uni.setClipboardData({
+      data: link.miniAppId,
+      success: () => uni.showToast({ title: '已复制小程序 AppID，请在微信中搜索打开', icon: 'none' }),
+      fail: () => uni.showToast({ title: '暂不支持在网页端跳转该小程序', icon: 'none' }),
+    });
+  }
 }
 
 const originText = computed(() => batchInfo.value.origin || '-');
