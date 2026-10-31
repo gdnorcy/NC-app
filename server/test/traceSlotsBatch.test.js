@@ -136,6 +136,8 @@ describe('P1：批次展位合并下发 + 关联商品(商城打通)', () => {
 
   // ── 4) 关联商品：toshop_json.ids 实时 join 在售商品下发 ──
   it('验真下发 toshop：按 ids 实时 join 本租户在售商品（改价/下架即时同步，非快照）', async () => {
+    // 🔴 P1 总闸：商城集成「商品来源」须选 1 本平台商城商品，关联商品卡才下发
+    await putSettings({ mallSource: 1 });
     const g1 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sell', datetime('now'), datetime('now'))").run(T, '溯源关联商品一', '/g1.png', 12.5, 15.0).lastInsertRowid;
     const g2 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sell', datetime('now'), datetime('now'))").run(T, '溯源关联商品二', '/g2.png', 88, 99).lastInsertRowid;
     const g3 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'off', datetime('now'), datetime('now'))").run(T, '已下架商品', '/g3.png', 1, 2).lastInsertRowid;

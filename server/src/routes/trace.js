@@ -159,7 +159,11 @@ function normalizeBatchSlots(db, tenantId, input) {
  * P1（2026-10-31）：关联商品实时 join（toshop_json 只存 ids，下发时按在售商品实时取 ——
  * 改价/下架即时同步，不做快照）。未开通 goods 应用或 ids 为空 → 空数组（C 端整区不渲染）。
  */
-function buildTraceToshop(db, tenantId, batch) {
+function buildTraceToshop(db, tenantId, batch, settings) {
+  // 🔴 P1 总闸：商城集成「商品来源」选 0 不关联 → 溯源页不展示关联商品卡（图1 当图2 总闸）。
+  //    过渡期兼容：mallSource 未设置时回落读取旧 isint 值，避免老租户配置被静默重置。
+  const mallSrc = settings && settings.mallSource !== undefined ? Number(settings.mallSource) : Number(settings?.isint || 0);
+  if (mallSrc !== 1) return [];
   const cfg = safeJson(batch.toshop_json, {});
   const ids = (Array.isArray(cfg?.ids) ? cfg.ids : []).map(Number).filter((x) => x > 0);
   if (!ids.length || !hasSolution(db, tenantId, 'goods')) return [];
@@ -798,7 +802,7 @@ export function createTracePublicRouter(db) {
         wailink: safeJson(batch.wailink_json, {}),
         // 🔴 P1（2026-10-31）关联商品（与商城打通）：toshop_json 只存商品 id 列表，
         //    这里按租户在售商品实时 join（未开通商城应用或商品已下架 → 空数组，C 端整区不渲染）。
-        toshop: buildTraceToshop(db, tenantId, batch),
+        toshop: buildTraceToshop(db, tenantId, batch, settings),
       },
       reward,
       settings: {
@@ -1711,17 +1715,18 @@ export function createTraceAdminRouter(db) {
   //    计量口径必须由平台侧发放记录驱动，否则库存数量没有可信来源。
   //    这里改为**只读余量**，租户看到不足时联系平台。
 
-  // 商品关联配置（溯源页「查看商品」跳哪儿）。开关值落在 settings.isint，随 PUT /settings 保存。
-  // 🔴 只列本平台真实存在的来源：外部第三方商城的商品表在我们库里根本没有，
-  //    列进下拉 = 后台能选、服务端零消费的「空头权益」，不做。
+  // 商城集成（溯源页关联商品总闸）。开关值落在 settings.mallSource（0 不关联 / 1 本平台商城商品），随 PUT /settings 保存。
+  // 🔴 仅本平台商城一种来源：第三方商城商品表在我们库里不存在，列"外部商品链接"是后台能选、服务端零消费的空头选项，已移除。
   router.get('/shop-integration', (req, res) => {
     const { settings } = getSettings(db, req.traceTenantId);
+    const current = settings && settings.mallSource !== undefined
+      ? Number(settings.mallSource)
+      : Number(settings?.isint || 0);
     const sources = [
       { value: 0, label: '不关联商品', table: '' },
       { value: 1, label: '本平台商城商品', table: 'goods' },
-      { value: 2, label: '外部商品链接', table: '' },
     ];
-    return res.json({ current: Number(settings.isint || 0), sources });
+    return res.json({ current, sources });
   });
 
   return router;

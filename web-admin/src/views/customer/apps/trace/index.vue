@@ -320,7 +320,7 @@
                 <el-divider content-position="left">功能开关</el-divider>
                 <el-row :gutter="20" class="switch-grid">
                   <el-col :span="8"><el-form-item label="开启历史查询"><el-switch v-model="s.ishistory" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
-                  <el-col :span="8"><el-form-item label="积分功能"><el-switch v-model="s.isint" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="积分功能"><el-switch v-model="s.isPoints" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
                   <el-col :span="8"><el-form-item label="外链跳转"><el-switch v-model="s.islink" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
                   <el-col :span="8"><el-form-item label="码激活"><el-switch v-model="s.isjihuo" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
                   <el-col :span="8"><el-form-item label="窜货检测"><el-switch v-model="s.ischuanhuo" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
@@ -724,10 +724,10 @@
           <el-alert type="info" :closable="false" show-icon title="选择后点「保存设置」即生效（随防伪设置一并提交）。仅接入本平台真实存在的来源，避免「后台能选、服务端零消费」的空头配置。" class="mb12" />
           <el-form label-width="140px" class="set-form">
             <el-form-item label="商品来源">
-              <el-select v-model="s.isint" class="w320">
+              <el-select v-model="s.mallSource" class="w320">
                 <el-option v-for="opt in shopSources" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
-              <span class="form-hint">0 不关联 / 1 本平台商城商品 / 2 外部商品链接</span>
+              <span class="form-hint">0 不关联 / 1 本平台商城商品</span>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="setSaving" @click="saveSettings">保存设置</el-button>
@@ -1926,7 +1926,7 @@ const s = reactive({
   con_msg: '', con_msg1: '', myone: '', mytwo: '',
   // 功能开关 + 限额
   upperlimit: 0, history_limit: 10, siteroot: '',
-  ishistory: 0, isint: 0, islink: 0, isjihuo: 0, ischuanhuo: 0,
+  ishistory: 0, isPoints: 0, islink: 0, isjihuo: 0, ischuanhuo: 0, mallSource: 0,
   xiguang: 0, istixe: 0, isccode: 0, isapi: 0, isluck: 0,
   // 企业/联系
   factory: '', ftel: '', dtel: '', kuaidi: '', link: '',
@@ -2329,7 +2329,7 @@ async function loadShop() {
   try {
     const r = await customerApiCall.get('/trace/shop-integration');
     shopSources.value = r.sources || [];
-    if (r.current !== undefined) s.isint = Number(r.current || 0);
+    if (r.current !== undefined) s.mallSource = Number(r.current || 0);
   } catch (e) { ElMessage.error(e || '加载商城集成失败'); }
 }
 
