@@ -760,10 +760,14 @@
     </main>
 
     <!-- 新增/编辑批次（2026-10-31 改：对标图2 方式，内容区平铺表单，不再弹窗；
-         列表区 v-if="!batchDlg.visible" 与之互斥，保存/取消后回列表。）
+         列表区 v-if="!batchDlg.visible" 与之互斥，保存/取消后回列表；
+         🔴 2026-10-31 修：v-if 必须同时绑定 activeTab==='batches'，
+         否则切到其他 Tab 时表单仍显示 → 与其他 Tab 内容重叠（图2 现象）。
+         表单 div 位于所有 section 之后（文档流末尾），其他 section v-show=false 不占位，
+         显示时自然落在内容区顶部，无需 scrollIntoView 滚动定位。）
          🔴 P1（2026-10-31）：单列弹窗改 Tab（对标 8 Tab 结构，字段量已到规模），
          本次落地 5 个 Tab：商品信息 / 活动设置 / 媒体与溯源 / 展位设置（批次级展位）/ 关联商品（商城打通）。 -->
-    <div v-if="batchDlg.visible" class="batch-form-page">
+    <div v-if="batchDlg.visible && activeTab === 'batches'" class="batch-form-page">
       <div class="batch-form-head">
         <el-button link @click="batchDlg.visible = false"><el-icon><ArrowLeft /></el-icon>返回批次列表</el-button>
         <h3 class="batch-form-title">{{ batchDlg.isEdit ? '编辑批次' : '新增批次' }}</h3>
@@ -1179,7 +1183,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Search, ArrowLeft, CircleCheckFilled, WarningFilled } from '@element-plus/icons-vue';
 // 🔴 标准 §5.2：必须走 customerApiCall（baseURL=/api/customer），禁止裸 fetch / 自建 request
@@ -1349,8 +1353,6 @@ function openBatchCreate() {
   batchDlg.tab = 'info';
   batchDlg.form = emptyBatch();
   batchDlg.visible = true;
-  // 2026-10-31 改：内容区平铺表单，打开后滚到表单区顶部（原弹窗无此需要）
-  nextTick(() => document.querySelector('.batch-form-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 function openBatchEdit(row) {
   let hd = {};
@@ -1414,8 +1416,6 @@ function openBatchEdit(row) {
   batchDlg.visible = true;
   // 🔴 P2：顺带拉批次的激活态（编辑弹窗里管理口令/激活/撤销）
   loadBatchActivation(row.id);
-  // 2026-10-31 改：内容区平铺表单，打开后滚到表单区顶部
-  nextTick(() => document.querySelector('.batch-form-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
 /** 拉取批次激活态（P2 先印后绑） */
