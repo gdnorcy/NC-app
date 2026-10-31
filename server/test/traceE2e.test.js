@@ -215,4 +215,30 @@ describe('防伪溯源 trace：全链路（建批次 → 生成码 → C 端验�
     assert.equal(Number(dbRow.is_err), 1, '库中 is_err 应已置 1');
   });
 
+  // ── 10) 查询历史按 type 拆分（type=0 查询验真 / type=1 后台操作）
+  // 🔴 回归锁：type=0 必须被当成有效过滤值，不能因「if(type)」被误判成「不过滤」而把两类记录混在一起。
+  //    后台「查询历史 / 操作日志」两个 Tab 各自固定传 type=0 / type=1，若 0 被当 falsy 跳过，两个 Tab 会显示完全相同的内容。
+  it('查询历史接口按 type 过滤：type=0 与 type=1 各自只返回本类记录', async () => {
+    // 直接落两条不同 type 的历史；前面测试已写过 type=0 验真记录，所以这里不赌绝对数量，
+    // 而是赌「返回列表里每一条都必须是请求的类型」+「total 与库里该类型总数一致」。
+    db.prepare("INSERT INTO trace_histories (tenant_id, type, summary, uid, openid, ip, remark, created_at) VALUES (?,0,'验真摘要-A',0,'openidA','1.1.1.1','r',datetime('now'))").run(A);
+    db.prepare("INSERT INTO trace_histories (tenant_id, type, summary, uid, openid, ip, remark, created_at) VALUES (?,1,'操作摘要-B',0,'','127.0.0.1','r',datetime('now'))").run(A);
+
+    const expect0 = Number(db.prepare('SELECT COUNT(*) AS c FROM trace_histories WHERE tenant_id = ? AND type = 0').get(A).c);
+    const expect1 = Number(db.prepare('SELECT COUNT(*) AS c FROM trace_histories WHERE tenant_id = ? AND type = 1').get(A).c);
+
+    // type=0：每条都必须是 type=0，且 total 与库里 type=0 总数一致（若 0 被当 falsy 不过滤，这里会混入 type=1 而失败）
+    const r0 = await auth(request(app).get('/api/customer/trace/histories?type=0'));
+    assert.equal(r0.status, 200, JSON.stringify(r0.body));
+    assert.ok(r0.body.list.length > 0, 'type=0 应至少返回我刚插入的 1 条');
+    assert.ok(r0.body.list.every((x) => Number(x.type) === 0), 'type=0 返回了非验真记录（过滤未生效）');
+    assert.equal(r0.body.total, expect0, 'type=0 total 应与库里 type=0 总数一致');
+
+    // type=1：每条都必须是 type=1，且 total 与库里 type=1 总数一致
+    const r1 = await auth(request(app).get('/api/customer/trace/histories?type=1'));
+    assert.equal(r1.status, 200, JSON.stringify(r1.body));
+    assert.ok(r1.body.list.length > 0, 'type=1 应至少返回我刚插入的 1 条');
+    assert.ok(r1.body.list.every((x) => Number(x.type) === 1), 'type=1 返回了非操作记录（过滤未生效）');
+    assert.equal(r1.body.total, expect1, 'type=1 total 应与库里 type=1 总数一致');
+  });
 });
