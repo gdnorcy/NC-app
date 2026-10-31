@@ -757,8 +757,6 @@
         </el-card>
       </section>
 
-    </main>
-
     <!-- 新增/编辑批次（2026-10-31 改：对标图2 方式，内容区平铺表单，不再弹窗；
          列表区 v-if="!batchDlg.visible" 与之互斥，保存/取消后回列表；
          🔴 2026-10-31 修：v-if 必须同时绑定 activeTab==='batches'，
@@ -1082,6 +1080,8 @@
         <el-button type="primary" :loading="batchSaving" @click="saveBatch">保存</el-button>
       </div>
     </div>
+    </main>
+
 
     <!-- 生成防伪码弹窗（🔴 用 el-input-number 替代 window.prompt） -->
     <el-dialog v-model="genDlg.visible" :title="`生成防伪码：${genDlg.row?.batch || ''}`" width="460px" :close-on-click-modal="false">
