@@ -12,7 +12,7 @@ import { hasSolution } from '../tenant.js';
 import { buildTraceCodeFromSerial, canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, isDemoSerial, parseTraceCode, randomTraceKeys, serializeTraceRule, parseTraceRule, verifyTraceCode } from '../services/traceCode.js';
 import { generateTracePackage } from '../services/traceGenerate.js';
 import { makeZip } from '../services/zip.js';
-import { normalizeDisplaySlots, pickDisplaySlots, slotsEnabled, substituteSlotPlaceholders } from '../services/traceSlots.js';
+import { normalizeDisplaySlots, pickDisplaySlots, slotsEnabled, showSlotsOnQuery, substituteSlotPlaceholders } from '../services/traceSlots.js';
 import { checkQueryQuota, registerTraceQuery } from '../services/traceQuery.js';
 import { buildScanQueryView, normalizeScanMode, normalizeTraceSwitch } from '../services/traceScanMode.js';
 import { issueOpenidTicket, readOpenidTicket } from '../services/traceOauth.js';
@@ -23,6 +23,7 @@ import { absoluteUrl, publicBaseUrl } from '../utils/publicUrl.js';
 import { countTraceCodesGenerated, isTraceBatchActivated } from '../db.js';
 import { WxMpService, showQrImageUrl } from '../services/wx-mp.js';
 import { WxComponentService } from '../services/wx-component.js';
+import { getWxMiniConfig, generateMiniUrlLink } from '../services/wxMiniLink.js';
 
 // 🔴 extra：可选的**结构化补充字段**（与 error 文案并存）。
 //    用途：给前端可编程的判据（如闸门拦截时带 gateRequired=true），
@@ -51,6 +52,33 @@ function pageParams(req) {
 
 function safeJson(text, fallback) {
   try { return JSON.parse(text || ''); } catch { return fallback; }
+}
+
+/**
+ * 购买链接落库：结构化对象 → JSON 字符串；旧版纯字符串 → 原样存。
+ * 🔴 必须兼容两种形态，否则老数据（纯 URL 字符串）被 JSON.stringify 包一层反而坏掉。
+ */
+function storeBuyLink(v) {
+  if (v && typeof v === 'object') return JSON.stringify(v);
+  return String(v || '');
+}
+
+/**
+ * 读取购买链接下发给 C 端：JSON 对象原样返回；旧版纯字符串原样返回（C 端再判定）。
+ */
+function parseBuyLink(raw) {
+  const o = safeJson(raw, null);
+  return o && typeof o === 'object' && !Array.isArray(o) ? o : raw;
+}
+
+/** 第三方 API 用的 pro.link：只给「能放进 URL 框」的链接（web / internal 的 url），其它类型回落空串 */
+function buyLinkToUrl(raw) {
+  const o = safeJson(raw, null);
+  if (o && typeof o === 'object' && !Array.isArray(o)) {
+    if (o.linkType === 'web' || o.linkType === 'internal') return String(o.url || '');
+    return '';
+  }
+  return raw || '';
 }
 
 function nowIso() {
@@ -159,7 +187,11 @@ function normalizeBatchSlots(db, tenantId, input) {
  * P1（2026-10-31）：关联商品实时 join（toshop_json 只存 ids，下发时按在售商品实时取 ——
  * 改价/下架即时同步，不做快照）。未开通 goods 应用或 ids 为空 → 空数组（C 端整区不渲染）。
  */
-function buildTraceToshop(db, tenantId, batch) {
+function buildTraceToshop(db, tenantId, batch, settings) {
+  // 🔴 P1 总闸：商城集成「商品来源」选 0 不关联 → 溯源页不展示关联商品卡（图1 当图2 总闸）。
+  //    过渡期兼容：mallSource 未设置时回落读取旧 isint 值，避免老租户配置被静默重置。
+  const mallSrc = settings && settings.mallSource !== undefined ? Number(settings.mallSource) : Number(settings?.isint || 0);
+  if (mallSrc !== 1) return [];
   const cfg = safeJson(batch.toshop_json, {});
   const ids = (Array.isArray(cfg?.ids) ? cfg.ids : []).map(Number).filter((x) => x > 0);
   if (!ids.length || !hasSolution(db, tenantId, 'goods')) return [];
@@ -734,12 +766,14 @@ export function createTracePublicRouter(db) {
       // 🔴 必须在这里剥掉 keyCipher：展示位是公开接口下发的，密文一旦出网
       //    等于把租户的接口凭据交给任何人（拿到密文 + 我们服务的解密能力即可还原）。
       // 🔴 展示位总开关（slotsEnabled=0）→ 整个区块不下发（后台关掉即彻底不出现）。
+      // 🔴 查询页闸门（showSlotsOnQuery）：在总闸之上叠加，默认关闭 —— 即便总闸开，
+      //    后台没显式打开查询页展示，C 端查询页也不显示（公众号推送不受此闸门影响）。
       // 🔴 链接里的 {CODE}/{TID}/[FWM]/[KEY] 在这里替换成真实值 —— 服务端替换是唯一出处，
       //    前端不再做（前端也不知道该码值；以前 C 端拿到的还是字面量 {CODE}，点必坏）。
       // 🔴 P1（2026-10-31）：批次级展位 ⊕ 全局展位合并后统一挑选 —— 批次位排前、全局位随后，
       //    每项带 scope: 'batch'|'global'（C 端可选展示来源标记，默认不加角标）。
       //    批次展位密钥已由 normalizeBatchSlots 统一为租户展示位密钥，替换用每项自身 authKey。
-      slots: (slotsEnabled(settings) ? [
+      slots: (slotsEnabled(settings) && showSlotsOnQuery(settings, batch) ? [
         ...pickDisplaySlots(safeJson(batch.batch_slots_json, []), {
           isFirstQuery: Number(record.num || 0) <= 1,
           isTopQueryer: Boolean(record.openid) && record.openid === openid,
@@ -780,7 +814,7 @@ export function createTracePublicRouter(db) {
         banner: batch.banner,
         logo: batch.logo,
         video: batch.video,
-        buyLink: batch.buy_link,
+        buyLink: parseBuyLink(batch.buy_link),
         // 🔴 P0（2026-10-31）生产/有效日期：C 端可展示「生产日期 / 有效期至」；过期拦截在服务端 verify 入口已做。
         producedAt: batch.produced_at || '',
         expireAt: batch.expire_at || '',
@@ -791,14 +825,17 @@ export function createTracePublicRouter(db) {
         },
         // 🔴 本次查询是否命中跨区（前端地区与限售区域前 2 字比对不一致）。C 端据此弹「疑似窜货」提示。
         chuanhuoHit,
-        // 🔴 本码是否已被标记为窜货异常（前次查询命中跨区即打标），C 端据此展示异常态。
+        // 🔴 本码是否已被标记为窜货异常（前次查询命中跨区即打标），C 端据此展示「疑似窜货」态。
         crossRegion: record ? Number(record.cross_region || 0) : 0,
+        // 🔴 本码是否被商家手动「标记异常」（mark-error 写 is_err，与窜货 cross_region 是两回事）。
+        //    C 端据此单独展示「已标记异常」卡（文案区别于窜货，不混用，避免误导消费者）。
+        isErr: record ? Number(record.is_err || 0) : 0,
         rcon: Number(batch.rcon || 0),
         params: safeJson(batch.params_json, []),
         wailink: safeJson(batch.wailink_json, {}),
         // 🔴 P1（2026-10-31）关联商品（与商城打通）：toshop_json 只存商品 id 列表，
         //    这里按租户在售商品实时 join（未开通商城应用或商品已下架 → 空数组，C 端整区不渲染）。
-        toshop: buildTraceToshop(db, tenantId, batch),
+        toshop: buildTraceToshop(db, tenantId, batch, settings),
       },
       reward,
       settings: {
@@ -902,7 +939,7 @@ export function createTracePublicRouter(db) {
       content: 0,
       no: 1,
       co,
-      pro: { name: batch.product, pic: batch.banner, link: batch.buy_link },
+      pro: { name: batch.product, pic: batch.banner, link: buyLinkToUrl(batch.buy_link) },
       title: settings.suc_one || '验证通过',
       text: [batch.product, batch.factory, batch.brand].filter(Boolean),
       source: [],
@@ -1075,6 +1112,26 @@ export function createTracePublicRouter(db) {
     return res.json({ ok: true, batch: batch.batch, product: batch.product || '' });
   });
 
+  // 🔴 H5 跳转小程序通道：C 端 H5（微信内）要拉起小程序，MP 端可用 wx.navigateToMiniProgram，
+  //    H5 没有该 API，需服务端生成 URL Link（generate_urllink）后前端 location.href 拉起。
+  //    凭证约束：只能为「本平台小程序」生成（我们持有其 wx_mini 的 access_token）；
+  //    第三方小程序无凭证 → 明确 400，由 C 端复制 AppID 兜底，不假装能跳。
+  router.post('/public/urllink', async (req, res) => {
+    const { appId, path, query, envVersion } = req.body || {};
+    if (!appId) return sendError(res, 400, '缺少 appId');
+    const cfg = getWxMiniConfig(db);
+    if (!cfg.appId) return sendError(res, 502, 'wx_mini 未配置');
+    if (appId !== cfg.appId) {
+      return sendError(res, 400, 'unsupported_target', { reason: '仅支持跳转本平台小程序' });
+    }
+    try {
+      const urlLink = await generateMiniUrlLink(db, { path, query, envVersion });
+      return res.json({ urlLink });
+    } catch (e) {
+      return sendError(res, 502, e.message || 'URL Link 生成失败');
+    }
+  });
+
   return router;
 }
 
@@ -1146,6 +1203,9 @@ export function createTraceAdminRouter(db) {
       // 🔴 展示位总开关：必须服务端归一（0/1），不能把客户端原值直接落库。
       //    缺省不写这个字段 = 保持原值（老租户库里没有该字段时读侧按「开」处理）。
       if ('slotsEnabled' in patch) patch.slotsEnabled = normalizeTraceSwitch(patch.slotsEnabled);
+      // 🔴 查询页展示位闸门：必须服务端归一（0/1），默认关（老租户无此字段 → 归一为 0）。
+      //    缺省不写 = 保持原值，但读侧 showSlotsOnQuery 已对缺字段按「关」处理，不会误开。
+      if ('showSlotsOnQuery' in patch) patch.showSlotsOnQuery = normalizeTraceSwitch(patch.showSlotsOnQuery);
       // 🔴 scanQuery 是**算出来的视图**（可用性依赖当前公众号配置），不是配置本身 ——
       //    一旦被写回 settings_json，下一次读到的就是过期快照（公众号后来配好了也仍显示不可用）。
       delete patch.scanQuery;
@@ -1241,9 +1301,9 @@ export function createTraceAdminRouter(db) {
     if (normalized.error) return sendError(res, 400, normalized.error);
     const { rule } = getRule(db, req.traceTenantId);
     try {
-      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, batch_slots_json, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
-        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)));
+      const info = db.prepare(`INSERT INTO trace_batches (tenant_id, m1, batch, product, factory, brand, origin, logo, banner, video, buy_link, province, city, district, inttype, is_chuanhuo, integral, caid_json, toshop_json, wailink_json, params_json, validity, bbox, sbox, red_budget_cents, produced_at, expire_at, chuanhuo_limit_json, batch_slots_json, show_slots_query, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`)
+        .run(req.traceTenantId, String(b.m1 || rule.m[1] || '').toUpperCase(), normalized.batch, String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), storeBuyLink(b.buyLink), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1));
       addHistory(db, req.traceTenantId, 1, normalized.batch, req, '新增防伪批次');
       return res.json({ id: Number(info.lastInsertRowid), batch: normalized.batch });
     } catch (e) {
@@ -1262,9 +1322,9 @@ export function createTraceAdminRouter(db) {
     const exists = db.prepare('SELECT id FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
     if (!exists) return sendError(res, 404, '批次不存在');
     const b = req.body || {};
-    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, batch_slots_json = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
+    db.prepare(`UPDATE trace_batches SET product = ?, factory = ?, brand = ?, origin = ?, logo = ?, banner = ?, video = ?, buy_link = ?, province = ?, city = ?, district = ?, inttype = ?, is_chuanhuo = ?, integral = ?, caid_json = ?, toshop_json = ?, wailink_json = ?, params_json = ?, validity = ?, bbox = ?, sbox = ?, red_budget_cents = ?, produced_at = ?, expire_at = ?, chuanhuo_limit_json = ?, batch_slots_json = ?, show_slots_query = ?, scan_mode_follow = ?, print_scan_mode = ?, is_active = ?, updated_at = datetime('now')
       WHERE tenant_id = ? AND id = ?`)
-      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), String(b.buyLink || ''), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
+      .run(String(b.product || ''), String(b.factory || ''), String(b.brand || ''), String(b.origin || ''), String(b.logo || ''), String(b.banner || ''), String(b.video || ''), storeBuyLink(b.buyLink), String(b.province || ''), String(b.city || ''), String(b.district || ''), Number(b.inttype || 0), Number(b.isChuanhuo || 0), Number(b.integral || 0), JSON.stringify(b.caid || {}), JSON.stringify(b.toshop || {}), JSON.stringify(b.wailink || {}), JSON.stringify(b.params || []), Number(b.validity || 0), Number(b.bbox || 0), Number(b.sbox || 0), Number(b.redBudgetCents ?? -1), String(b.producedAt || ''), String(b.expireAt || ''), JSON.stringify(b.chuanhuoLimit || {}), JSON.stringify(normalizeBatchSlots(db, req.traceTenantId, b.batchSlots)), Number(b.showSlotsQuery ?? -1), Number(b.scanModeFollow ?? 1), String(b.printScanMode || ''), Number(b.isActive ?? 1), req.traceTenantId, id);
     addHistory(db, req.traceTenantId, 1, String(id), req, '编辑防伪批次');
     return res.json({ ok: true });
   });
@@ -1711,17 +1771,18 @@ export function createTraceAdminRouter(db) {
   //    计量口径必须由平台侧发放记录驱动，否则库存数量没有可信来源。
   //    这里改为**只读余量**，租户看到不足时联系平台。
 
-  // 商品关联配置（溯源页「查看商品」跳哪儿）。开关值落在 settings.isint，随 PUT /settings 保存。
-  // 🔴 只列本平台真实存在的来源：外部第三方商城的商品表在我们库里根本没有，
-  //    列进下拉 = 后台能选、服务端零消费的「空头权益」，不做。
+  // 商城集成（溯源页关联商品总闸）。开关值落在 settings.mallSource（0 不关联 / 1 本平台商城商品），随 PUT /settings 保存。
+  // 🔴 仅本平台商城一种来源：第三方商城商品表在我们库里不存在，列"外部商品链接"是后台能选、服务端零消费的空头选项，已移除。
   router.get('/shop-integration', (req, res) => {
     const { settings } = getSettings(db, req.traceTenantId);
+    const current = settings && settings.mallSource !== undefined
+      ? Number(settings.mallSource)
+      : Number(settings?.isint || 0);
     const sources = [
       { value: 0, label: '不关联商品', table: '' },
       { value: 1, label: '本平台商城商品', table: 'goods' },
-      { value: 2, label: '外部商品链接', table: '' },
     ];
-    return res.json({ current: Number(settings.isint || 0), sources });
+    return res.json({ current, sources });
   });
 
   return router;

@@ -40,6 +40,9 @@
           <el-tag v-if="mpQrCap && mpQrCap.supported === true" type="success" size="small" effect="plain">公众号带参二维码：可用</el-tag>
           <el-tag v-else-if="mpQrCap && mpQrCap.supported === false" type="danger" size="small" effect="plain" :title="mpQrCap.reason">公众号带参二维码：不可用</el-tag>
           <el-tag v-else-if="mpQrCap" type="info" size="small" effect="plain" :title="mpQrCap.reason">公众号带参二维码：状态未知</el-tag>
+          <!-- 🔴 出带参码：与上方公众号能力指示器同框。弹窗支持手输码值、不依赖列表，
+               故放在批次管理页即可（不再塞进防伪码记录每行的操作列，避免记录视图混入发布类动作）。 -->
+          <el-button size="small" type="primary" plain @click="openMpQr()">出带参码</el-button>
           <!-- 🔴 G3 批量激活：闸门开启后存量批次要逐个激活，几百个批次 = 几百次点击。
                只在闸门开启时才显示（闸门没开，激活无意义）。 -->
           <el-button v-if="Number(s.isjihuo)" type="warning" plain size="small" :disabled="!batchSelection.length" @click="batchActivateSelected">
@@ -123,10 +126,8 @@
           <el-table-column label="异常" width="90" align="center">
             <template #default="{ row }"><el-tag v-if="Number(row.is_err)" type="danger" size="small">异常</el-tag></template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="100" fixed="right">
             <template #default="{ row }">
-              <!-- 🔴 出公众号带参二维码：消费者用微信扫 → 在公众号内弹出图文卡片（溯源结果） -->
-              <el-button link type="primary" size="small" @click="openMpQr(row.code)">出带参码</el-button>
               <el-button link type="danger" size="small" @click="markError(row)">标记异常</el-button>
             </template>
           </el-table-column>
@@ -320,7 +321,7 @@
                 <el-divider content-position="left">功能开关</el-divider>
                 <el-row :gutter="20" class="switch-grid">
                   <el-col :span="8"><el-form-item label="开启历史查询"><el-switch v-model="s.ishistory" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
-                  <el-col :span="8"><el-form-item label="积分功能"><el-switch v-model="s.isint" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="积分功能"><el-switch v-model="s.isPoints" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
                   <el-col :span="8"><el-form-item label="外链跳转"><el-switch v-model="s.islink" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
                   <el-col :span="8"><el-form-item label="码激活"><el-switch v-model="s.isjihuo" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
                   <el-col :span="8"><el-form-item label="窜货检测"><el-switch v-model="s.ischuanhuo" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
@@ -440,11 +441,24 @@
                     :inactive-value="0"
                     size="small"
                     inline-prompt
-                    active-text="开启"
-                    inactive-text="关闭"
+                    active-text="总闸开"
+                    inactive-text="总闸关"
                     class="sw-prompt sw-prompt-2"
                   />
-                  <span class="form-hint">最多 {{ SLOT_MAX }} 个；关闭后 C 端结果页与公众号卡片都不再出现「推荐」区块</span>
+                  <!-- 🔴 查询页闸门（用户 2026-10-31 拍板）：在总闸「slotsEnabled」之上叠加的一层，默认关。
+                       只有总闸开 且 此开关开，C 端验真结果页才展示推广位；关掉则结果页不显示（不影响总闸/公众号推送）。
+                       与公众号推送通道完全独立：推送里的推广卡只由总闸控，本开关只管查询页。 -->
+                  <el-switch
+                    v-model="s.showSlotsOnQuery"
+                    :active-value="1"
+                    :inactive-value="0"
+                    size="small"
+                    inline-prompt
+                    active-text="查询页开"
+                    inactive-text="查询页关"
+                    class="sw-prompt sw-prompt-2"
+                  />
+                  <span class="form-hint">总闸：关闭后 C 端结果页与公众号卡片都不再出现「推荐」区块；查询页开关：默认关，开启后（且总闸开）验真结果页展示推广位，公众号推送不受此开关影响</span>
                 </div>
               </template>
 
@@ -676,30 +690,38 @@
         </el-row>
       </section>
 
-      <!-- ============ 查询历史 ============ -->
+      <!-- ============ 查询历史（消费者扫码验真，type=0） ============ -->
       <section v-show="activeTab === 'histories'">
         <div class="filter-bar">
-          <el-select v-model="histQuery.type" class="w200" @change="histQuery.page = 1; loadHistories()">
-            <el-option :value="-1" label="全部类型" />
-            <el-option :value="0" label="查询验真" />
-            <el-option :value="1" label="后台操作" />
-          </el-select>
-          <el-input v-model.trim="histQuery.summary" placeholder="摘要/码/OpenID" class="w260" clearable
-            @keyup.enter="histQuery.page = 1; loadHistories()" @clear="histQuery.page = 1; loadHistories()" />
-          <el-button type="primary" @click="histQuery.page = 1; loadHistories()"><el-icon><Search /></el-icon>查询</el-button>
-          <span class="list-total">共 {{ histTotal }} 条</span>
+          <el-input v-model.trim="queryHist.summary" placeholder="摘要/码/OpenID" class="w260" clearable
+            @keyup.enter="queryHist.page = 1; loadQueryHist()" @clear="queryHist.page = 1; loadQueryHist()" />
+          <el-button type="primary" @click="queryHist.page = 1; loadQueryHist()"><el-icon><Search /></el-icon>查询</el-button>
+          <span class="list-total">共 {{ queryHist.total }} 条</span>
         </div>
-        <el-table v-loading="histLoading" :data="histList" class="mt12" empty-text="暂无记录">
+        <el-table v-loading="queryHist.loading" :data="queryHist.list" class="mt12" empty-text="暂无查询记录">
           <el-table-column prop="created_at" label="时间" width="170" />
-          <el-table-column label="类型" width="110">
-            <template #default="{ row }"><el-tag size="small" :type="Number(row.type) === 0 ? 'success' : 'info'">{{ Number(row.type) === 0 ? '查询验真' : '后台操作' }}</el-tag></template>
-          </el-table-column>
           <el-table-column prop="summary" label="摘要" min-width="180" show-overflow-tooltip />
           <el-table-column prop="openid" label="OpenID" min-width="120" show-overflow-tooltip />
           <el-table-column prop="ip" label="IP" width="130" />
           <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
         </el-table>
-        <div class="pager"><el-pagination v-model:current-page="histQuery.page" :page-size="histQuery.pageSize" :total="histTotal" layout="total, prev, pager, next" @current-change="loadHistories" /></div>
+        <div class="pager"><el-pagination v-model:current-page="queryHist.page" :page-size="queryHist.pageSize" :total="queryHist.total" layout="total, prev, pager, next" @current-change="loadQueryHist" /></div>
+      </section>
+
+      <!-- ============ 操作日志（后台操作，type=1） ============ -->
+      <section v-show="activeTab === 'oplog'">
+        <div class="filter-bar">
+          <el-input v-model.trim="oplog.summary" placeholder="操作摘要" class="w260" clearable
+            @keyup.enter="oplog.page = 1; loadOplog()" @clear="oplog.page = 1; loadOplog()" />
+          <el-button type="primary" @click="oplog.page = 1; loadOplog()"><el-icon><Search /></el-icon>查询</el-button>
+          <span class="list-total">共 {{ oplog.total }} 条</span>
+        </div>
+        <el-table v-loading="oplog.loading" :data="oplog.list" class="mt12" empty-text="暂无操作记录">
+          <el-table-column prop="created_at" label="时间" width="170" />
+          <el-table-column prop="summary" label="操作摘要" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+        </el-table>
+        <div class="pager"><el-pagination v-model:current-page="oplog.page" :page-size="oplog.pageSize" :total="oplog.total" layout="total, prev, pager, next" @current-change="loadOplog" /></div>
       </section>
 
       <!-- ============ 错误码 ============ -->
@@ -724,10 +746,10 @@
           <el-alert type="info" :closable="false" show-icon title="选择后点「保存设置」即生效（随防伪设置一并提交）。仅接入本平台真实存在的来源，避免「后台能选、服务端零消费」的空头配置。" class="mb12" />
           <el-form label-width="140px" class="set-form">
             <el-form-item label="商品来源">
-              <el-select v-model="s.isint" class="w320">
+              <el-select v-model="s.mallSource" class="w320">
                 <el-option v-for="opt in shopSources" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
-              <span class="form-hint">0 不关联 / 1 本平台商城商品 / 2 外部商品链接</span>
+              <span class="form-hint">0 不关联 / 1 本平台商城商品</span>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="setSaving" @click="saveSettings">保存设置</el-button>
@@ -748,7 +770,7 @@
             <h4>三、首页展示位</h4>
             <p>在「防伪设置 → 通用设置」配置 C 端验真结果页下方的推广位，最多 8 个，可设置封面图、标题、展示条件与跳转链接。</p>
             <h4>四、数据统计与排查</h4>
-            <p>在「数据统计」查看累计查询次数、地域分布与查询趋势；在「查询历史 / 错误码」排查异常查询。</p>
+            <p>在「数据统计」查看累计查询次数、地域分布与查询趋势；在「查询历史 / 操作日志 / 错误码」排查异常查询与后台操作。</p>
             <h4>五、防伪码库存</h4>
             <p>防伪码库存由平台发放，租户侧只显示余量（「不限」或具体数量），<b>不提供自助充值入口</b>。生成批次时按量扣减，余量不足时请联系平台管理员发放后再生成。</p>
             <h4>版本说明</h4>
@@ -784,7 +806,7 @@
             <el-form-item label="省"><el-input v-model.trim="batchDlg.form.province" /></el-form-item>
             <el-form-item label="市"><el-input v-model.trim="batchDlg.form.city" /></el-form-item>
             <el-form-item label="区"><el-input v-model.trim="batchDlg.form.district" /></el-form-item>
-            <el-form-item label="窜货监控">
+            <el-form-item label="窜货监控" class="hint-below">
               <el-select v-model="batchDlg.form.isChuanhuo" class="w240">
                 <el-option :value="0" label="不限（不记录）" />
                 <el-option :value="3" label="限定地区但不提示" />
@@ -792,12 +814,14 @@
                 <el-option :value="2" label="仅厂家提示" />
                 <el-option :value="4" label="仅客户端提示" />
               </el-select>
-              <span class="form-hint">命中跨区时：标记码异常 + 客户端提示（按策略决定提示给谁）；限售区域填省=省级比对、省+市=市级比对</span>
+              <div class="form-hint form-hint-block">命中跨区时：标记码异常 + 客户端提示（按策略决定提示给谁）；限售区域填省=省级比对、省+市=市级比对</div>
             </el-form-item>
-            <el-form-item label="限售区域" class="sale-limit">
-              <el-input v-model.trim="batchDlg.form.chuanhuoLimit.province" placeholder="省，如 广东" class="w160" />
-              <el-input v-model.trim="batchDlg.form.chuanhuoLimit.city" placeholder="市，如 深圳" class="w160" style="margin-left:8px" />
-              <span class="form-hint" style="margin-left:8px">留空 = 不限售（仅记录不比对）</span>
+            <el-form-item label="限售区域" class="hint-below sale-limit">
+              <div class="inline-row">
+                <el-input v-model.trim="batchDlg.form.chuanhuoLimit.province" placeholder="省，如 广东" class="w160" />
+                <el-input v-model.trim="batchDlg.form.chuanhuoLimit.city" placeholder="市，如 深圳" class="w160" />
+              </div>
+              <div class="form-hint form-hint-block">留空 = 不限售（仅记录不比对）</div>
             </el-form-item>
           </el-form>
           <template v-if="batchDlg.isEdit">
@@ -931,7 +955,22 @@
               </div>
             </el-form-item>
             <el-form-item label="购买链接">
-              <el-input v-model.trim="batchDlg.form.buyLink" placeholder="商品购买页 URL（未配溯源外链且未配关联商品时回落到这里）" />
+              <div class="buy-link-editor">
+                <el-select v-model="batchDlg.form.buyLink.linkType" class="w140" @change="onBuyLinkTypeChange">
+                  <el-option v-for="t in buyLinkTypes" :key="t.value" :label="t.label" :value="t.value" />
+                </el-select>
+                <template v-if="batchDlg.form.buyLink.linkType === 'miniapp'">
+                  <el-input v-model.trim="batchDlg.form.buyLink.miniAppId" placeholder="小程序 AppID（wx 开头）" class="w200" />
+                  <el-input v-model.trim="batchDlg.form.buyLink.miniAppPath" placeholder="页面路径，如 /pages/mall/detail?id=1" class="w220" />
+                  <el-select v-model="batchDlg.form.buyLink.miniAppEnv" class="w100">
+                    <el-option v-for="e in buyLinkEnvs" :key="e.value" :label="e.label" :value="e.value" />
+                  </el-select>
+                </template>
+                <template v-else>
+                  <el-input v-model.trim="batchDlg.form.buyLink.url" :placeholder="buyLinkPlaceholder" class="w360" />
+                </template>
+              </div>
+              <span class="form-hint">选「外部小程序」可在小程序端 / H5 端跳转；H5 端仅本平台小程序可拉起，其余会复制 AppID 兜底</span>
             </el-form-item>
             <el-form-item label="生产日期">
               <el-date-picker v-model="batchDlg.form.producedAt" type="date" value-format="YYYY-MM-DD" placeholder="生产日期" />
@@ -964,6 +1003,18 @@
         <el-tab-pane label="展位设置" name="slots">
           <el-alert type="info" :closable="false" show-icon class="mb12"
             title="批次级展位：本批次码查询后额外展示的推荐位，与全局「首页展示位」合并下发（批次在前、全局在后）。鉴权码复用租户展示位密钥（链接 [KEY] = md5(防伪码 + 租户鉴权码)），无需单独配置。" />
+          <!-- 🔴 批次级查询页闸门（用户 2026-10-31 拍板）：默认「继承全局」，可覆盖本批次在 C 端验真结果页是否展示展位。
+               与公众号推送无关（推送只由总闸控）。仅当全局/批次任一处显式「强制显示」且总闸开启时，该批次查询页才出现展位。 -->
+          <el-form label-width="96px" class="mb12">
+            <el-form-item label="查询页展示">
+              <el-select v-model="batchDlg.form.showSlotsQuery" class="slot-when">
+                <el-option label="继承全局设置" :value="-1" />
+                <el-option label="强制显示" :value="1" />
+                <el-option label="强制隐藏" :value="0" />
+              </el-select>
+              <span class="form-hint">默认继承全局「查询页开关」；可单独覆盖本批次在 C 端验真结果页是否展示展位（不影响公众号推送）</span>
+            </el-form-item>
+          </el-form>
           <el-empty v-if="!batchDlg.form.batchSlots.length" description="还没有本批次展位，点下方「新增展位」开始配置（最多 {{ SLOT_MAX }} 个）" :image-size="60" />
 
           <div v-for="(it, i) in batchDlg.form.batchSlots" :key="i" class="slot-item" :class="{ 'slot-item-off': Number(it.hidden) === 1 }">
@@ -1198,6 +1249,7 @@ const tabs = [
   { key: 'settings', label: '防伪设置', icon: 'settings' },
   { key: 'stats', label: '数据统计', icon: 'chart' },
   { key: 'histories', label: '查询历史', icon: 'clock' },
+  { key: 'oplog', label: '操作日志', icon: 'logs' },
   { key: 'wrong', label: '错误码', icon: 'warning' },
   { key: 'shop', label: '商城集成', icon: 'link' },
   { key: 'help', label: '使用说明', icon: 'doc' },
@@ -1207,7 +1259,8 @@ function switchTab(key) {
   activeTab.value = key;
   // 🔴 C 类 Tab 懒加载：进入时才拉数据，避免首页一次性打满后端
   if (key === 'stats') loadStats();
-  else if (key === 'histories') loadHistories();
+  else if (key === 'histories') loadQueryHist();
+  else if (key === 'oplog') loadOplog();
   else if (key === 'wrong') loadWrong();
   else if (key === 'shop') loadShop();
 }
@@ -1334,10 +1387,54 @@ const pickedGoods = computed(() => {
 // 首次切到「关联商品」Tab 时懒加载商品候选（未开通 403 也只会提示一次）
 watch(() => batchDlg.tab, (t) => { if (t === 'toshop' && !goodsLoaded.value) loadGoodsOptions(); });
 
+// 🔴 购买链接结构化（与 web-app/src/utils/compLinkModel.js 同口径：linkType / url / miniAppId / miniAppPath / miniAppEnv）
+//    ⚠️ 该模型以 web-app 的 compLinkModel 为唯一事实来源；此处只放 UI 选项，字段语义不得擅自改。
+const buyLinkTypes = [
+  { value: 'internal', label: '内部页面' },
+  { value: 'miniapp', label: '外部小程序' },
+  { value: 'web', label: '网页链接' },
+  { value: 'phone', label: '拨打电话' },
+];
+const buyLinkEnvs = [
+  { value: 'release', label: '正式版' },
+  { value: 'trial', label: '体验版' },
+  { value: 'develop', label: '开发版' },
+];
+const buyLinkPlaceholder = computed(() => {
+  const t = batchDlg.form.buyLink && batchDlg.form.buyLink.linkType;
+  if (t === 'internal') return '内部页面路径，如 /pages/mall/detail?id=1';
+  if (t === 'phone') return '电话号码，如 400-888-8888';
+  return '商品购买页 URL（https://...）';
+});
+function onBuyLinkTypeChange() {
+  const bl = batchDlg.form.buyLink;
+  if (!bl) return;
+  bl.url = bl.url || '';
+  bl.miniAppId = bl.miniAppId || '';
+  bl.miniAppPath = bl.miniAppPath || '';
+  bl.miniAppEnv = bl.miniAppEnv || 'release';
+}
+// 老数据（纯字符串 URL）/ 空值 → 结构化对象（http(s) 视为网页，其余视为内部页面）
+function parseBuyLink(raw) {
+  if (!raw) return { linkType: 'web', url: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release' };
+  if (typeof raw === 'object') {
+    return {
+      linkType: raw.linkType || 'web',
+      url: raw.url || '',
+      miniAppId: raw.miniAppId || '',
+      miniAppPath: raw.miniAppPath || '',
+      miniAppEnv: raw.miniAppEnv || 'release',
+    };
+  }
+  const s = String(raw);
+  const isHttp = /^https?:\/\//i.test(s);
+  return { linkType: isHttp ? 'web' : 'internal', url: s, miniAppId: '', miniAppPath: '', miniAppEnv: 'release' };
+}
+
 function emptyBatch() {
   return {
     id: 0, batch: '', product: '', factory: '', brand: '', origin: '', province: '', city: '', district: '', isChuanhuo: 0,
-    logo: '', banner: '', video: '', buyLink: '', isActive: true,
+    logo: '', banner: '', video: '', buyLink: { linkType: 'web', url: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release' }, isActive: true,
     inttype: 0, bbox: 0, sbox: 0, integral: 0, redBudgetCents: -1, validity: 0,
     // 🔴 P0（2026-10-31）：新增/编辑可用的属性与溯源字段（避免「新增批次配不了图/属性」的空头）
     producedAt: '', expireAt: '',
@@ -1345,7 +1442,8 @@ function emptyBatch() {
     scanModeFollow: 1, printScanMode: '',
     caid: { jfEnabled: false, jf: { do: 0, up: 0 }, caidText: '', red: { merchantId: '' }, cjList: [] },
     // 🔴 P1（2026-10-31）：批次级展位（不配鉴权码，服务端复用租户展示位密钥）+ 关联商品（商城 ids）
-    batchSlots: [], toshopIds: [],
+    // 🔴 查询页闸门：默认 -1（继承全局），新增批次不显式选即跟随全局设置。
+    batchSlots: [], toshopIds: [], showSlotsQuery: -1,
   };
 }
 function openBatchCreate() {
@@ -1376,7 +1474,7 @@ function openBatchEdit(row) {
     logo: row.logo || '',
     banner: row.banner || '',
     video: row.video || '',
-    buyLink: row.buy_link || '',
+    buyLink: parseBuyLink(row.buy_link),
     isActive: !!Number(row.is_active),
     inttype: Number(row.inttype || 0),
     bbox: Number(row.bbox || 0),
@@ -1411,6 +1509,8 @@ function openBatchEdit(row) {
       const v = safeParse(row.toshop_json, {});
       return Array.isArray(v?.ids) ? v.ids.map(Number).filter((x) => x > 0) : [];
     })(),
+    // 🔴 批次级查询页闸门回显：-1 继承 / 0 关 / 1 开（缺字段回落继承默认）。
+    showSlotsQuery: Number(row.show_slots_query ?? -1),
   };
   batchDlg.tab = 'info';
   batchDlg.visible = true;
@@ -1531,6 +1631,8 @@ async function saveBatch() {
     // 🔴 P1（2026-10-31）：批次级展位 + 关联商品 —— 与 POST/PUT 服务端列清单必须同步（#532 铁律）
     batchSlots: Array.isArray(f.batchSlots) ? f.batchSlots : [],
     toshop: { ids: Array.isArray(f.toshopIds) ? f.toshopIds : [] },
+    // 🔴 查询页闸门：-1 继承 / 0 关 / 1 开（缺省继承全局，与服务端列清单同步）
+    showSlotsQuery: Number(f.showSlotsQuery ?? -1),
   };
   try {
     if (batchDlg.isEdit) {
@@ -1926,7 +2028,7 @@ const s = reactive({
   con_msg: '', con_msg1: '', myone: '', mytwo: '',
   // 功能开关 + 限额
   upperlimit: 0, history_limit: 10, siteroot: '',
-  ishistory: 0, isint: 0, islink: 0, isjihuo: 0, ischuanhuo: 0,
+  ishistory: 0, isPoints: 0, islink: 0, isjihuo: 0, ischuanhuo: 0, mallSource: 0,
   xiguang: 0, istixe: 0, isccode: 0, isapi: 0, isluck: 0,
   // 企业/联系
   factory: '', ftel: '', dtel: '', kuaidi: '', link: '',
@@ -1939,6 +2041,9 @@ const s = reactive({
   // 🔴 slotsEnabled = 整块「推荐」区块的总开关（1 开 / 0 关）。
   //    缺省 1：老租户库里没有这个字段，若按 0 回填，上线即所有租户的推荐位全部消失。
   slotsEnabled: 1,
+  // 🔴 showSlotsOnQuery = 查询页展示位闸门（在总闸之上叠加，默认关）。
+  //    缺省 0：这是**新加的默认关闭开关**，老租户 settings 无此字段 → 按关处理，符合「默认关闭」需求。
+  showSlotsOnQuery: 0,
   displaySlots: [],
   // 扫码查询方案（服务端白名单归一化后的档位）+ 公众号内回复验真
   scanMode: 'web', wxReply: 1,
@@ -2293,22 +2398,23 @@ const trendGeom = computed(() => {
   return { line, area, max, points };
 });
 
-const histQuery = reactive({ page: 1, pageSize: 20, summary: '', type: -1 });
-const histList = ref([]);
-const histTotal = ref(0);
-const histLoading = ref(false);
-async function loadHistories() {
-  histLoading.value = true;
+// 🔴 查询历史（type=0，消费者扫码验真）与 操作日志（type=1，后台操作）拆成两个 Tab / 两组独立状态，
+//    避免「同一张表里既有扫码记录又有后台操作」混在一起看不清（方案b）。
+const queryHist = reactive({ page: 1, pageSize: 20, summary: '', list: [], total: 0, loading: false });
+const oplog = reactive({ page: 1, pageSize: 20, summary: '', list: [], total: 0, loading: false });
+async function loadHistData(state, type) {
+  state.loading = true;
   try {
-    const params = { page: histQuery.page, pageSize: histQuery.pageSize };
-    if (histQuery.summary) params.summary = histQuery.summary;
-    if (histQuery.type >= 0) params.type = histQuery.type;
+    const params = { page: state.page, pageSize: state.pageSize, type };
+    if (state.summary) params.summary = state.summary;
     const r = await customerApiCall.get('/trace/histories', { params });
-    histList.value = r.list || [];
-    histTotal.value = Number(r.total || 0);
+    state.list = r.list || [];
+    state.total = Number(r.total || 0);
   } catch (e) { ElMessage.error(e || '加载历史失败'); }
-  finally { histLoading.value = false; }
+  finally { state.loading = false; }
 }
+function loadQueryHist() { return loadHistData(queryHist, 0); }
+function loadOplog() { return loadHistData(oplog, 1); }
 
 const wrongQuery = reactive({ page: 1, pageSize: 20 });
 const wrongList = ref([]);
@@ -2329,7 +2435,7 @@ async function loadShop() {
   try {
     const r = await customerApiCall.get('/trace/shop-integration');
     shopSources.value = r.sources || [];
-    if (r.current !== undefined) s.isint = Number(r.current || 0);
+    if (r.current !== undefined) s.mallSource = Number(r.current || 0);
   } catch (e) { ElMessage.error(e || '加载商城集成失败'); }
 }
 
@@ -2443,9 +2549,10 @@ onMounted(() => {
 .cj-row, .kv-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
 .cj-row :deep(.el-input), .kv-row :deep(.el-input) { flex: 1 1 auto; min-width: 0; }
 .cj-row :deep(.el-button), .kv-row :deep(.el-button) { flex: 0 0 auto; }
-.sale-limit :deep(.el-form-item__content) { flex-wrap: nowrap; }
-.sale-limit :deep(.el-form-item__content > .el-input) { flex: 1 1 auto; min-width: 0; }
-.sale-limit :deep(.el-form-item__content > .form-hint) { flex: 0 1 auto; min-width: 0; white-space: normal; }
+/* 窜货监控 / 限售区域：提示文字独占一行（不再挤在控件右侧导致断行难看） */
+.hint-below :deep(.el-form-item__content) { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.sale-limit .inline-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.form-hint-block { margin-left: 0 !important; white-space: normal; line-height: 1.6; }
 /* 2026-10-31 改：新增/编辑批次内容区平铺（对标图2，不再弹窗） */
 .batch-form-page {
   background: #fff; border-radius: 8px; border: 1px solid #e5e6eb;

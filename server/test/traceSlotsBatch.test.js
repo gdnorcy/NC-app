@@ -86,7 +86,7 @@ describe('P1：批次展位合并下发 + 关联商品(商城打通)', () => {
 
   // ── 1) 批次展位保存落库：列清单已同步（#532），且密钥统一为租户展示位密钥 ──
   it('POST /batches 保存 batch_slots_json：归一化落库 + authKey 统一为租户全局密钥', async () => {
-    const put = await putSettings({ slotsEnabled: 1, displaySlots: [{ when: 1, title: '全局位', cover: '/g.png', link: '/pages/g', authKey: GLOBAL_KEY }] });
+    const put = await putSettings({ slotsEnabled: 1, showSlotsOnQuery: 1, displaySlots: [{ when: 1, title: '全局位', cover: '/g.png', link: '/pages/g', authKey: GLOBAL_KEY }] });
     assert.equal(put.status, 200, JSON.stringify(put.body));
 
     const id = await makeBatch({
@@ -136,6 +136,8 @@ describe('P1：批次展位合并下发 + 关联商品(商城打通)', () => {
 
   // ── 4) 关联商品：toshop_json.ids 实时 join 在售商品下发 ──
   it('验真下发 toshop：按 ids 实时 join 本租户在售商品（改价/下架即时同步，非快照）', async () => {
+    // 🔴 P1 总闸：商城集成「商品来源」须选 1 本平台商城商品，关联商品卡才下发
+    await putSettings({ mallSource: 1 });
     const g1 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sell', datetime('now'), datetime('now'))").run(T, '溯源关联商品一', '/g1.png', 12.5, 15.0).lastInsertRowid;
     const g2 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'sell', datetime('now'), datetime('now'))").run(T, '溯源关联商品二', '/g2.png', 88, 99).lastInsertRowid;
     const g3 = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, market_price, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'off', datetime('now'), datetime('now'))").run(T, '已下架商品', '/g3.png', 1, 2).lastInsertRowid;
@@ -199,5 +201,52 @@ describe('P1：批次展位合并下发 + 关联商品(商城打通)', () => {
     const code = await makeCode(id);
     const body = await verify(code, 'p1-c');
     assert.deepEqual(body.slots, [], '总开关关闭后批次展位也不应下发');
+  });
+
+  // ── 7) 查询页闸门：默认关（showSlotsOnQuery=0），即便总闸开 + 有展位也不下发 ──
+  it('查询页闸门默认关：showSlotsOnQuery=0 时即便总闸开+有展位，slots 也不下发', async () => {
+    // 🔴 总闸开 + 全局展位已配，但查询页闸门显式关 → C 端验真结果页不应出现任何展位。
+    const put = await putSettings({ slotsEnabled: 1, showSlotsOnQuery: 0, displaySlots: [{ when: 1, title: '全局位', cover: '/g.png', link: '/pages/g', authKey: GLOBAL_KEY }] });
+    assert.equal(put.status, 200, JSON.stringify(put.body));
+    const id = await makeBatch({ batchSlots: [{ when: 1, title: '批次位A', cover: '/ba.png', link: '/pages/ba' }] });
+    const code = await makeCode(id);
+    const body = await verify(code, 'p1-q1');
+    assert.deepEqual(body.slots, [], '查询页闸门默认关闭：总闸开且有展位也应不下发');
+  });
+
+  // ── 8) 查询页闸门显式开：showSlotsOnQuery=1 且总闸开 → 下发（批次⊕全局） ──
+  it('查询页闸门开：showSlotsOnQuery=1 且总闸开 → 下发批次⊕全局展位', async () => {
+    const put = await putSettings({ slotsEnabled: 1, showSlotsOnQuery: 1, displaySlots: [{ when: 1, title: '全局位', cover: '/g.png', link: '/pages/g', authKey: GLOBAL_KEY }] });
+    assert.equal(put.status, 200, JSON.stringify(put.body));
+    const id = await makeBatch({ batchSlots: [{ when: 1, title: '批次位A', cover: '/ba.png', link: '/pages/ba' }] });
+    const code = await makeCode(id);
+    const body = await verify(code, 'p1-q2');
+    assert.ok(Array.isArray(body.slots) && body.slots.length === 2, '闸门开后应下发 批次⊕全局 两展位');
+    assert.equal(body.slots[0].title, '批次位A');
+    assert.equal(body.slots[1].title, '全局位');
+  });
+
+  // ── 9) 批次级覆盖：批次强制隐藏(0) 压制全局开 ──
+  it('批次级覆盖：show_slots_query=0 强制隐藏，即便全局开也不下发', async () => {
+    const put = await putSettings({ slotsEnabled: 1, showSlotsOnQuery: 1, displaySlots: [{ when: 1, title: '全局位', cover: '/g.png', link: '/pages/g', authKey: GLOBAL_KEY }] });
+    assert.equal(put.status, 200, JSON.stringify(put.body));
+    const id = await makeBatch({ batchSlots: [{ when: 1, title: '批次位A', cover: '/ba.png', link: '/pages/ba' }], showSlotsQuery: 0 });
+    const code = await makeCode(id);
+    const body = await verify(code, 'p1-q3');
+    assert.deepEqual(body.slots, [], '批次强制隐藏应压制全局开');
+    const row = batchRow(id);
+    assert.equal(Number(row.show_slots_query), 0, '批次列 show_slots_query 应落库为 0');
+  });
+
+  // ── 10) 批次级覆盖：show_slots_query=-1 继承全局，全局开则下发（列清单已同步 #532） ──
+  it('批次级覆盖：show_slots_query=-1 继承全局，全局开则下发；列清单已同步', async () => {
+    const put = await putSettings({ slotsEnabled: 1, showSlotsOnQuery: 1, displaySlots: [{ when: 1, title: '全局位', cover: '/g.png', link: '/pages/g', authKey: GLOBAL_KEY }] });
+    assert.equal(put.status, 200, JSON.stringify(put.body));
+    const id = await makeBatch({ batchSlots: [{ when: 1, title: '批次位A', cover: '/ba.png', link: '/pages/ba' }], showSlotsQuery: -1 });
+    const code = await makeCode(id);
+    const body = await verify(code, 'p1-q4');
+    assert.ok(body.slots.length === 2, '继承全局(开)应下发展位');
+    const row = batchRow(id);
+    assert.equal(Number(row.show_slots_query), -1, '批次列应落库为 -1');
   });
 });

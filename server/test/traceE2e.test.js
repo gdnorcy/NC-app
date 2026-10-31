@@ -185,4 +185,60 @@ describe('防伪溯源 trace：全链路（建批次 → 生成码 → C 端验�
     assert.equal(res.status, 400);
     assert.ok(String(res.body.error).includes('不自洽'), `错误信息未说明不自洽：${res.body.error}`);
   });
+
+  // ── 9) 商家「标记异常」透传到 C 端验真（mark-error → is_err → verify 响应 isErr → 前端展示「已标记异常」卡） ──
+  it('商家标记异常后，C 端验真响应带 isErr=1（前端据此展示异常卡）', async () => {
+    // 9.1 生成 1 个码
+    const gen = await auth(request(app).post('/api/customer/trace/batches/1/generate-codes'))
+      .send({ codetype: 6, codeno: 1 });
+    assert.equal(gen.status, 200, JSON.stringify(gen.body));
+    const code = gen.body.content.split('\n').map((s) => s.trim()).filter(Boolean)[0];
+
+    // 9.2 首次验真：isErr 应为 0（尚未标记）
+    const v1 = await request(app).post(`/api/trace/public/verify?tid=${A}`).send({ co: code });
+    assert.equal(v1.status, 200, `验真失败：${JSON.stringify(v1.body)}`);
+    assert.equal(Number(v1.body.batch.isErr || 0), 0, '未标记时验真响应 isErr 应为 0');
+
+    // 9.3 取码 id → 调用标记异常
+    const row = db.prepare('SELECT id FROM trace_codes WHERE tenant_id = ? AND code = ?').get(A, code);
+    assert.ok(row, '生成的码应在 trace_codes 有记录');
+    const mark = await auth(request(app).post(`/api/customer/trace/codes/${row.id}/mark-error`)).send({ reason: '测试标记' });
+    assert.equal(mark.status, 200, JSON.stringify(mark.body));
+
+    // 9.4 再次验真：isErr 应为 1（标记已透传，前端据此展示「已标记异常」卡）
+    const v2 = await request(app).post(`/api/trace/public/verify?tid=${A}`).send({ co: code });
+    assert.equal(v2.status, 200, `验真失败：${JSON.stringify(v2.body)}`);
+    assert.equal(Number(v2.body.batch.isErr || 0), 1, '标记异常后验真响应应带 isErr=1');
+
+    // 9.5 埋点：库里 is_err 确为 1（与响应一致）
+    const dbRow = db.prepare('SELECT is_err FROM trace_codes WHERE id = ?').get(row.id);
+    assert.equal(Number(dbRow.is_err), 1, '库中 is_err 应已置 1');
+  });
+
+  // ── 10) 查询历史按 type 拆分（type=0 查询验真 / type=1 后台操作）
+  // 🔴 回归锁：type=0 必须被当成有效过滤值，不能因「if(type)」被误判成「不过滤」而把两类记录混在一起。
+  //    后台「查询历史 / 操作日志」两个 Tab 各自固定传 type=0 / type=1，若 0 被当 falsy 跳过，两个 Tab 会显示完全相同的内容。
+  it('查询历史接口按 type 过滤：type=0 与 type=1 各自只返回本类记录', async () => {
+    // 直接落两条不同 type 的历史；前面测试已写过 type=0 验真记录，所以这里不赌绝对数量，
+    // 而是赌「返回列表里每一条都必须是请求的类型」+「total 与库里该类型总数一致」。
+    db.prepare("INSERT INTO trace_histories (tenant_id, type, summary, uid, openid, ip, remark, created_at) VALUES (?,0,'验真摘要-A',0,'openidA','1.1.1.1','r',datetime('now'))").run(A);
+    db.prepare("INSERT INTO trace_histories (tenant_id, type, summary, uid, openid, ip, remark, created_at) VALUES (?,1,'操作摘要-B',0,'','127.0.0.1','r',datetime('now'))").run(A);
+
+    const expect0 = Number(db.prepare('SELECT COUNT(*) AS c FROM trace_histories WHERE tenant_id = ? AND type = 0').get(A).c);
+    const expect1 = Number(db.prepare('SELECT COUNT(*) AS c FROM trace_histories WHERE tenant_id = ? AND type = 1').get(A).c);
+
+    // type=0：每条都必须是 type=0，且 total 与库里 type=0 总数一致（若 0 被当 falsy 不过滤，这里会混入 type=1 而失败）
+    const r0 = await auth(request(app).get('/api/customer/trace/histories?type=0'));
+    assert.equal(r0.status, 200, JSON.stringify(r0.body));
+    assert.ok(r0.body.list.length > 0, 'type=0 应至少返回我刚插入的 1 条');
+    assert.ok(r0.body.list.every((x) => Number(x.type) === 0), 'type=0 返回了非验真记录（过滤未生效）');
+    assert.equal(r0.body.total, expect0, 'type=0 total 应与库里 type=0 总数一致');
+
+    // type=1：每条都必须是 type=1，且 total 与库里 type=1 总数一致
+    const r1 = await auth(request(app).get('/api/customer/trace/histories?type=1'));
+    assert.equal(r1.status, 200, JSON.stringify(r1.body));
+    assert.ok(r1.body.list.length > 0, 'type=1 应至少返回我刚插入的 1 条');
+    assert.ok(r1.body.list.every((x) => Number(x.type) === 1), 'type=1 返回了非操作记录（过滤未生效）');
+    assert.equal(r1.body.total, expect1, 'type=1 total 应与库里 type=1 总数一致');
+  });
 });

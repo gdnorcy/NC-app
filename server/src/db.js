@@ -2609,6 +2609,11 @@ function migrateTraceExtras(db) {
   if (!colExists(db, 'trace_batches', 'batch_slots_json')) {
     db.exec("ALTER TABLE trace_batches ADD COLUMN batch_slots_json TEXT NOT NULL DEFAULT '[]'");
   }
+  // 查询页展示位闸门：在 slotsEnabled 总闸之上叠加（默认关，需后台或批次级显式开启才在查询页显示）。
+  //   -1 = 继承全局设置；0 = 关；1 = 开。公众号推送里的展示位推广卡只由 slotsEnabled 总闸控，不受此列影响。
+  if (!colExists(db, 'trace_batches', 'show_slots_query')) {
+    db.exec('ALTER TABLE trace_batches ADD COLUMN show_slots_query INTEGER NOT NULL DEFAULT -1');
+  }
   // P2：批次激活记录（先印后绑：码印出来时未激活，经销商激活后消费者才查得到溯源信息）
   db.exec(`
     CREATE TABLE IF NOT EXISTS trace_activations (
