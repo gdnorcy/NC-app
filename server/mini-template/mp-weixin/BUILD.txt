@@ -1,5 +1,5 @@
-built at : 2026/10/31 22:11:22
-git HEAD : 8b7deb9c
+built at : 2026/11/1 02:12:37
+git HEAD : 0646f201
 target   : mp-weixin
 
 真机仍是旧包？→ 微信开发者工具里点「预览」重新生成二维码（旧二维码指向旧包）；
