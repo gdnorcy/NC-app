@@ -2430,6 +2430,15 @@ onMounted(() => {
 
 /* 🔴 P1（2026-10-31）关联商品穿梭框：左候选池 / 右已选 */
 .batch-tabs .el-tab-pane { max-height: 58vh; overflow: auto; padding: 4px 6px 8px; }
+/* 2026-11-01 样式兜底：极端环境/旧缓存下标签列被压缩成竖排、控件塌缩时，强制标签不换行不收缩 */
+.batch-form :deep(.el-form-item__label) {
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+}
+.batch-form :deep(.el-form-item__content) {
+  flex: 1 1 auto !important;
+  min-width: 0;
+}
 /* 2026-10-31 改：新增/编辑批次内容区平铺（对标图2，不再弹窗） */
 .batch-form-page {
   background: #fff; border-radius: 8px; border: 1px solid #e5e6eb;
